@@ -1,0 +1,2093 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Órdenes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .tab-content {
+            padding: 20px;
+            background-color: white;
+            border-radius: 0 0 5px 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        .form-section h5 {
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        .card {
+            margin-bottom: 15px;
+        }
+        .order-card {
+            border-left: 4px solid #0d6efd;
+        }
+        .finalized-order-card {
+            border-left: 4px solid #198754;
+        }
+        .filter-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 30px;
+        }
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .nav-tabs .nav-link.active {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Section -->
+    <div id="login-section" class="container">
+        <div class="login-container">
+            <h2 class="text-center mb-4">Iniciar Sesión</h2>
+            <form id="login-form">
+                <div class="mb-3">
+                    <label for="email" class="form-label">Correo Electrónico</label>
+                    <input type="email" class="form-control" id="email" required>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Contraseña</label>
+                    <input type="password" class="form-control" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Iniciar Sesión</button>
+            </form>
+            <div id="login-error" class="alert alert-danger mt-3 hidden" role="alert"></div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" class="hidden">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">Sistema de Órdenes</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="create-order">Crear Orden</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="orders">Órdenes Creadas</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="finalized-orders">Órdenes Finalizadas</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="final-certification">Certificación Final</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="final-certifications">Certificaciones Finales</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="charts">Gráficas</a>
+                        </li>
+                        <li class="nav-item admin-only hidden">
+                            <a class="nav-link" href="#" data-tab="export-import">Exportación/Importación</a>
+                        </li>
+                    </ul>
+                    <span class="navbar-text me-3" id="user-info"></span>
+                    <button class="btn btn-outline-light btn-sm" id="logout-btn">Cerrar Sesión</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container mt-4">
+            <!-- Create Order Tab -->
+            <div id="create-order" class="tab-content">
+                <h3>Crear Orden de Trabajo</h3>
+                <form id="order-form">
+                    <div class="form-section">
+                        <h5>I. Información General</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="order-number" class="form-label">Número de la Orden de Trabajo</label>
+                                <input type="number" class="form-control" id="order-number" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="user" class="form-label">Usuario</label>
+                                <input type="text" class="form-control" id="user" readonly>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="current-date" class="form-label">Fecha Actual</label>
+                                <input type="text" class="form-control" id="current-date" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="contract" class="form-label">Contrato</label>
+                                <select class="form-control" id="contract" required>
+                                    <option value="">Seleccione...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="work-type" class="form-label">Trabajo / Obra a realizar</label>
+                                <select class="form-control" id="work-type" required>
+                                    <option value="">Seleccione...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="municipality" class="form-label">Municipio</label>
+                                <select class="form-control" id="municipality" required>
+                                    <option value="">Seleccione...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="zone" class="form-label">Zona</label>
+                                <input type="text" class="form-control" id="zone" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="requester" class="form-label">Responsable que Solicita la Obra</label>
+                                <input type="text" class="form-control" id="requester" required>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="authorizer" class="form-label">Responsable que Autoriza</label>
+                                <input type="text" class="form-control" id="authorizer" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h5>II. Información de la Contratista</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="company" class="form-label">Empresa</label>
+                                <select class="form-control" id="company" required>
+                                    <option value="">Seleccione...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="rif" class="form-label">RIF</label>
+                                <input type="text" class="form-control" id="rif" readonly>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="company-responsible" class="form-label">Apellido y Nombre del Responsable</label>
+                                <input type="text" class="form-control" id="company-responsible" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h5>III. Información del Trabajo/Obra</h5>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label for="description" class="form-label">Descripción Detallada</label>
+                                <textarea class="form-control" id="description" rows="3" required></textarea>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="labor" class="form-label">Mano de Obra</label>
+                                <select class="form-control" id="labor" required>
+                                    <option value="">Seleccione...</option>
+                                    <option value="Contratista">Contratista</option>
+                                    <option value="Inter">Inter</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="materials" class="form-label">Materiales</label>
+                                <select class="form-control" id="materials" required>
+                                    <option value="">Seleccione...</option>
+                                    <option value="Contratista">Contratista</option>
+                                    <option value="Inter">Inter</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="equipment" class="form-label">Equipos</label>
+                                <select class="form-control" id="equipment" required>
+                                    <option value="">Seleccione...</option>
+                                    <option value="Contratista">Contratista</option>
+                                    <option value="Inter">Inter</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="budget" class="form-label">Presupuesto Total de la Obra ($)</label>
+                                <input type="number" class="form-control" id="budget" min="0" step="0.01" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="start-date" class="form-label">Fecha de Inicio</label>
+                                <input type="date" class="form-control" id="start-date" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="end-date" class="form-label">Fecha de Finalización</label>
+                                <input type="date" class="form-control" id="end-date" required>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label for="location" class="form-label">Ubicación Exacta de la Obra</label>
+                                <textarea class="form-control" id="location" rows="2" required></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h5>Tipo de Construcción (Opcional)</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="construction-type" id="access-node" value="access-node">
+                                    <label class="form-check-label" for="access-node">
+                                        La construcción es un Nodo de Acceso
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="construction-type" id="isp" value="isp">
+                                    <label class="form-check-label" for="isp">
+                                        La construcción es un ISP
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Access Node Fields -->
+                        <div id="access-node-fields" class="hidden">
+                            <h6>Datos Condicionales: La Construcción es de Nodo de Acceso</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="projected-cost" class="form-label">Costo Proyectado de la Obra ($)</label>
+                                    <input type="number" class="form-control" id="projected-cost" min="0" step="0.01">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="payment-by" class="form-label">Pago realizado por</label>
+                                    <select class="form-control" id="payment-by">
+                                        <option value="">Seleccione...</option>
+                                        <option value="Inter">Inter</option>
+                                        <option value="Cliente">Cliente</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <h6>Pago x VGT CANTV</h6>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="cantv-unit-price" class="form-label">Precio Unitario</label>
+                                    <input type="number" class="form-control" id="cantv-unit-price" min="0" step="0.01">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="cantv-points" class="form-label">Puntos</label>
+                                    <input type="number" class="form-control" id="cantv-points" min="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="cantv-total" class="form-label">Pago x VGT CANTV a cargo de Inter</label>
+                                    <input type="number" class="form-control" id="cantv-total" readonly>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <h6>Pago x VGT EDC</h6>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="edc-unit-price" class="form-label">Precio Unitario</label>
+                                    <input type="number" class="form-control" id="edc-unit-price" min="0" step="0.01">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="edc-points" class="form-label">Puntos</label>
+                                    <input type="number" class="form-control" id="edc-points" min="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="edc-total" class="form-label">Pago x VGT EDC a cargo de Inter</label>
+                                    <input type="number" class="form-control" id="edc-total" readonly>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="construction-description" class="form-label">Descripción</label>
+                                    <textarea class="form-control" id="construction-description" rows="3"></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="monthly-payment" class="form-label">Abono Mensual a Recibir por el cliente ($)</label>
+                                    <input type="number" class="form-control" id="monthly-payment" min="0" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ISP Fields -->
+                        <div id="isp-fields" class="hidden">
+                            <h6>Datos Condicionales: La Construcción es de un ISP</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="isp-projected-cost" class="form-label">Costo Proyectado de la Obra ($)</label>
+                                    <input type="number" class="form-control" id="isp-projected-cost" min="0" step="0.01">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="isp-payment-by" class="form-label">Pago realizado por</label>
+                                    <select class="form-control" id="isp-payment-by">
+                                        <option value="">Seleccione...</option>
+                                        <option value="Inter">Inter</option>
+                                        <option value="Cliente">Cliente</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <h6>Pago x VGT CANTV</h6>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="isp-cantv-unit-price" class="form-label">Precio Unitario</label>
+                                    <input type="number" class="form-control" id="isp-cantv-unit-price" min="0" step="0.01">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="isp-cantv-points" class="form-label">Puntos</label>
+                                    <input type="number" class="form-control" id="isp-cantv-points" min="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="isp-cantv-total" class="form-label">Pago x VGT CANTV a cargo de Inter</label>
+                                    <input type="number" class="form-control" id="isp-cantv-total" readonly>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <h6>Pago x VGT EDC</h6>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="isp-edc-unit-price" class="form-label">Precio Unitario</label>
+                                    <input type="number" class="form-control" id="isp-edc-unit-price" min="0" step="0.01">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="isp-edc-points" class="form-label">Puntos</label>
+                                    <input type="number" class="form-control" id="isp-edc-points" min="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="isp-edc-total" class="form-label">Pago x VGT EDC a cargo de Inter</label>
+                                    <input type="number" class="form-control" id="isp-edc-total" readonly>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="isp-description" class="form-label">Descripción</label>
+                                    <textarea class="form-control" id="isp-description" rows="3"></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="isp-monthly-payment" class="form-label">Abono Mensual a Recibir por el cliente ($)</label>
+                                    <input type="number" class="form-control" id="isp-monthly-payment" min="0" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="btn btn-secondary me-2" id="clear-form">Limpiar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Orden</button>
+                        <button type="button" class="btn btn-success ms-2" id="generate-pdf">Generar PDF</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Orders Tab -->
+            <div id="orders" class="tab-content hidden">
+                <h3>Órdenes Creadas</h3>
+                <div class="filter-section">
+                    <h5>Filtros</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="filter-order-number" class="form-label">Número de Orden</label>
+                            <input type="number" class="form-control" id="filter-order-number">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-company" class="form-label">Empresa</label>
+                            <select class="form-control" id="filter-company">
+                                <option value="">Todas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-work-type" class="form-label">Tipo de Trabajo</label>
+                            <select class="form-control" id="filter-work-type">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-municipality" class="form-label">Municipio</label>
+                            <select class="form-control" id="filter-municipality">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-3">
+                            <label for="filter-start-date" class="form-label">Fecha Inicio Desde</label>
+                            <input type="date" class="form-control" id="filter-start-date">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-end-date" class="form-label">Fecha Inicio Hasta</label>
+                            <input type="date" class="form-control" id="filter-end-date">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-status" class="form-label">Estado</label>
+                            <select class="form-control" id="filter-status">
+                                <option value="">Todos</option>
+                                <option value="En Proceso">En Proceso</option>
+                                <option value="Finalizado">Finalizado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" id="apply-filters">Aplicar Filtros</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <button class="btn btn-success" id="export-orders-excel">Exportar a Excel</button>
+                </div>
+                <div id="orders-list"></div>
+            </div>
+
+            <!-- Finalized Orders Tab -->
+            <div id="finalized-orders" class="tab-content hidden">
+                <h3>Órdenes Finalizadas</h3>
+                <div class="filter-section">
+                    <h5>Filtros</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="filter-finalized-order-number" class="form-label">Número de Orden</label>
+                            <input type="number" class="form-control" id="filter-finalized-order-number">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-finalized-company" class="form-label">Empresa</label>
+                            <select class="form-control" id="filter-finalized-company">
+                                <option value="">Todas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-finalized-work-type" class="form-label">Tipo de Trabajo</label>
+                            <select class="form-control" id="filter-finalized-work-type">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-finalized-municipality" class="form-label">Municipio</label>
+                            <select class="form-control" id="filter-finalized-municipality">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-4">
+                            <label for="filter-finalized-start-date" class="form-label">Fecha Finalización Desde</label>
+                            <input type="date" class="form-control" id="filter-finalized-start-date">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filter-finalized-end-date" class="form-label">Fecha Finalización Hasta</label>
+                            <input type="date" class="form-control" id="filter-finalized-end-date">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" id="apply-finalized-filters">Aplicar Filtros</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <button class="btn btn-success" id="export-finalized-orders-excel">Exportar Órdenes a Excel</button>
+                    <button class="btn btn-info" id="export-certifications-excel">Exportar Certificaciones a Excel</button>
+                </div>
+                <div id="finalized-orders-list"></div>
+            </div>
+
+            <!-- Final Certification Tab -->
+            <div id="final-certification" class="tab-content hidden">
+                <h3>Certificación Final</h3>
+                <form id="final-certification-form">
+                    <div class="form-section">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="final-certification-number" class="form-label">Número de Certificación Final</label>
+                                <input type="number" class="form-control" id="final-certification-number" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="final-certification-company" class="form-label">Empresa</label>
+                                <select class="form-control" id="final-certification-company" required>
+                                    <option value="">Seleccione...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label for="final-certification-orders" class="form-label">Órdenes Realizadas</label>
+                                <select class="form-control" id="final-certification-orders" multiple required>
+                                </select>
+                                <small class="form-text text-muted">Mantenga presionada la tecla Ctrl para seleccionar múltiples órdenes</small>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="final-certification-total" class="form-label">Total ($)</label>
+                                <input type="number" class="form-control" id="final-certification-total" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="btn btn-secondary me-2" id="clear-final-certification">Limpiar</button>
+                        <button type="submit" class="btn btn-primary">Aceptar Certificación Final</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Final Certifications Tab -->
+            <div id="final-certifications" class="tab-content hidden">
+                <h3>Certificaciones Finales</h3>
+                <div class="filter-section">
+                    <h5>Filtros</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="filter-certification-number" class="form-label">Número de Certificación</label>
+                            <input type="number" class="form-control" id="filter-certification-number">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-certification-company" class="form-label">Empresa</label>
+                            <select class="form-control" id="filter-certification-company">
+                                <option value="">Todas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-certification-start-date" class="form-label">Fecha Desde</label>
+                            <input type="date" class="form-control" id="filter-certification-start-date">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-certification-end-date" class="form-label">Fecha Hasta</label>
+                            <input type="date" class="form-control" id="filter-certification-end-date">
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" id="apply-certification-filters">Aplicar Filtros</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <button class="btn btn-success" id="export-final-certifications-excel">Exportar a Excel</button>
+                </div>
+                <div id="final-certifications-list"></div>
+            </div>
+
+            <!-- Charts Tab -->
+            <div id="charts" class="tab-content hidden">
+                <h3>Gráficas</h3>
+                <div class="filter-section">
+                    <h5>Filtros</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="chart-date-from" class="form-label">Fecha Desde</label>
+                            <input type="date" class="form-control" id="chart-date-from">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="chart-date-to" class="form-label">Fecha Hasta</label>
+                            <input type="date" class="form-control" id="chart-date-to">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="chart-company" class="form-label">Empresa</label>
+                            <select class="form-control" id="chart-company">
+                                <option value="">Todas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="chart-work-type" class="form-label">Tipo de Trabajo</label>
+                            <select class="form-control" id="chart-work-type">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" id="apply-chart-filters">Aplicar Filtros</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="orders-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="budget-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="work-type-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Export/Import Tab -->
+            <div id="export-import" class="tab-content hidden">
+                <h3>Exportación e Importación</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Exportar Información</h5>
+                                <p class="card-text">Exporte todos los datos del sistema en formato JSON para realizar respaldos.</p>
+                                <button class="btn btn-primary" id="export-data">Exportar Información</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Importar Información</h5>
+                                <p class="card-text">Importe un archivo JSON con información previamente respaldada.</p>
+                                <input type="file" class="form-control mb-2" id="import-file" accept=".json">
+                                <button class="btn btn-primary" id="import-data">Importar Información</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Certification Modal -->
+    <div class="modal fade" id="certificationModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Certificación de Obra</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="certification-form">
+                        <input type="hidden" id="certification-order-id">
+                        <div class="form-section">
+                            <h5>I. Datos de Certificación</h5>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="certification-number" class="form-label">Número de Certificación</label>
+                                    <input type="number" class="form-control" id="certification-number" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="certification-date" class="form-label">Fecha de Certificación</label>
+                                    <input type="text" class="form-control" id="certification-date" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-section">
+                            <h5>II. Identificación</h5>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="certification-company" class="form-label">Empresa</label>
+                                    <input type="text" class="form-control" id="certification-company" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="certification-rif" class="form-label">RIF</label>
+                                    <input type="text" class="form-control" id="certification-rif" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-section">
+                            <h5>III. Información del Proyecto</h5>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="certification-order-ref" class="form-label">Corresponde Orden de trabajo N°</label>
+                                    <input type="number" class="form-control" id="certification-order-ref" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="certification-start-date" class="form-label">Fechas de Inicio</label>
+                                    <input type="text" class="form-control" id="certification-start-date" readonly>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="certification-end-date" class="form-label">Fin de la Obra</label>
+                                    <input type="date" class="form-control" id="certification-end-date" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="certification-total" class="form-label">Importe Total de la Obra ($)</label>
+                                    <input type="number" class="form-control" id="certification-total" min="0" step="0.01" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-section">
+                            <h5>IV. Desviaciones y Justificación</h5>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <textarea class="form-control" id="certification-deviations" rows="4" required></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Atrás</button>
+                    <button type="button" class="btn btn-primary" id="accept-certification">Aceptar Finalización</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyD8kNT9Fx_nTWh6PPu5zol5K8uzjrSQ0HY",
+            authDomain: "certificacionordenes.firebaseapp.com",
+            projectId: "certificacionordenes",
+            storageBucket: "certificacionordenes.firebasestorage.app",
+            messagingSenderId: "1031284418081",
+            appId: "1:1031284418081:web:7e921d43798a305756a560"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+
+        // Global variables
+        let currentUser = null;
+        let isAdmin = false;
+        let orders = [];
+        let finalizedOrders = [];
+        let finalCertifications = [];
+        let companies = [];
+        let contracts = [];
+        let workTypes = [];
+        let municipalities = [];
+
+        // DOM elements
+        const loginSection = document.getElementById('login-section');
+        const appSection = document.getElementById('app');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const logoutBtn = document.getElementById('logout-btn');
+        const userInfo = document.getElementById('user-info');
+        const adminOnlyElements = document.querySelectorAll('.admin-only');
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set current date
+            document.getElementById('current-date').value = new Date().toLocaleDateString('es-ES', { timeZone: 'America/Caracas' });
+            
+            // Initialize event listeners
+            initializeEventListeners();
+            
+            // Check if user is already logged in
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    currentUser = user;
+                    checkUserRole();
+                    loadInitialData();
+                    showApp();
+                } else {
+                    showLogin();
+                }
+            });
+        });
+
+        function initializeEventListeners() {
+            // Login form
+            loginForm.addEventListener('submit', handleLogin);
+            
+            // Logout button
+            logoutBtn.addEventListener('click', handleLogout);
+            
+            // Navigation tabs
+            document.querySelectorAll('[data-tab]').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    showTab(this.getAttribute('data-tab'));
+                });
+            });
+            
+            // Construction type radio buttons
+            document.querySelectorAll('input[name="construction-type"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    toggleConstructionFields(this.value);
+                });
+            });
+            
+            // Company selection
+            document.getElementById('company').addEventListener('change', function() {
+                updateCompanyInfo(this.value);
+            });
+            
+            // Calculate totals for construction fields
+            document.getElementById('cantv-unit-price').addEventListener('input', calculateCantvTotal);
+            document.getElementById('cantv-points').addEventListener('input', calculateCantvTotal);
+            document.getElementById('edc-unit-price').addEventListener('input', calculateEdcTotal);
+            document.getElementById('edc-points').addEventListener('input', calculateEdcTotal);
+            document.getElementById('isp-cantv-unit-price').addEventListener('input', calculateIspCantvTotal);
+            document.getElementById('isp-cantv-points').addEventListener('input', calculateIspCantvTotal);
+            document.getElementById('isp-edc-unit-price').addEventListener('input', calculateIspEdcTotal);
+            document.getElementById('isp-edc-points').addEventListener('input', calculateIspEdcTotal);
+            
+            // Order form
+            document.getElementById('order-form').addEventListener('submit', saveOrder);
+            document.getElementById('clear-form').addEventListener('click', clearOrderForm);
+            document.getElementById('generate-pdf').addEventListener('click', generateOrderPDF);
+            
+            // Final certification form
+            document.getElementById('final-certification-company').addEventListener('change', updateFinalCertificationOrders);
+            document.getElementById('final-certification-orders').addEventListener('change', updateFinalCertificationTotal);
+            document.getElementById('final-certification-form').addEventListener('submit', saveFinalCertification);
+            document.getElementById('clear-final-certification').addEventListener('click', clearFinalCertificationForm);
+            
+            // Certification modal
+            document.getElementById('accept-certification').addEventListener('click', acceptCertification);
+            
+            // Export buttons
+            document.getElementById('export-orders-excel').addEventListener('click', exportOrdersToExcel);
+            document.getElementById('export-finalized-orders-excel').addEventListener('click', exportFinalizedOrdersToExcel);
+            document.getElementById('export-certifications-excel').addEventListener('click', exportCertificationsToExcel);
+            document.getElementById('export-final-certifications-excel').addEventListener('click', exportFinalCertificationsToExcel);
+            
+            // Filter buttons
+            document.getElementById('apply-filters').addEventListener('click', applyOrderFilters);
+            document.getElementById('apply-finalized-filters').addEventListener('click', applyFinalizedOrderFilters);
+            document.getElementById('apply-certification-filters').addEventListener('click', applyCertificationFilters);
+            document.getElementById('apply-chart-filters').addEventListener('click', updateCharts);
+            
+            // Export/Import
+            document.getElementById('export-data').addEventListener('click', exportData);
+            document.getElementById('import-data').addEventListener('click', importData);
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            auth.signInWithEmailAndPassword(email, password)
+                .then(userCredential => {
+                    currentUser = userCredential.user;
+                    checkUserRole();
+                    loadInitialData();
+                    showApp();
+                })
+                .catch(error => {
+                    loginError.textContent = error.message;
+                    loginError.classList.remove('hidden');
+                });
+        }
+
+        function handleLogout() {
+            auth.signOut();
+        }
+
+        function checkUserRole() {
+            // In a real application, you would check the user's role from the database
+            // For this example, we'll assume admin if email contains "admin"
+            isAdmin = currentUser.email.includes('admin');
+            
+            // Show/hide admin-only elements
+            adminOnlyElements.forEach(element => {
+                if (isAdmin) {
+                    element.classList.remove('hidden');
+                } else {
+                    element.classList.add('hidden');
+                }
+            });
+            
+            // Update user info
+            userInfo.textContent = `${currentUser.email} (${isAdmin ? 'Administrador' : 'Usuario Normal'})`;
+        }
+
+        function showLogin() {
+            loginSection.classList.remove('hidden');
+            appSection.classList.add('hidden');
+        }
+
+        function showApp() {
+            loginSection.classList.add('hidden');
+            appSection.classList.remove('hidden');
+            showTab('create-order');
+        }
+
+        function showTab(tabId) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabId).classList.remove('hidden');
+            
+            // Update active nav link
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            
+            // Load tab-specific data
+            switch(tabId) {
+                case 'orders':
+                    loadOrders();
+                    break;
+                case 'finalized-orders':
+                    loadFinalizedOrders();
+                    break;
+                case 'final-certifications':
+                    loadFinalCertifications();
+                    break;
+                case 'charts':
+                    updateCharts();
+                    break;
+            }
+        }
+
+        function loadInitialData() {
+            // Load configuration data
+            loadConfigurationData();
+            
+            // Load orders
+            loadOrders();
+            
+            // Load finalized orders
+            loadFinalizedOrders();
+            
+            // Load final certifications
+            loadFinalCertifications();
+            
+            // Set order number
+            database.ref('orders').once('value').then(snapshot => {
+                const ordersCount = snapshot.numChildren();
+                document.getElementById('order-number').value = ordersCount + 1;
+            });
+            
+            // Set final certification number
+            database.ref('finalCertifications').once('value').then(snapshot => {
+                const certificationsCount = snapshot.numChildren();
+                document.getElementById('final-certification-number').value = certificationsCount + 1;
+            });
+            
+            // Set user
+            document.getElementById('user').value = currentUser.email;
+        }
+
+        function loadConfigurationData() {
+            // Load companies
+            database.ref('companies').on('value', snapshot => {
+                companies = [];
+                const companiesSelect = document.getElementById('company');
+                const filterCompanySelect = document.getElementById('filter-company');
+                const filterFinalizedCompanySelect = document.getElementById('filter-finalized-company');
+                const finalCertificationCompanySelect = document.getElementById('final-certification-company');
+                const filterCertificationCompanySelect = document.getElementById('filter-certification-company');
+                const chartCompanySelect = document.getElementById('chart-company');
+                
+                // Clear existing options (except the first one)
+                while (companiesSelect.options.length > 1) {
+                    companiesSelect.remove(1);
+                }
+                while (filterCompanySelect.options.length > 1) {
+                    filterCompanySelect.remove(1);
+                }
+                while (filterFinalizedCompanySelect.options.length > 1) {
+                    filterFinalizedCompanySelect.remove(1);
+                }
+                while (finalCertificationCompanySelect.options.length > 1) {
+                    finalCertificationCompanySelect.remove(1);
+                }
+                while (filterCertificationCompanySelect.options.length > 1) {
+                    filterCertificationCompanySelect.remove(1);
+                }
+                while (chartCompanySelect.options.length > 1) {
+                    chartCompanySelect.remove(1);
+                }
+                
+                snapshot.forEach(childSnapshot => {
+                    const company = childSnapshot.val();
+                    company.id = childSnapshot.key;
+                    companies.push(company);
+                    
+                    // Add to companies select
+                    const option = document.createElement('option');
+                    option.value = company.id;
+                    option.textContent = company.name;
+                    companiesSelect.appendChild(option.cloneNode(true));
+                    
+                    // Add to filter selects
+                    filterCompanySelect.appendChild(option.cloneNode(true));
+                    filterFinalizedCompanySelect.appendChild(option.cloneNode(true));
+                    finalCertificationCompanySelect.appendChild(option.cloneNode(true));
+                    filterCertificationCompanySelect.appendChild(option.cloneNode(true));
+                    chartCompanySelect.appendChild(option.cloneNode(true));
+                });
+            });
+            
+            // Load contracts
+            database.ref('contracts').on('value', snapshot => {
+                contracts = [];
+                const contractsSelect = document.getElementById('contract');
+                
+                // Clear existing options (except the first one)
+                while (contractsSelect.options.length > 1) {
+                    contractsSelect.remove(1);
+                }
+                
+                snapshot.forEach(childSnapshot => {
+                    const contract = childSnapshot.val();
+                    contract.id = childSnapshot.key;
+                    contracts.push(contract);
+                    
+                    const option = document.createElement('option');
+                    option.value = contract.id;
+                    option.textContent = contract.name;
+                    contractsSelect.appendChild(option);
+                });
+            });
+            
+            // Load work types
+            database.ref('workTypes').on('value', snapshot => {
+                workTypes = [];
+                const workTypeSelect = document.getElementById('work-type');
+                const filterWorkTypeSelect = document.getElementById('filter-work-type');
+                const filterFinalizedWorkTypeSelect = document.getElementById('filter-finalized-work-type');
+                const chartWorkTypeSelect = document.getElementById('chart-work-type');
+                
+                // Clear existing options (except the first one)
+                while (workTypeSelect.options.length > 1) {
+                    workTypeSelect.remove(1);
+                }
+                while (filterWorkTypeSelect.options.length > 1) {
+                    filterWorkTypeSelect.remove(1);
+                }
+                while (filterFinalizedWorkTypeSelect.options.length > 1) {
+                    filterFinalizedWorkTypeSelect.remove(1);
+                }
+                while (chartWorkTypeSelect.options.length > 1) {
+                    chartWorkTypeSelect.remove(1);
+                }
+                
+                snapshot.forEach(childSnapshot => {
+                    const workType = childSnapshot.val();
+                    workType.id = childSnapshot.key;
+                    workTypes.push(workType);
+                    
+                    const option = document.createElement('option');
+                    option.value = workType.id;
+                    option.textContent = workType.name;
+                    workTypeSelect.appendChild(option.cloneNode(true));
+                    
+                    // Add to filter selects
+                    filterWorkTypeSelect.appendChild(option.cloneNode(true));
+                    filterFinalizedWorkTypeSelect.appendChild(option.cloneNode(true));
+                    chartWorkTypeSelect.appendChild(option.cloneNode(true));
+                });
+            });
+            
+            // Load municipalities
+            database.ref('municipalities').on('value', snapshot => {
+                municipalities = [];
+                const municipalitySelect = document.getElementById('municipality');
+                const filterMunicipalitySelect = document.getElementById('filter-municipality');
+                const filterFinalizedMunicipalitySelect = document.getElementById('filter-finalized-municipality');
+                
+                // Clear existing options (except the first one)
+                while (municipalitySelect.options.length > 1) {
+                    municipalitySelect.remove(1);
+                }
+                while (filterMunicipalitySelect.options.length > 1) {
+                    filterMunicipalitySelect.remove(1);
+                }
+                while (filterFinalizedMunicipalitySelect.options.length > 1) {
+                    filterFinalizedMunicipalitySelect.remove(1);
+                }
+                
+                snapshot.forEach(childSnapshot => {
+                    const municipality = childSnapshot.val();
+                    municipality.id = childSnapshot.key;
+                    municipalities.push(municipality);
+                    
+                    const option = document.createElement('option');
+                    option.value = municipality.id;
+                    option.textContent = municipality.name;
+                    municipalitySelect.appendChild(option.cloneNode(true));
+                    
+                    // Add to filter selects
+                    filterMunicipalitySelect.appendChild(option.cloneNode(true));
+                    filterFinalizedMunicipalitySelect.appendChild(option.cloneNode(true));
+                });
+            });
+        }
+
+        function updateCompanyInfo(companyId) {
+            const company = companies.find(c => c.id === companyId);
+            if (company) {
+                document.getElementById('rif').value = company.rif || '';
+                document.getElementById('company-responsible').value = company.responsible || '';
+            } else {
+                document.getElementById('rif').value = '';
+                document.getElementById('company-responsible').value = '';
+            }
+        }
+
+        function toggleConstructionFields(type) {
+            document.getElementById('access-node-fields').classList.add('hidden');
+            document.getElementById('isp-fields').classList.add('hidden');
+            
+            if (type === 'access-node') {
+                document.getElementById('access-node-fields').classList.remove('hidden');
+            } else if (type === 'isp') {
+                document.getElementById('isp-fields').classList.remove('hidden');
+            }
+        }
+
+        function calculateCantvTotal() {
+            const unitPrice = parseFloat(document.getElementById('cantv-unit-price').value) || 0;
+            const points = parseFloat(document.getElementById('cantv-points').value) || 0;
+            document.getElementById('cantv-total').value = (unitPrice * points).toFixed(2);
+        }
+
+        function calculateEdcTotal() {
+            const unitPrice = parseFloat(document.getElementById('edc-unit-price').value) || 0;
+            const points = parseFloat(document.getElementById('edc-points').value) || 0;
+            document.getElementById('edc-total').value = (unitPrice * points).toFixed(2);
+        }
+
+        function calculateIspCantvTotal() {
+            const unitPrice = parseFloat(document.getElementById('isp-cantv-unit-price').value) || 0;
+            const points = parseFloat(document.getElementById('isp-cantv-points').value) || 0;
+            document.getElementById('isp-cantv-total').value = (unitPrice * points).toFixed(2);
+        }
+
+        function calculateIspEdcTotal() {
+            const unitPrice = parseFloat(document.getElementById('isp-edc-unit-price').value) || 0;
+            const points = parseFloat(document.getElementById('isp-edc-points').value) || 0;
+            document.getElementById('isp-edc-total').value = (unitPrice * points).toFixed(2);
+        }
+
+        function saveOrder(e) {
+            e.preventDefault();
+            
+            const order = {
+                number: document.getElementById('order-number').value,
+                user: document.getElementById('user').value,
+                date: document.getElementById('current-date').value,
+                contract: document.getElementById('contract').value,
+                workType: document.getElementById('work-type').value,
+                municipality: document.getElementById('municipality').value,
+                zone: document.getElementById('zone').value,
+                requester: document.getElementById('requester').value,
+                authorizer: document.getElementById('authorizer').value,
+                company: document.getElementById('company').value,
+                rif: document.getElementById('rif').value,
+                companyResponsible: document.getElementById('company-responsible').value,
+                description: document.getElementById('description').value,
+                labor: document.getElementById('labor').value,
+                materials: document.getElementById('materials').value,
+                equipment: document.getElementById('equipment').value,
+                budget: document.getElementById('budget').value,
+                startDate: document.getElementById('start-date').value,
+                endDate: document.getElementById('end-date').value,
+                location: document.getElementById('location').value,
+                constructionType: document.querySelector('input[name="construction-type"]:checked')?.value || '',
+                status: 'En Proceso',
+                createdAt: new Date().toISOString()
+            };
+            
+            // Add construction-specific data if applicable
+            if (order.constructionType === 'access-node') {
+                order.projectedCost = document.getElementById('projected-cost').value;
+                order.paymentBy = document.getElementById('payment-by').value;
+                order.cantvUnitPrice = document.getElementById('cantv-unit-price').value;
+                order.cantvPoints = document.getElementById('cantv-points').value;
+                order.cantvTotal = document.getElementById('cantv-total').value;
+                order.edcUnitPrice = document.getElementById('edc-unit-price').value;
+                order.edcPoints = document.getElementById('edc-points').value;
+                order.edcTotal = document.getElementById('edc-total').value;
+                order.constructionDescription = document.getElementById('construction-description').value;
+                order.monthlyPayment = document.getElementById('monthly-payment').value;
+            } else if (order.constructionType === 'isp') {
+                order.projectedCost = document.getElementById('isp-projected-cost').value;
+                order.paymentBy = document.getElementById('isp-payment-by').value;
+                order.cantvUnitPrice = document.getElementById('isp-cantv-unit-price').value;
+                order.cantvPoints = document.getElementById('isp-cantv-points').value;
+                order.cantvTotal = document.getElementById('isp-cantv-total').value;
+                order.edcUnitPrice = document.getElementById('isp-edc-unit-price').value;
+                order.edcPoints = document.getElementById('isp-edc-points').value;
+                order.edcTotal = document.getElementById('isp-edc-total').value;
+                order.constructionDescription = document.getElementById('isp-description').value;
+                order.monthlyPayment = document.getElementById('isp-monthly-payment').value;
+            }
+            
+            // Save to Firebase
+            const newOrderRef = database.ref('orders').push();
+            newOrderRef.set(order)
+                .then(() => {
+                    alert('Orden guardada exitosamente');
+                    clearOrderForm();
+                    
+                    // Update order number
+                    document.getElementById('order-number').value = parseInt(order.number) + 1;
+                })
+                .catch(error => {
+                    alert('Error al guardar la orden: ' + error.message);
+                });
+        }
+
+        function clearOrderForm() {
+            document.getElementById('order-form').reset();
+            document.getElementById('current-date').value = new Date().toLocaleDateString('es-ES', { timeZone: 'America/Caracas' });
+            document.getElementById('user').value = currentUser.email;
+            document.getElementById('rif').value = '';
+            document.getElementById('company-responsible').value = '';
+            document.getElementById('access-node-fields').classList.add('hidden');
+            document.getElementById('isp-fields').classList.add('hidden');
+        }
+
+        function loadOrders() {
+            database.ref('orders').on('value', snapshot => {
+                orders = [];
+                snapshot.forEach(childSnapshot => {
+                    const order = childSnapshot.val();
+                    order.id = childSnapshot.key;
+                    orders.push(order);
+                });
+                
+                displayOrders(orders);
+            });
+        }
+
+        function displayOrders(ordersToDisplay) {
+            const ordersList = document.getElementById('orders-list');
+            ordersList.innerHTML = '';
+            
+            if (ordersToDisplay.length === 0) {
+                ordersList.innerHTML = '<p>No hay órdenes creadas.</p>';
+                return;
+            }
+            
+            // Sort by number (descending)
+            ordersToDisplay.sort((a, b) => b.number - a.number);
+            
+            ordersToDisplay.forEach(order => {
+                const company = companies.find(c => c.id === order.company) || {};
+                const contract = contracts.find(c => c.id === order.contract) || {};
+                const workType = workTypes.find(w => w.id === order.workType) || {};
+                const municipality = municipalities.find(m => m.id === order.municipality) || {};
+                
+                const orderCard = document.createElement('div');
+                orderCard.className = `card order-card ${order.status === 'Finalizado' ? 'finalized-order-card' : ''}`;
+                orderCard.innerHTML = `
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="card-title">Orden de Trabajo N° ${order.number}</h5>
+                                <p class="card-text"><strong>Empresa:</strong> ${company.name || ''} | <strong>Tipo de Trabajo:</strong> ${workType.name || ''} | <strong>Municipio:</strong> ${municipality.name || ''}</p>
+                                <p class="card-text"><strong>Fecha de Inicio:</strong> ${order.startDate} | <strong>Presupuesto:</strong> $${order.budget}</p>
+                                <p class="card-text"><strong>Estado:</strong> ${order.status}</p>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-primary view-order" data-id="${order.id}">Ver</button>
+                                ${order.status === 'En Proceso' ? `<button class="btn btn-sm btn-outline-success finalize-order" data-id="${order.id}">Finalizar</button>` : ''}
+                                ${isAdmin ? `<button class="btn btn-sm btn-outline-danger delete-order" data-id="${order.id}">Eliminar</button>` : ''}
+                                <button class="btn btn-sm btn-outline-info download-order-pdf" data-id="${order.id}">PDF</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                ordersList.appendChild(orderCard);
+            });
+            
+            // Add event listeners to buttons
+            document.querySelectorAll('.view-order').forEach(button => {
+                button.addEventListener('click', function() {
+                    viewOrder(this.getAttribute('data-id'));
+                });
+            });
+            
+            document.querySelectorAll('.finalize-order').forEach(button => {
+                button.addEventListener('click', function() {
+                    openCertificationModal(this.getAttribute('data-id'));
+                });
+            });
+            
+            if (isAdmin) {
+                document.querySelectorAll('.delete-order').forEach(button => {
+                    button.addEventListener('click', function() {
+                        deleteOrder(this.getAttribute('data-id'));
+                    });
+                });
+            }
+            
+            document.querySelectorAll('.download-order-pdf').forEach(button => {
+                button.addEventListener('click', function() {
+                    downloadOrderPDF(this.getAttribute('data-id'));
+                });
+            });
+        }
+
+        function applyOrderFilters() {
+            const orderNumber = document.getElementById('filter-order-number').value;
+            const company = document.getElementById('filter-company').value;
+            const workType = document.getElementById('filter-work-type').value;
+            const municipality = document.getElementById('filter-municipality').value;
+            const startDateFrom = document.getElementById('filter-start-date').value;
+            const startDateTo = document.getElementById('filter-end-date').value;
+            const status = document.getElementById('filter-status').value;
+            
+            let filteredOrders = orders;
+            
+            if (orderNumber) {
+                filteredOrders = filteredOrders.filter(order => order.number == orderNumber);
+            }
+            
+            if (company) {
+                filteredOrders = filteredOrders.filter(order => order.company === company);
+            }
+            
+            if (workType) {
+                filteredOrders = filteredOrders.filter(order => order.workType === workType);
+            }
+            
+            if (municipality) {
+                filteredOrders = filteredOrders.filter(order => order.municipality === municipality);
+            }
+            
+            if (startDateFrom) {
+                filteredOrders = filteredOrders.filter(order => order.startDate >= startDateFrom);
+            }
+            
+            if (startDateTo) {
+                filteredOrders = filteredOrders.filter(order => order.startDate <= startDateTo);
+            }
+            
+            if (status) {
+                filteredOrders = filteredOrders.filter(order => order.status === status);
+            }
+            
+            displayOrders(filteredOrders);
+        }
+
+        function viewOrder(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            // Fill form with order data
+            document.getElementById('order-number').value = order.number;
+            document.getElementById('user').value = order.user;
+            document.getElementById('current-date').value = order.date;
+            document.getElementById('contract').value = order.contract;
+            document.getElementById('work-type').value = order.workType;
+            document.getElementById('municipality').value = order.municipality;
+            document.getElementById('zone').value = order.zone;
+            document.getElementById('requester').value = order.requester;
+            document.getElementById('authorizer').value = order.authorizer;
+            document.getElementById('company').value = order.company;
+            document.getElementById('rif').value = order.rif;
+            document.getElementById('company-responsible').value = order.companyResponsible;
+            document.getElementById('description').value = order.description;
+            document.getElementById('labor').value = order.labor;
+            document.getElementById('materials').value = order.materials;
+            document.getElementById('equipment').value = order.equipment;
+            document.getElementById('budget').value = order.budget;
+            document.getElementById('start-date').value = order.startDate;
+            document.getElementById('end-date').value = order.endDate;
+            document.getElementById('location').value = order.location;
+            
+            // Handle construction type
+            if (order.constructionType) {
+                document.querySelector(`input[name="construction-type"][value="${order.constructionType}"]`).checked = true;
+                toggleConstructionFields(order.constructionType);
+                
+                if (order.constructionType === 'access-node') {
+                    document.getElementById('projected-cost').value = order.projectedCost || '';
+                    document.getElementById('payment-by').value = order.paymentBy || '';
+                    document.getElementById('cantv-unit-price').value = order.cantvUnitPrice || '';
+                    document.getElementById('cantv-points').value = order.cantvPoints || '';
+                    document.getElementById('cantv-total').value = order.cantvTotal || '';
+                    document.getElementById('edc-unit-price').value = order.edcUnitPrice || '';
+                    document.getElementById('edc-points').value = order.edcPoints || '';
+                    document.getElementById('edc-total').value = order.edcTotal || '';
+                    document.getElementById('construction-description').value = order.constructionDescription || '';
+                    document.getElementById('monthly-payment').value = order.monthlyPayment || '';
+                } else if (order.constructionType === 'isp') {
+                    document.getElementById('isp-projected-cost').value = order.projectedCost || '';
+                    document.getElementById('isp-payment-by').value = order.paymentBy || '';
+                    document.getElementById('isp-cantv-unit-price').value = order.cantvUnitPrice || '';
+                    document.getElementById('isp-cantv-points').value = order.cantvPoints || '';
+                    document.getElementById('isp-cantv-total').value = order.cantvTotal || '';
+                    document.getElementById('isp-edc-unit-price').value = order.edcUnitPrice || '';
+                    document.getElementById('isp-edc-points').value = order.edcPoints || '';
+                    document.getElementById('isp-edc-total').value = order.edcTotal || '';
+                    document.getElementById('isp-description').value = order.constructionDescription || '';
+                    document.getElementById('isp-monthly-payment').value = order.monthlyPayment || '';
+                }
+            }
+            
+            // Show create order tab
+            showTab('create-order');
+        }
+
+        function openCertificationModal(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            const company = companies.find(c => c.id === order.company) || {};
+            
+            // Fill certification form
+            document.getElementById('certification-order-id').value = orderId;
+            document.getElementById('certification-number').value = order.number;
+            document.getElementById('certification-date').value = new Date().toLocaleDateString('es-ES', { timeZone: 'America/Caracas' });
+            document.getElementById('certification-company').value = company.name || '';
+            document.getElementById('certification-rif').value = order.rif || '';
+            document.getElementById('certification-order-ref').value = order.number;
+            document.getElementById('certification-start-date').value = order.startDate;
+            document.getElementById('certification-total').value = order.budget;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('certificationModal'));
+            modal.show();
+        }
+
+        function acceptCertification() {
+            const orderId = document.getElementById('certification-order-id').value;
+            const certification = {
+                orderId: orderId,
+                number: document.getElementById('certification-number').value,
+                date: document.getElementById('certification-date').value,
+                company: document.getElementById('certification-company').value,
+                rif: document.getElementById('certification-rif').value,
+                orderRef: document.getElementById('certification-order-ref').value,
+                startDate: document.getElementById('certification-start-date').value,
+                endDate: document.getElementById('certification-end-date').value,
+                total: document.getElementById('certification-total').value,
+                deviations: document.getElementById('certification-deviations').value,
+                createdAt: new Date().toISOString()
+            };
+            
+            // Save certification
+            database.ref('certifications').push().set(certification)
+                .then(() => {
+                    // Update order status
+                    database.ref('orders/' + orderId).update({
+                        status: 'Finalizado'
+                    })
+                    .then(() => {
+                        // Close modal
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('certificationModal'));
+                        modal.hide();
+                        
+                        alert('Orden finalizada exitosamente');
+                    })
+                    .catch(error => {
+                        alert('Error al finalizar la orden: ' + error.message);
+                    });
+                })
+                .catch(error => {
+                    alert('Error al guardar la certificación: ' + error.message);
+                });
+        }
+
+        function deleteOrder(orderId) {
+            if (confirm('¿Está seguro de que desea eliminar esta orden?')) {
+                database.ref('orders/' + orderId).remove()
+                    .then(() => {
+                        alert('Orden eliminada exitosamente');
+                    })
+                    .catch(error => {
+                        alert('Error al eliminar la orden: ' + error.message);
+                    });
+            }
+        }
+
+        function loadFinalizedOrders() {
+            database.ref('orders').orderByChild('status').equalTo('Finalizado').on('value', snapshot => {
+                finalizedOrders = [];
+                snapshot.forEach(childSnapshot => {
+                    const order = childSnapshot.val();
+                    order.id = childSnapshot.key;
+                    finalizedOrders.push(order);
+                });
+                
+                displayFinalizedOrders(finalizedOrders);
+            });
+        }
+
+        function displayFinalizedOrders(ordersToDisplay) {
+            const finalizedOrdersList = document.getElementById('finalized-orders-list');
+            finalizedOrdersList.innerHTML = '';
+            
+            if (ordersToDisplay.length === 0) {
+                finalizedOrdersList.innerHTML = '<p>No hay órdenes finalizadas.</p>';
+                return;
+            }
+            
+            // Sort by number (descending)
+            ordersToDisplay.sort((a, b) => b.number - a.number);
+            
+            ordersToDisplay.forEach(order => {
+                const company = companies.find(c => c.id === order.company) || {};
+                const contract = contracts.find(c => c.id === order.contract) || {};
+                const workType = workTypes.find(w => w.id === order.workType) || {};
+                const municipality = municipalities.find(m => m.id === order.municipality) || {};
+                
+                const orderCard = document.createElement('div');
+                orderCard.className = 'card finalized-order-card';
+                orderCard.innerHTML = `
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="card-title">Orden de Trabajo N° ${order.number}</h5>
+                                <p class="card-text"><strong>Empresa:</strong> ${company.name || ''} | <strong>Tipo de Trabajo:</strong> ${workType.name || ''} | <strong>Municipio:</strong> ${municipality.name || ''}</p>
+                                <p class="card-text"><strong>Fecha de Inicio:</strong> ${order.startDate} | <strong>Presupuesto:</strong> $${order.budget}</p>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-primary view-order" data-id="${order.id}">Ver</button>
+                                ${isAdmin ? `<button class="btn btn-sm btn-outline-danger delete-order" data-id="${order.id}">Eliminar</button>` : ''}
+                                <button class="btn btn-sm btn-outline-info download-order-pdf" data-id="${order.id}">PDF Orden</button>
+                                <button class="btn btn-sm btn-outline-success download-certification-pdf" data-id="${order.id}">PDF Certificación</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                finalizedOrdersList.appendChild(orderCard);
+            });
+            
+            // Add event listeners to buttons
+            document.querySelectorAll('.view-order').forEach(button => {
+                button.addEventListener('click', function() {
+                    viewOrder(this.getAttribute('data-id'));
+                });
+            });
+            
+            if (isAdmin) {
+                document.querySelectorAll('.delete-order').forEach(button => {
+                    button.addEventListener('click', function() {
+                        deleteOrder(this.getAttribute('data-id'));
+                    });
+                });
+            }
+            
+            document.querySelectorAll('.download-order-pdf').forEach(button => {
+                button.addEventListener('click', function() {
+                    downloadOrderPDF(this.getAttribute('data-id'));
+                });
+            });
+            
+            document.querySelectorAll('.download-certification-pdf').forEach(button => {
+                button.addEventListener('click', function() {
+                    downloadCertificationPDF(this.getAttribute('data-id'));
+                });
+            });
+        }
+
+        function applyFinalizedOrderFilters() {
+            const orderNumber = document.getElementById('filter-finalized-order-number').value;
+            const company = document.getElementById('filter-finalized-company').value;
+            const workType = document.getElementById('filter-finalized-work-type').value;
+            const municipality = document.getElementById('filter-finalized-municipality').value;
+            const endDateFrom = document.getElementById('filter-finalized-start-date').value;
+            const endDateTo = document.getElementById('filter-finalized-end-date').value;
+            
+            let filteredOrders = finalizedOrders;
+            
+            if (orderNumber) {
+                filteredOrders = filteredOrders.filter(order => order.number == orderNumber);
+            }
+            
+            if (company) {
+                filteredOrders = filteredOrders.filter(order => order.company === company);
+            }
+            
+            if (workType) {
+                filteredOrders = filteredOrders.filter(order => order.workType === workType);
+            }
+            
+            if (municipality) {
+                filteredOrders = filteredOrders.filter(order => order.municipality === municipality);
+            }
+            
+            if (endDateFrom) {
+                filteredOrders = filteredOrders.filter(order => order.endDate >= endDateFrom);
+            }
+            
+            if (endDateTo) {
+                filteredOrders = filteredOrders.filter(order => order.endDate <= endDateTo);
+            }
+            
+            displayFinalizedOrders(filteredOrders);
+        }
+
+        function updateFinalCertificationOrders() {
+            const companyId = document.getElementById('final-certification-company').value;
+            const ordersSelect = document.getElementById('final-certification-orders');
+            
+            // Clear existing options
+            while (ordersSelect.options.length > 0) {
+                ordersSelect.remove(0);
+            }
+            
+            if (!companyId) return;
+            
+            // Get finalized orders for this company
+            const companyFinalizedOrders = finalizedOrders.filter(order => order.company === companyId);
+            
+            companyFinalizedOrders.forEach(order => {
+                const option = document.createElement('option');
+                option.value = order.id;
+                option.textContent = `Orden ${order.number} - $${order.budget}`;
+                option.dataset.budget = order.budget;
+                ordersSelect.appendChild(option);
+            });
+        }
+
+        function updateFinalCertificationTotal() {
+            const ordersSelect = document.getElementById('final-certification-orders');
+            const selectedOptions = Array.from(ordersSelect.selectedOptions);
+            const total = selectedOptions.reduce((sum, option) => sum + parseFloat(option.dataset.budget || 0), 0);
+            
+            document.getElementById('final-certification-total').value = total.toFixed(2);
+        }
+
+        function saveFinalCertification(e) {
+            e.preventDefault();
+            
+            const companyId = document.getElementById('final-certification-company').value;
+            const ordersSelect = document.getElementById('final-certification-orders');
+            const selectedOrderIds = Array.from(ordersSelect.selectedOptions).map(option => option.value);
+            
+            if (selectedOrderIds.length === 0) {
+                alert('Debe seleccionar al menos una orden');
+                return;
+            }
+            
+            const finalCertification = {
+                number: document.getElementById('final-certification-number').value,
+                company: companyId,
+                orders: selectedOrderIds,
+                total: document.getElementById('final-certification-total').value,
+                createdAt: new Date().toISOString()
+            };
+            
+            // Save to Firebase
+            database.ref('finalCertifications').push().set(finalCertification)
+                .then(() => {
+                    alert('Certificación final guardada exitosamente');
+                    clearFinalCertificationForm();
+                    
+                    // Update final certification number
+                    document.getElementById('final-certification-number').value = parseInt(finalCertification.number) + 1;
+                })
+                .catch(error => {
+                    alert('Error al guardar la certificación final: ' + error.message);
+                });
+        }
+
+        function clearFinalCertificationForm() {
+            document.getElementById('final-certification-form').reset();
+            document.getElementById('final-certification-orders').innerHTML = '';
+            document.getElementById('final-certification-total').value = '';
+        }
+
+        function loadFinalCertifications() {
+            database.ref('finalCertifications').on('value', snapshot => {
+                finalCertifications = [];
+                snapshot.forEach(childSnapshot => {
+                    const certification = childSnapshot.val();
+                    certification.id = childSnapshot.key;
+                    finalCertifications.push(certification);
+                });
+                
+                displayFinalCertifications(finalCertifications);
+            });
+        }
+
+        function displayFinalCertifications(certificationsToDisplay) {
+            const finalCertificationsList = document.getElementById('final-certifications-list');
+            finalCertificationsList.innerHTML = '';
+            
+            if (certificationsToDisplay.length === 0) {
+                finalCertificationsList.innerHTML = '<p>No hay certificaciones finales.</p>';
+                return;
+            }
+            
+            // Sort by number (descending)
+            certificationsToDisplay.sort((a, b) => b.number - a.number);
+            
+            certificationsToDisplay.forEach(certification => {
+                const company = companies.find(c => c.id === certification.company) || {};
+                
+                const certificationCard = document.createElement('div');
+                certificationCard.className = 'card mb-3';
+                certificationCard.innerHTML = `
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Certificación Final N° ${certification.number}</h5>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-info download-final-certification-pdf" data-id="${certification.id}">PDF Certificación Final</button>
+                            ${isAdmin ? `<button class="btn btn-sm btn-outline-danger delete-final-certification" data-id="${certification.id}">Eliminar</button>` : ''}
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Empresa:</strong> ${company.name || ''} | <strong>Total:</strong> $${certification.total}</p>
+                        <h6>Órdenes Incluidas:</h6>
+                        <div id="orders-${certification.id}">
+                            <!-- Orders will be loaded here -->
+                        </div>
+                    </div>
+                `;
+                finalCertificationsList.appendChild(certificationCard);
+                
+                // Load orders for this certification
+                loadCertificationOrders(certification);
+            });
+            
+            // Add event listeners to buttons
+            document.querySelectorAll('.download-final-certification-pdf').forEach(button => {
+                button.addEventListener('click', function() {
+                    downloadFinalCertificationPDF(this.getAttribute('data-id'));
+                });
+            });
+            
+            if (isAdmin) {
+                document.querySelectorAll('.delete-final-certification').forEach(button => {
+                    button.addEventListener('click', function() {
+                        deleteFinalCertification(this.getAttribute('data-id'));
+                    });
+                });
+            }
+        }
+
+        function loadCertificationOrders(certification) {
+            const ordersContainer = document.getElementById(`orders-${certification.id}`);
+            ordersContainer.innerHTML = '';
+            
+            certification.orders.forEach(orderId => {
+                const order = finalizedOrders.find(o => o.id === orderId);
+                if (!order) return;
+                
+                const orderElement = document.createElement('div');
+                orderElement.className = 'd-flex justify-content-between align-items-center border-bottom py-2';
+                orderElement.innerHTML = `
+                    <span>Orden Finalizada ${order.number}</span>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-success download-certification-pdf" data-id="${order.id}">PDF Certificación</button>
+                        <button class="btn btn-sm btn-outline-info download-order-pdf" data-id="${order.id}">PDF Orden</button>
+                    </div>
+                `;
+                ordersContainer.appendChild(orderElement);
+            });
+            
+            // Add event listeners to buttons
+            ordersContainer.querySelectorAll('.download-certification-pdf').forEach(button => {
+                button.addEventListener('click', function() {
+                    downloadCertificationPDF(this.getAttribute('data-id'));
+                });
+            });
+            
+            ordersContainer.querySelectorAll('.download-order-pdf').forEach(button => {
+                button.addEventListener('click', function() {
+                    downloadOrderPDF(this.getAttribute('data-id'));
+                });
+            });
+        }
+
+        function applyCertificationFilters() {
+            const certificationNumber = document.getElementById('filter-certification-number').value;
+            const company = document.getElementById('filter-certification-company').value;
+            const dateFrom = document.getElementById('filter-certification-start-date').value;
+            const dateTo = document.getElementById('filter-certification-end-date').value;
+            
+            let filteredCertifications = finalCertifications;
+            
+            if (certificationNumber) {
+                filteredCertifications = filteredCertifications.filter(cert => cert.number == certificationNumber);
+            }
+            
+            if (company) {
+                filteredCertifications = filteredCertifications.filter(cert => cert.company === company);
+            }
+            
+            if (dateFrom) {
+                filteredCertifications = filteredCertifications.filter(cert => cert.createdAt >= dateFrom);
+            }
+            
+            if (dateTo) {
+                filteredCertifications = filteredCertifications.filter(cert => cert.createdAt <= dateTo);
+            }
+            
+            displayFinalCertifications(filteredCertifications);
+        }
+
+        function deleteFinalCertification(certificationId) {
+            if (confirm('¿Está seguro de que desea eliminar esta certificación final?')) {
+                database.ref('finalCertifications/' + certificationId).remove()
+                    .then(() => {
+                        alert('Certificación final eliminada exitosamente');
+                    })
+                    .catch(error => {
+                        alert('Error al eliminar la certificación final: ' + error.message);
+                    });
+            }
+        }
+
+        function updateCharts() {
+            // This is a simplified implementation
+            // In a real application, you would filter the data based on the chart filters
+            
+            // Orders by status chart
+            const ordersByStatusCtx = document.getElementById('orders-chart').getContext('2d');
+            new Chart(ordersByStatusCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['En Proceso', 'Finalizadas'],
+                    datasets: [{
+                        label: 'Órdenes por Estado',
+                        data: [
+                            orders.filter(o => o.status === 'En Proceso').length,
+                            orders.filter(o => o.status === 'Finalizado').length
+                        ],
+                        backgroundColor: ['#ffc107', '#198754']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            
+            // Budget by company chart
+            const budgetByCompanyCtx = document.getElementById('budget-chart').getContext('2d');
+            
+            // Group orders by company and calculate total budget
+            const companyBudgets = {};
+            orders.forEach(order => {
+                if (!companyBudgets[order.company]) {
+                    companyBudgets[order.company] = 0;
+                }
+                companyBudgets[order.company] += parseFloat(order.budget || 0);
+            });
+            
+            const companyNames = Object.keys(companyBudgets).map(companyId => {
+                const company = companies.find(c => c.id === companyId);
+                return company ? company.name : 'Desconocida';
+            });
+            
+            new Chart(budgetByCompanyCtx, {
+                type: 'pie',
+                data: {
+                    labels: companyNames,
+                    datasets: [{
+                        label: 'Presupuesto por Empresa',
+                        data: Object.values(companyBudgets),
+                        backgroundColor: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            
+            // Orders by work type chart
+            const workTypeCtx = document.getElementById('work-type-chart').getContext('2d');
+            
+            // Group orders by work type
+            const workTypeCounts = {};
+            orders.forEach(order => {
+                if (!workTypeCounts[order.workType]) {
+                    workTypeCounts[order.workType] = 0;
+                }
+                workTypeCounts[order.workType]++;
+            });
+            
+            const workTypeNames = Object.keys(workTypeCounts).map(workTypeId => {
+                const workType = workTypes.find(w => w.id === workTypeId);
+                return workType ? workType.name : 'Desconocido';
+            });
+            
+            new Chart(workTypeCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: workTypeNames,
+                    datasets: [{
+                        label: 'Órdenes por Tipo de Trabajo',
+                        data: Object.values(workTypeCounts),
+                        backgroundColor: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function exportData() {
+            // Export all data to JSON
+            const data = {
+                orders: orders,
+                finalizedOrders: finalizedOrders,
+                finalCertifications: finalCertifications,
+                companies: companies,
+                contracts: contracts,
+                workTypes: workTypes,
+                municipalities: municipalities
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `backup_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+
+        function importData() {
+            const fileInput = document.getElementById('import-file');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Por favor seleccione un archivo');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (confirm('¿Está seguro de que desea importar estos datos? Esto sobrescribirá la información actual.')) {
+                        // Import data to Firebase
+                        const updates = {};
+                        
+                        if (data.orders) {
+                            updates['/orders'] = data.orders.reduce((acc, order) => {
+                                acc[order.id] = order;
+                                return acc;
+                            }, {});
+                        }
+                        
+                        if (data.finalizedOrders) {
+                            updates['/orders'] = {...updates['/orders'], ...data.finalizedOrders.reduce((acc, order) => {
+                                acc[order.id] = order;
+                                return acc;
+                            }, {})};
+                        }
+                        
+                        if (data.finalCertifications) {
+                            updates['/finalCertifications'] = data.finalCertifications.reduce((acc, cert) => {
+                                acc[cert.id] = cert;
+                                return acc;
+                            }, {});
+                        }
+                        
+                        if (data.companies) {
+                            updates['/companies'] = data.companies.reduce((acc, company) => {
+                                acc[company.id] = company;
+                                return acc;
+                            }, {});
+                        }
+                        
+                        if (data.contracts) {
+                            updates['/contracts'] = data.contracts.reduce((acc, contract) => {
+                                acc[contract.id] = contract;
+                                return acc;
+                            }, {});
+                        }
+                        
+                        if (data.workTypes) {
+                            updates['/workTypes'] = data.workTypes.reduce((acc, workType) => {
+                                acc[workType.id] = workType;
+                                return acc;
+                            }, {});
+                        }
+                        
+                        if (data.municipalities) {
+                            updates['/municipalities'] = data.municipalities.reduce((acc, municipality) => {
+                                acc[municipality.id] = municipality;
+                                return acc;
+                            }, {});
+                        }
+                        
+                        database.ref().update(updates)
+                            .then(() => {
+                                alert('Datos importados exitosamente');
+                                fileInput.value = '';
+                            })
+                            .catch(error => {
+                                alert('Error al importar los datos: ' + error.message);
+                            });
+                    }
+                } catch (error) {
+                    alert('Error al leer el archivo: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // PDF Generation Functions (simplified implementations)
+        function generateOrderPDF() {
+            alert('Función de generación de PDF para orden de trabajo');
+            // In a real implementation, you would use jsPDF to generate the PDF
+        }
+
+        function downloadOrderPDF(orderId) {
+            alert(`Descargando PDF para orden ${orderId}`);
+            // In a real implementation, you would generate and download the PDF
+        }
+
+        function downloadCertificationPDF(orderId) {
+            alert(`Descargando PDF de certificación para orden ${orderId}`);
+            // In a real implementation, you would generate and download the PDF
+        }
+
+        function downloadFinalCertificationPDF(certificationId) {
+            alert(`Descargando PDF de certificación final ${certificationId}`);
+            // In a real implementation, you would generate and download the PDF
+        }
+
+        // Excel Export Functions (simplified implementations)
+        function exportOrdersToExcel() {
+            alert('Exportando órdenes a Excel');
+            // In a real implementation, you would use SheetJS to generate the Excel file
+        }
+
+        function exportFinalizedOrdersToExcel() {
+            alert('Exportando órdenes finalizadas a Excel');
+            // In a real implementation, you would use SheetJS to generate the Excel file
+        }
+
+        function exportCertificationsToExcel() {
+            alert('Exportando certificaciones a Excel');
+            // In a real implementation, you would use SheetJS to generate the Excel file
+        }
+
+        function exportFinalCertificationsToExcel() {
+            alert('Exportando certificaciones finales a Excel');
+            // In a real implementation, you would use SheetJS to generate the Excel file
+        }
+    </script>
+</body>
+</html>
