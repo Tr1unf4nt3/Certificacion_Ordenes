@@ -11,6 +11,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.9.0/firebase-firestore-compat.js"></script>
     
+    <!-- NUEVA LIBRERÍA: Exportación a Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
     <style>
         /* Paleta de colores Pastel Azul/Gris */
         :root {
@@ -26,6 +29,8 @@
             --color-filter: #DDA0DD;     /* Color para elementos de filtro */
             --color-in-progress: #FFD700; /* Amarillo para "En curso" */
             --color-completed: #77DD77;  /* Verde para "Finalizada" */
+            --color-excel: #28a745;      /* Verde para botones Excel */
+            --color-excel-light: #17a2b8; /* Azul para botones Excel secundarios */
         }
 
         /* Estilos Generales (Diseño Pastel) */
@@ -405,6 +410,48 @@
             color: white;
         }
 
+        /* NUEVOS ESTILOS PARA EXPORTACIÓN EXCEL */
+        .export-section {
+            border: 2px solid var(--color-excel);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #f0fff4;
+        }
+        
+        .export-section h4 {
+            color: var(--color-excel);
+            border-bottom: 1px solid var(--color-excel);
+            margin-top: 0;
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .excel-button {
+            background-color: var(--color-excel);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .excel-button:hover {
+            background-color: #218838;
+        }
+        
+        .excel-button-secondary {
+            background-color: var(--color-excel-light);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .excel-button-secondary:hover {
+            background-color: #138496;
+        }
+
     </style>
 </head>
 <body>
@@ -442,7 +489,27 @@
         <div id="view-orders" class="tabcontent">
             <h3>Órdenes de Trabajo en Curso</h3>
             
-            <!-- NUEVA SECCIÓN: Filtros de Búsqueda -->
+            <!-- NUEVA SECCIÓN: Exportación a Excel -->
+            <div class="export-section">
+                <h4>📊 Exportación a Excel</h4>
+                <p>Exporte los datos de las órdenes a formato Excel para análisis y reportes.</p>
+                <div class="export-buttons">
+                    <button class="excel-button" onclick="exportToExcel('current')">
+                        📋 Exportar Todas las Órdenes
+                    </button>
+                    <button class="excel-button-secondary" onclick="exportFilteredToExcel('current')">
+                        🔍 Exportar Órdenes Filtradas
+                    </button>
+                    <button class="excel-button-secondary" onclick="exportCurrentViewToExcel('current')">
+                        👁️ Exportar Vista Actual
+                    </button>
+                </div>
+                <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #666;">
+                    <strong>Tip:</strong> Use los filtros para refinar los datos antes de exportar.
+                </p>
+            </div>
+            
+            <!-- SECCIÓN: Filtros de Búsqueda -->
             <div class="filters-section">
                 <h4>🔍 Filtros de Búsqueda</h4>
                 <div class="filter-controls">
@@ -505,7 +572,27 @@
         <div id="completed-orders" class="tabcontent">
             <h3>Órdenes de Trabajo Finalizadas</h3>
             
-            <!-- NUEVA SECCIÓN: Filtros para Órdenes Finalizadas -->
+            <!-- NUEVA SECCIÓN: Exportación a Excel -->
+            <div class="export-section">
+                <h4>📊 Exportación a Excel</h4>
+                <p>Exporte los datos de las órdenes finalizadas a formato Excel para análisis y reportes.</p>
+                <div class="export-buttons">
+                    <button class="excel-button" onclick="exportToExcel('completed')">
+                        📋 Exportar Todas las Órdenes
+                    </button>
+                    <button class="excel-button-secondary" onclick="exportFilteredToExcel('completed')">
+                        🔍 Exportar Órdenes Filtradas
+                    </button>
+                    <button class="excel-button-secondary" onclick="exportCurrentViewToExcel('completed')">
+                        👁️ Exportar Vista Actual
+                    </button>
+                </div>
+                <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #666;">
+                    <strong>Tip:</strong> Los archivos incluyen todos los campos de las órdenes.
+                </p>
+            </div>
+            
+            <!-- SECCIÓN: Filtros para Órdenes Finalizadas -->
             <div class="filters-section">
                 <h4>🔍 Filtros de Búsqueda</h4>
                 <div class="filter-controls">
@@ -571,7 +658,7 @@
             <button onclick="saveFormStructure(false)">💾 Guardar Estructura del Formulario</button>
             <button onclick="cleanDuplicateOrders()" style="background-color: var(--color-error); color: white; margin-left: 10px;">🧹 Limpiar Duplicados</button>
             
-            <!-- NUEVA SECCIÓN: Exportación e Importación de Base de Datos -->
+            <!-- SECCIÓN: Exportación e Importación de Base de Datos -->
             <div class="backup-section">
                 <h4>🔄 Respaldo y Restauración de Base de Datos</h4>
                 <p>Estas funciones permiten exportar e importar toda la información del sistema para realizar respaldos o migraciones.</p>
@@ -888,54 +975,68 @@
 
         async function loadInitialData() {
             try {
+                console.log("🔍 Iniciando carga de datos...");
+                
+                // Verificar autenticación primero
+                const user = firebase.auth().currentUser;
+                if (!user) {
+                    throw new Error("Usuario no autenticado");
+                }
+                
+                console.log("✅ Usuario autenticado:", user.email);
+
                 // Cargar Estructura del Formulario y Contador
+                console.log("📋 Cargando configuración...");
                 const configDoc = await CONFIG_COLLECTION.doc("systemConfig").get();
+                
                 if (configDoc.exists) {
+                    console.log("✅ Configuración encontrada");
                     const data = configDoc.data();
                     formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
-                    
-                    // Lógica de Migración: si faltan campos fijos (como el nuevo de usuario), los agregamos.
-                    const infoGeneralFields = formStructure[0].fields;
-                    const hasUserField = infoGeneralFields.some(f => f.id === 'user_auto_fill');
-                    if (!hasUserField) {
-                         // Insertar el campo de usuario en la posición correcta (antes de la fecha)
-                         const dateIndex = infoGeneralFields.findIndex(f => f.id === 'current_date');
-                         if (dateIndex !== -1) {
-                             infoGeneralFields.splice(dateIndex, 0, DEFAULT_FORM_STRUCTURE[0].fields[2]);
-                         } else {
-                             // Si no encuentra la fecha, lo pone al final de la sección I
-                             infoGeneralFields.push(DEFAULT_FORM_STRUCTURE[0].fields[2]);
-                         }
-                    }
-
-                    // Lógica de Migración de títulos (siempre los mantenemos con el romano)
-                    if (formStructure.length >= 3) {
-                         if (formStructure[0].title === "Información General" || formStructure[0].title === "I. Información General") formStructure[0].title = "I. Información General";
-                         if (formStructure[1].title === "Información de la Contratista" || formStructure[1].title === "II. Información de la Contratista") formStructure[1].title = "II. Información de la Contratista";
-                         if (formStructure[2].title === "Información del Trabajo/Obra" || formStructure[2].title === "III. Información del Trabajo/Obra") formStructure[2].title = "III. Información del Trabajo/Obra";
-                    }
-
                     otCounter = data.otCounter || 1;
                 } else {
-                    // Primera vez: usa el valor por defecto y guárdalo
+                    console.log("⚠️ Configuración no encontrada, usando valores por defecto");
                     formStructure = DEFAULT_FORM_STRUCTURE;
                     await saveFormStructure(true); 
                 }
                 
-                // Cargar Órdenes de Trabajo EN CURSO con ordenamiento
+                // Cargar Órdenes de Trabajo EN CURSO
+                console.log("📂 Cargando órdenes en curso...");
                 const ordersSnapshot = await ORDERS_COLLECTION.orderBy('Fecha Actual', 'desc').get();
                 workOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log(`✅ ${workOrders.length} órdenes en curso cargadas`);
 
-                // Cargar Órdenes de Trabajo FINALIZADAS con ordenamiento
+                // Cargar Órdenes de Trabajo FINALIZADAS
+                console.log("✅ Cargando órdenes finalizadas...");
                 const completedSnapshot = await COMPLETED_ORDERS_COLLECTION.orderBy('Fecha Actual', 'desc').get();
                 completedOrders = completedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log(`✅ ${completedOrders.length} órdenes finalizadas cargadas`);
 
                 // Asegurar que el contador esté correcto al inicio
                 recalculateOtCounter();
+                console.log("🎯 Contador actualizado:", otCounter);
 
-            } catch (e) {
-                console.error("Error cargando datos iniciales: ", e);
-                alert("Error al conectar con la base de datos. Verifique su conexión y las reglas de seguridad de Firestore. Detalles: " + e.message);
+                console.log("🚀 Carga de datos completada exitosamente");
+
+            } catch (error) {
+                console.error("❌ Error cargando datos iniciales: ", error);
+                console.error("Código del error:", error.code);
+                console.error("Mensaje del error:", error.message);
+                
+                let errorMessage = "Error al conectar con la base de datos. ";
+                
+                if (error.code === 'permission-denied') {
+                    errorMessage += "ERROR DE PERMISOS: Configure las reglas de seguridad de Firestore para permitir acceso a usuarios autenticados.";
+                } else if (error.code === 'unavailable') {
+                    errorMessage += "Error de conexión a internet.";
+                } else if (error.message.includes("no autenticado")) {
+                    errorMessage += "Usuario no autenticado correctamente.";
+                } else {
+                    errorMessage += `Detalles: ${error.message}`;
+                }
+                
+                alert(errorMessage);
+                throw error; // Re-lanzar el error para manejo adicional
             }
         }
         
@@ -1016,25 +1117,44 @@
 
         // MODIFICADA: Control de visibilidad de pestañas para los 3 roles
         async function initializeApp(role) {
-            const isCreator = (role === 'admin' || role === 'normal');
+            try {
+                console.log("🔐 Inicializando app para rol:", role);
+                
+                // Verificar que el usuario esté autenticado
+                const user = firebase.auth().currentUser;
+                if (!user) {
+                    throw new Error("Usuario no autenticado durante inicialización");
+                }
+                
+                const isCreator = (role === 'admin' || role === 'normal');
 
-            document.getElementById('edit-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
-            document.getElementById('new-order-tab-button').style.display = isCreator ? 'inline-block' : 'none';
-            
-            await loadInitialData(); 
-            
-            if (role === 'admin') {
-                renderFormEditor();
-                openTab(null, 'edit-form');
-            } else if (role === 'normal') {
-                openTab(null, 'new-order');
-            } else if (role === 'viewer') {
-                openTab(null, 'view-orders'); 
+                document.getElementById('edit-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
+                document.getElementById('new-order-tab-button').style.display = isCreator ? 'inline-block' : 'none';
+                
+                // Cargar datos después de verificar autenticación
+                await loadInitialData(); 
+                
+                if (role === 'admin') {
+                    renderFormEditor();
+                    openTab(null, 'edit-form');
+                } else if (role === 'normal') {
+                    openTab(null, 'new-order');
+                } else if (role === 'viewer') {
+                    openTab(null, 'view-orders'); 
+                }
+                
+                renderWorkOrderForm();
+                renderOrdersTable();
+                renderCompletedOrdersTable();
+                
+                console.log("✅ App inicializada correctamente");
+                
+            } catch (error) {
+                console.error("❌ Error en initializeApp:", error);
+                alert("Error al inicializar la aplicación: " + error.message);
+                // Forzar logout en caso de error
+                logout();
             }
-            
-            renderWorkOrderForm();
-            renderOrdersTable();
-            renderCompletedOrdersTable();
         }
 
         // MODIFICADA: Usa getRoleFromEmail() para los 3 roles
@@ -3484,6 +3604,248 @@
                 
                 activeFiltersList.appendChild(filterTag);
             });
+        }
+
+        // *** 13. NUEVAS FUNCIONES DE EXPORTACIÓN A EXCEL ***
+
+        /**
+         * Exporta todas las órdenes (en curso o finalizadas) a Excel
+         * @param {string} type - 'current' para órdenes en curso, 'completed' para finalizadas
+         */
+        function exportToExcel(type) {
+            try {
+                const orders = type === 'current' ? workOrders : completedOrders;
+                const fileName = type === 'current' ? 'Ordenes_En_Curso' : 'Ordenes_Finalizadas';
+                
+                if (orders.length === 0) {
+                    alert(`No hay órdenes ${type === 'current' ? 'en curso' : 'finalizadas'} para exportar.`);
+                    return;
+                }
+
+                // Preparar datos para Excel
+                const excelData = prepareExcelData(orders, type);
+                
+                // Crear libro de trabajo y hoja
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                
+                // Agregar hoja al libro
+                XLSX.utils.book_append_sheet(wb, ws, 'Órdenes de Trabajo');
+                
+                // Generar y descargar archivo
+                const currentDate = new Date().toISOString().split('T')[0];
+                XLSX.writeFile(wb, `${fileName}_${currentDate}.xlsx`);
+                
+                alert(`✅ ${orders.length} órdenes exportadas exitosamente a Excel.`);
+                
+            } catch (error) {
+                console.error('Error al exportar a Excel:', error);
+                alert('Error al exportar a Excel: ' + error.message);
+            }
+        }
+
+        /**
+         * Exporta solo las órdenes filtradas actualmente visibles
+         * @param {string} type - 'current' para órdenes en curso, 'completed' para finalizadas
+         */
+        function exportFilteredToExcel(type) {
+            try {
+                let filteredOrders = [];
+                const fileName = type === 'current' ? 'Ordenes_Filtradas_En_Curso' : 'Ordenes_Filtradas_Finalizadas';
+                
+                if (type === 'current') {
+                    // Obtener órdenes filtradas (usando la misma lógica que renderOrdersTable)
+                    filteredOrders = workOrders;
+                    if (activeFilters.length > 0) {
+                        filteredOrders = workOrders.filter(order => {
+                            return activeFilters.every(filter => applyFilterLogic(order, filter));
+                        });
+                    }
+                } else {
+                    // Órdenes finalizadas filtradas
+                    filteredOrders = completedOrders;
+                    if (completedActiveFilters.length > 0) {
+                        filteredOrders = completedOrders.filter(order => {
+                            return completedActiveFilters.every(filter => applyFilterLogic(order, filter));
+                        });
+                    }
+                }
+
+                if (filteredOrders.length === 0) {
+                    alert('No hay órdenes que coincidan con los filtros actuales.');
+                    return;
+                }
+
+                // Preparar datos para Excel
+                const excelData = prepareExcelData(filteredOrders, type);
+                
+                // Crear libro de trabajo
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                XLSX.utils.book_append_sheet(wb, ws, 'Órdenes Filtradas');
+                
+                // Descargar archivo
+                const currentDate = new Date().toISOString().split('T')[0];
+                XLSX.writeFile(wb, `${fileName}_${currentDate}.xlsx`);
+                
+                alert(`✅ ${filteredOrders.length} órdenes filtradas exportadas exitosamente.`);
+                
+            } catch (error) {
+                console.error('Error al exportar órdenes filtradas:', error);
+                alert('Error al exportar órdenes filtradas: ' + error.message);
+            }
+        }
+
+        /**
+         * Exporta exactamente lo que se ve en la tabla actual
+         * @param {string} type - 'current' para órdenes en curso, 'completed' para finalizadas
+         */
+        function exportCurrentViewToExcel(type) {
+            try {
+                const tableId = type === 'current' ? 'orders-table' : 'completed-orders-table';
+                const table = document.getElementById(tableId);
+                const rows = table.querySelectorAll('tbody tr');
+                
+                if (rows.length === 0) {
+                    alert('No hay datos visibles en la tabla para exportar.');
+                    return;
+                }
+
+                const excelData = [];
+                const headers = [];
+                
+                // Obtener headers de la tabla
+                const headerCells = table.querySelectorAll('thead th');
+                headerCells.forEach(header => {
+                    // Excluir la columna de acciones
+                    if (!header.textContent.includes('Acciones')) {
+                        headers.push(header.textContent.trim());
+                    }
+                });
+
+                // Obtener datos de las filas visibles
+                rows.forEach(row => {
+                    const rowData = {};
+                    const cells = row.querySelectorAll('td');
+                    
+                    cells.forEach((cell, index) => {
+                        if (index < headers.length) { // Solo incluir columnas con headers
+                            rowData[headers[index]] = cell.textContent.trim();
+                        }
+                    });
+                    
+                    if (Object.keys(rowData).length > 0) {
+                        excelData.push(rowData);
+                    }
+                });
+
+                // Crear y descargar Excel
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                XLSX.utils.book_append_sheet(wb, ws, 'Vista Actual');
+                
+                const currentDate = new Date().toISOString().split('T')[0];
+                const fileName = type === 'current' ? 'Vista_Actual_En_Curso' : 'Vista_Actual_Finalizadas';
+                XLSX.writeFile(wb, `${fileName}_${currentDate}.xlsx`);
+                
+                alert(`✅ ${excelData.length} registros de la vista actual exportados exitosamente.`);
+                
+            } catch (error) {
+                console.error('Error al exportar vista actual:', error);
+                alert('Error al exportar vista actual: ' + error.message);
+            }
+        }
+
+        /**
+         * Prepara los datos para exportación a Excel
+         * @param {Array} orders - Array de órdenes
+         * @param {string} type - Tipo de órdenes
+         * @returns {Array} Datos formateados para Excel
+         */
+        function prepareExcelData(orders, type) {
+            // Obtener todos los campos únicos de todas las órdenes
+            const allFields = new Set();
+            
+            orders.forEach(order => {
+                Object.keys(order).forEach(key => {
+                    // Excluir campos internos que no son relevantes
+                    if (key !== 'id' && !key.startsWith('_')) {
+                        allFields.add(key);
+                    }
+                });
+            });
+
+            // Convertir Set a Array y ordenar
+            const fieldNames = Array.from(allFields).sort();
+            
+            // Crear array de datos para Excel
+            const excelData = orders.map(order => {
+                const row = {};
+                
+                fieldNames.forEach(field => {
+                    let value = order[field];
+                    
+                    // Formatear valores específicos
+                    if (value === null || value === undefined) {
+                        value = '';
+                    } else if (typeof value === 'object') {
+                        // Para objetos como la certificación, convertirlos a string legible
+                        if (field === 'Certificación') {
+                            value = Object.entries(value).map(([k, v]) => `${k}: ${v}`).join('; ');
+                        } else {
+                            value = JSON.stringify(value);
+                        }
+                    } else if (field.includes('Fecha')) {
+                        // Mantener formato de fecha consistente
+                        value = String(value);
+                    } else if (typeof value === 'number') {
+                        // Mantener números como están
+                        value = value;
+                    } else {
+                        // Para strings, limpiar y mantener como están
+                        value = String(value).trim();
+                    }
+                    
+                    row[field] = value;
+                });
+                
+                return row;
+            });
+
+            return excelData;
+        }
+
+        /**
+         * Lógica de filtrado (reutilizada de renderOrdersTable)
+         */
+        function applyFilterLogic(order, filter) {
+            const fieldValue = order[filter.field] || '';
+            const filterValue = filter.value;
+            
+            switch (filter.operator) {
+                case 'contains':
+                    return fieldValue.toString().toLowerCase().includes(filterValue.toLowerCase());
+                case 'equals':
+                    return fieldValue.toString().toLowerCase() === filterValue.toLowerCase();
+                case 'startsWith':
+                    return fieldValue.toString().toLowerCase().startsWith(filterValue.toLowerCase());
+                case 'endsWith':
+                    return fieldValue.toString().toLowerCase().endsWith(filterValue.toLowerCase());
+                case 'range':
+                    const [min, max] = filterValue.split('-').map(v => parseFloat(v.trim()));
+                    const numValue = parseFloat(fieldValue);
+                    return !isNaN(numValue) && numValue >= min && numValue <= max;
+                case 'greater':
+                    const greaterValue = parseFloat(fieldValue);
+                    const greaterFilter = parseFloat(filterValue);
+                    return !isNaN(greaterValue) && greaterValue > greaterFilter;
+                case 'less':
+                    const lessValue = parseFloat(fieldValue);
+                    const lessFilter = parseFloat(filterValue);
+                    return !isNaN(lessValue) && lessValue < lessFilter;
+                default:
+                    return true;
+            }
         }
 
     </script>
