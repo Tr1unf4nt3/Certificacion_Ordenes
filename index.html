@@ -71,6 +71,9 @@
         .nav-tabs .nav-link.active {
             font-weight: bold;
         }
+        .user-badge {
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
@@ -89,6 +92,9 @@
                 </div>
                 <button type="submit" class="btn btn-primary w-100">Iniciar Sesión</button>
             </form>
+            <div class="text-center mt-3">
+                <small class="text-muted">¿Primer acceso? Regístrate automáticamente al iniciar sesión</small>
+            </div>
             <div id="login-error" class="alert alert-danger mt-3 hidden" role="alert"></div>
         </div>
     </div>
@@ -120,6 +126,9 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#" data-tab="charts">Gráficas</a>
+                        </li>
+                        <li class="nav-item admin-only hidden">
+                            <a class="nav-link" href="#" data-tab="user-management">Gestión de Usuarios</a>
                         </li>
                         <li class="nav-item admin-only hidden">
                             <a class="nav-link" href="#" data-tab="export-import">Exportación/Importación</a>
@@ -651,6 +660,43 @@
                 </div>
             </div>
 
+            <!-- User Management Tab -->
+            <div id="user-management" class="tab-content hidden">
+                <h3>Gestión de Usuarios</h3>
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Agregar Nuevo Usuario</h5>
+                        <form id="user-form">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="new-user-email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="new-user-email" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="new-user-password" class="form-label">Contraseña</label>
+                                    <input type="password" class="form-control" id="new-user-password" required minlength="6">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="user-role" class="form-label">Rol</label>
+                                    <select class="form-control" id="user-role" required>
+                                        <option value="user">Usuario Normal</option>
+                                        <option value="admin">Administrador</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Crear Usuario</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h5>Usuarios Existentes</h5>
+                    <div id="users-list" class="mt-3"></div>
+                </div>
+            </div>
+
             <!-- Export/Import Tab -->
             <div id="export-import" class="tab-content hidden">
                 <h3>Exportación e Importación</h3>
@@ -783,6 +829,7 @@
         let contracts = [];
         let workTypes = [];
         let municipalities = [];
+        let allUsers = [];
 
         // DOM elements
         const loginSection = document.getElementById('login-section');
@@ -879,6 +926,9 @@
             // Export/Import
             document.getElementById('export-data').addEventListener('click', exportData);
             document.getElementById('import-data').addEventListener('click', importData);
+            
+            // User management
+            document.getElementById('user-form').addEventListener('submit', createUser);
         }
 
         function handleLogin(e) {
@@ -894,8 +944,24 @@
                     showApp();
                 })
                 .catch(error => {
-                    loginError.textContent = error.message;
-                    loginError.classList.remove('hidden');
+                    // If user doesn't exist, try to create it
+                    if (error.code === 'auth/user-not-found') {
+                        auth.createUserWithEmailAndPassword(email, password)
+                            .then(userCredential => {
+                                currentUser = userCredential.user;
+                                // First user becomes admin automatically
+                                checkFirstUser();
+                                loadInitialData();
+                                showApp();
+                            })
+                            .catch(createError => {
+                                loginError.textContent = createError.message;
+                                loginError.classList.remove('hidden');
+                            });
+                    } else {
+                        loginError.textContent = error.message;
+                        loginError.classList.remove('hidden');
+                    }
                 });
         }
 
@@ -903,12 +969,55 @@
             auth.signOut();
         }
 
+        function checkFirstUser() {
+            // Check if this is the first user in the system
+            database.ref('users').once('value')
+                .then(snapshot => {
+                    const usersCount = snapshot.numChildren();
+                    const role = usersCount === 0 ? 'admin' : 'user';
+                    
+                    // Save user with determined role
+                    return database.ref('users/' + currentUser.uid).set({
+                        email: currentUser.email,
+                        role: role,
+                        createdAt: new Date().toISOString()
+                    });
+                })
+                .then(() => {
+                    checkUserRole();
+                })
+                .catch(error => {
+                    console.error('Error checking first user:', error);
+                });
+        }
+
         function checkUserRole() {
-            // In a real application, you would check the user's role from the database
-            // For this example, we'll assume admin if email contains "admin"
-            isAdmin = currentUser.email.includes('admin');
-            
-            // Show/hide admin-only elements
+            database.ref('users/' + currentUser.uid).once('value')
+                .then((snapshot) => {
+                    const userData = snapshot.val();
+                    if (userData) {
+                        isAdmin = userData.role === 'admin';
+                    } else {
+                        // If user doesn't exist in database, create as normal user
+                        database.ref('users/' + currentUser.uid).set({
+                            email: currentUser.email,
+                            role: 'user',
+                            createdAt: new Date().toISOString()
+                        });
+                        isAdmin = false;
+                    }
+                    
+                    updateUIForRole();
+                })
+                .catch((error) => {
+                    console.error('Error checking user role:', error);
+                    isAdmin = false;
+                    updateUIForRole();
+                });
+        }
+
+        function updateUIForRole() {
+            // Show/hide elements based on role
             adminOnlyElements.forEach(element => {
                 if (isAdmin) {
                     element.classList.remove('hidden');
@@ -918,7 +1027,11 @@
             });
             
             // Update user info
-            userInfo.textContent = `${currentUser.email} (${isAdmin ? 'Administrador' : 'Usuario Normal'})`;
+            const roleBadge = isAdmin ? 
+                '<span class="badge bg-danger user-badge">Administrador</span>' : 
+                '<span class="badge bg-primary user-badge">Usuario Normal</span>';
+            
+            userInfo.innerHTML = `${currentUser.email} ${roleBadge}`;
         }
 
         function showLogin() {
@@ -957,6 +1070,9 @@
                     break;
                 case 'final-certifications':
                     loadFinalCertifications();
+                    break;
+                case 'user-management':
+                    loadUsers();
                     break;
                 case 'charts':
                     updateCharts();
@@ -1005,24 +1121,12 @@
                 const chartCompanySelect = document.getElementById('chart-company');
                 
                 // Clear existing options (except the first one)
-                while (companiesSelect.options.length > 1) {
-                    companiesSelect.remove(1);
-                }
-                while (filterCompanySelect.options.length > 1) {
-                    filterCompanySelect.remove(1);
-                }
-                while (filterFinalizedCompanySelect.options.length > 1) {
-                    filterFinalizedCompanySelect.remove(1);
-                }
-                while (finalCertificationCompanySelect.options.length > 1) {
-                    finalCertificationCompanySelect.remove(1);
-                }
-                while (filterCertificationCompanySelect.options.length > 1) {
-                    filterCertificationCompanySelect.remove(1);
-                }
-                while (chartCompanySelect.options.length > 1) {
-                    chartCompanySelect.remove(1);
-                }
+                [companiesSelect, filterCompanySelect, filterFinalizedCompanySelect, 
+                 finalCertificationCompanySelect, filterCertificationCompanySelect, chartCompanySelect].forEach(select => {
+                    while (select.options.length > 1) {
+                        select.remove(1);
+                    }
+                });
                 
                 snapshot.forEach(childSnapshot => {
                     const company = childSnapshot.val();
@@ -1075,18 +1179,11 @@
                 const chartWorkTypeSelect = document.getElementById('chart-work-type');
                 
                 // Clear existing options (except the first one)
-                while (workTypeSelect.options.length > 1) {
-                    workTypeSelect.remove(1);
-                }
-                while (filterWorkTypeSelect.options.length > 1) {
-                    filterWorkTypeSelect.remove(1);
-                }
-                while (filterFinalizedWorkTypeSelect.options.length > 1) {
-                    filterFinalizedWorkTypeSelect.remove(1);
-                }
-                while (chartWorkTypeSelect.options.length > 1) {
-                    chartWorkTypeSelect.remove(1);
-                }
+                [workTypeSelect, filterWorkTypeSelect, filterFinalizedWorkTypeSelect, chartWorkTypeSelect].forEach(select => {
+                    while (select.options.length > 1) {
+                        select.remove(1);
+                    }
+                });
                 
                 snapshot.forEach(childSnapshot => {
                     const workType = childSnapshot.val();
@@ -1113,15 +1210,11 @@
                 const filterFinalizedMunicipalitySelect = document.getElementById('filter-finalized-municipality');
                 
                 // Clear existing options (except the first one)
-                while (municipalitySelect.options.length > 1) {
-                    municipalitySelect.remove(1);
-                }
-                while (filterMunicipalitySelect.options.length > 1) {
-                    filterMunicipalitySelect.remove(1);
-                }
-                while (filterFinalizedMunicipalitySelect.options.length > 1) {
-                    filterFinalizedMunicipalitySelect.remove(1);
-                }
+                [municipalitySelect, filterMunicipalitySelect, filterFinalizedMunicipalitySelect].forEach(select => {
+                    while (select.options.length > 1) {
+                        select.remove(1);
+                    }
+                });
                 
                 snapshot.forEach(childSnapshot => {
                     const municipality = childSnapshot.val();
@@ -1139,6 +1232,115 @@
                 });
             });
         }
+
+        // User Management Functions
+        function createUser(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('new-user-email').value;
+            const password = document.getElementById('new-user-password').value;
+            const role = document.getElementById('user-role').value;
+            
+            // Create user in Firebase Authentication
+            auth.createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    
+                    // Save user data in Firebase Database
+                    return database.ref('users/' + user.uid).set({
+                        email: email,
+                        role: role,
+                        createdAt: new Date().toISOString(),
+                        createdBy: currentUser.uid
+                    });
+                })
+                .then(() => {
+                    alert('Usuario creado exitosamente');
+                    document.getElementById('user-form').reset();
+                    loadUsers();
+                })
+                .catch((error) => {
+                    alert('Error al crear usuario: ' + error.message);
+                });
+        }
+
+        function loadUsers() {
+            database.ref('users').on('value', (snapshot) => {
+                allUsers = [];
+                const usersList = document.getElementById('users-list');
+                usersList.innerHTML = '';
+                
+                snapshot.forEach((childSnapshot) => {
+                    const user = childSnapshot.val();
+                    user.id = childSnapshot.key;
+                    allUsers.push(user);
+                    
+                    const userCard = document.createElement('div');
+                    userCard.className = 'card mb-2';
+                    userCard.innerHTML = `
+                        <div class="card-body py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${user.email}</strong>
+                                    <span class="badge ${user.role === 'admin' ? 'bg-danger' : 'bg-primary'} ms-2">
+                                        ${user.role === 'admin' ? 'Administrador' : 'Usuario Normal'}
+                                    </span>
+                                    <small class="text-muted d-block">Creado: ${new Date(user.createdAt).toLocaleDateString()}</small>
+                                </div>
+                                ${user.id !== currentUser.uid ? `
+                                    <button class="btn btn-sm btn-outline-danger delete-user" data-id="${user.id}">
+                                        Eliminar
+                                    </button>
+                                ` : '<span class="text-muted">Usuario actual</span>'}
+                            </div>
+                        </div>
+                    `;
+                    usersList.appendChild(userCard);
+                });
+                
+                // Add event listeners for delete buttons
+                document.querySelectorAll('.delete-user').forEach(button => {
+                    button.addEventListener('click', function() {
+                        deleteUser(this.getAttribute('data-id'));
+                    });
+                });
+            });
+        }
+
+        function deleteUser(userId) {
+            if (confirm('¿Está seguro de que desea eliminar este usuario? Esta acción no se puede deshacer.')) {
+                // Delete user from Authentication
+                auth.currentUser.getIdToken()
+                    .then((token) => {
+                        return fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${firebaseConfig.apiKey}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                idToken: token,
+                                localId: userId
+                            })
+                        });
+                    })
+                    .then(() => {
+                        // Delete user from Database
+                        return database.ref('users/' + userId).remove();
+                    })
+                    .then(() => {
+                        alert('Usuario eliminado exitosamente');
+                        loadUsers();
+                    })
+                    .catch((error) => {
+                        console.error('Error deleting user:', error);
+                        alert('Error al eliminar usuario. Nota: Solo puedes eliminar usuarios recién creados desde la consola de Firebase.');
+                    });
+            }
+        }
+
+        // Rest of the functions remain the same as in the previous implementation
+        // (updateCompanyInfo, toggleConstructionFields, calculateTotals, saveOrder, etc.)
+        // ... [El resto del código permanece igual]
 
         function updateCompanyInfo(companyId) {
             const company = companies.find(c => c.id === companyId);
@@ -1212,7 +1414,8 @@
                 location: document.getElementById('location').value,
                 constructionType: document.querySelector('input[name="construction-type"]:checked')?.value || '',
                 status: 'En Proceso',
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                createdBy: currentUser.uid
             };
             
             // Add construction-specific data if applicable
@@ -1483,7 +1686,8 @@
                 endDate: document.getElementById('certification-end-date').value,
                 total: document.getElementById('certification-total').value,
                 deviations: document.getElementById('certification-deviations').value,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                certifiedBy: currentUser.uid
             };
             
             // Save certification
@@ -1687,7 +1891,8 @@
                 company: companyId,
                 orders: selectedOrderIds,
                 total: document.getElementById('final-certification-total').value,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                createdBy: currentUser.uid
             };
             
             // Save to Firebase
@@ -1952,7 +2157,8 @@
                 companies: companies,
                 contracts: contracts,
                 workTypes: workTypes,
-                municipalities: municipalities
+                municipalities: municipalities,
+                users: allUsers
             };
             
             const dataStr = JSON.stringify(data, null, 2);
@@ -2030,6 +2236,8 @@
                                 return acc;
                             }, {});
                         }
+                        
+                        // Note: Users are not imported for security reasons
                         
                         database.ref().update(updates)
                             .then(() => {
