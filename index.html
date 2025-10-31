@@ -3,652 +3,2690 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Órdenes de Trabajo</title>
+    <title>Sistema de Gestión de Órdenes de Trabajo</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- SheetJS para exportar a Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- Chart.js para gráficas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        #app { display: none; }
-        .tab-content { display: none; padding: 20px; border: 1px solid #ccc; margin-top: 10px; }
-        .tab-button { padding: 10px; cursor: pointer; border: 1px solid #ccc; border-bottom: none; }
-        .tab-button.active { background-color: #f0f0f0; }
-        #login-form { max-width: 300px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; }
-        .formulario label, .formulario input, .formulario select, .formulario textarea { display: block; margin-bottom: 10px; }
-        .section-header { margin-top: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        body {
+            background-color: #f8f9fa;
+        }
+        .hidden {
+            display: none;
+        }
+        .tab-content {
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-top: 10px;
+        }
+        .form-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        .form-section h5 {
+            margin-bottom: 15px;
+            color: #0d6efd;
+        }
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .order-card {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .order-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .filter-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .certification-tree {
+            margin-left: 20px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 30px;
+        }
     </style>
 </head>
 <body>
-
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-
-
-<div id="login-form">
-    <h2>🔑 Inicio de Sesión</h2>
-    <input type="email" id="login-email" placeholder="Correo Electrónico">
-    <input type="password" id="login-password" placeholder="Contraseña">
-    <button onclick="loginUser()">Iniciar Sesión</button>
-    <button onclick="registerUser()">Registrarse</button>
-</div>
-
-<div id="app">
-    <div id="tabs">
-        <button class="tab-button active" onclick="openTab('orden-trabajo', this)">📋 Orden de Trabajo</button>
-        <button class="tab-button" onclick="openTab('ordenes-creadas', this)">📝 Órdenes Creadas</button>
-        <button class="tab-button" onclick="openTab('ordenes-finalizadas', this)">✅ Órdenes Finalizadas</button>
-        <button class="tab-button" onclick="openTab('certificacion-final', this)">📄 Certificación Final</button>
-        <button class="tab-button" onclick="openTab('certificaciones-finales', this)">📜 Certificaciones Finales</button>
-        <button class="tab-button" onclick="openTab('graficas', this)">📈 Gráficas</button>
-        <button class="tab-button admin-only" id="tab-export-import" onclick="openTab('exportacion-importacion', this)">💾 Exportación/Importación</button>
-        <button onclick="logoutUser()" style="float: right;">🚪 Cerrar Sesión</button>
-    </div>
-
-    <div id="orden-trabajo" class="tab-content" style="display: block;">
-        <h3>📋 Formulario Creación Orden de Trabajo</h3>
-        <div id="ot-form-container">
-            <div id="ot-content-pdf" class="formulario">
-                <h4>I. Información General</h4>
-                <label>Número de la Orden de Trabajo: <span id="ot-numero"></span></label>
-                <label>Usuario: <span id="ot-usuario"></span></label>
-                <label>Fecha Actual: <span id="ot-fecha"></span></label>
-                
-                <label for="ot-contrato">Contrato:</label>
-                <select id="ot-contrato">
-                    <option>Acometidas y Empotrados</option>
-                    <option>Relevamientos y Proyectos</option>
-                </select>
-
-                <h4>II. Información de la Contratista</h4>
-                <label for="ot-empresa">Empresa:</label>
-                <select id="ot-empresa">
-                    <option>Empresa A</option>
-                    <option>Empresa B</option>
-                </select>
-                <label>Rif: <span id="ot-rif"></span></label>
-                <label>Responsable: <span id="ot-responsable"></span></label>
-
-                </div>
-            <button onclick="saveOrder()">Guardar Orden de Trabajo</button>
-            <button onclick="generatePDF('ot-content-pdf', 'Orden de Trabajo', 'Firma Contratista', 'Firma Responsable')">Generar PDF</button>
-        </div>
-    </div>
-
-    <div id="ordenes-creadas" class="tab-content">
-        <h3>📝 Órdenes Creadas (En Proceso)</h3>
-        <input type="text" id="filter-creadas" placeholder="Filtrar Órdenes...">
-        <button onclick="exportToExcel('creadas-table', 'Ordenes_Creadas')">Exportar a Excel</button>
-        <div id="creadas-list">
-            <table id="creadas-table">
-                <thead><tr><th>N°</th><th>Usuario</th><th>Fecha</th><th>Trabajo</th><th>Acciones</th></tr></thead>
-                <tbody></tbody>
-            </table>
-        </div>
-        <div id="certificacion-obra-form" class="formulario" style="display: none; border-top: 2px solid #333; margin-top: 20px; padding-top: 20px;">
-            <h4>Formulario de Certificación de Obra</h4>
-            <div id="cert-content-pdf">
-                <label>Número de Certificación: <span id="cert-numero"></span></label>
-                <label>Empresa: <span id="cert-empresa"></span></label>
-                <label>Corresponde Orden de trabajo N°: <span id="cert-ot-numero"></span></label>
-                <label for="cert-fecha-fin">Fin de la Obra:</label>
-                <input type="date" id="cert-fecha-fin">
-                <label for="cert-importe">Importe Total de la Obra ($):</label>
-                <input type="number" id="cert-importe" value="0" step="0.01">
-                <label for="cert-desviaciones">Desviaciones y Justificación:</label>
-                <textarea id="cert-desviaciones"></textarea>
+    <!-- Login Section -->
+    <div id="login-section" class="login-container">
+        <h2 class="text-center mb-4">Iniciar Sesión</h2>
+        <form id="login-form">
+            <div class="mb-3">
+                <label for="email" class="form-label">Correo Electrónico</label>
+                <input type="email" class="form-control" id="email" required>
             </div>
-            <button onclick="document.getElementById('certificacion-obra-form').style.display='none'">Atrás</button>
-            <button onclick="acceptFinalization()">Aceptar Finalización</button>
-        </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Contraseña</label>
+                <input type="password" class="form-control" id="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Iniciar Sesión</button>
+        </form>
+        <div id="login-error" class="alert alert-danger mt-3 hidden" role="alert"></div>
     </div>
 
-    <div id="ordenes-finalizadas" class="tab-content">
-        <h3>✅ Órdenes Finalizadas</h3>
-        <input type="text" id="filter-finalizadas" placeholder="Filtrar Órdenes...">
-        <button onclick="exportToExcel('finalizadas-table', 'Ordenes_Finalizadas')">Exportar Órdenes a Excel</button>
-        <button onclick="exportToExcel('certificaciones-table', 'Certificaciones_Obra')">Exportar Certificaciones a Excel</button>
-        <div id="finalizadas-list">
-            <table id="finalizadas-table">
-                <thead><tr><th>N° OT</th><th>N° Cert.</th><th>Empresa</th><th>Importe</th><th>Acciones</th></tr></thead>
-                <tbody></tbody>
-            </table>
-        </div>
-    </div>
-    
-    <div id="certificacion-final" class="tab-content">
-        <h3>📄 Formulario Certificación Final</h3>
-        <div class="formulario">
-            <label>Número de Certificación Final: <span id="cert-final-numero"></span></label>
-            <label for="cert-final-empresa">Empresa:</label>
-            <select id="cert-final-empresa" onchange="loadFinalizedOrdersForCert()"></select>
-            
-            <h4>Órdenes Realizadas</h4>
-            <div id="ordenes-para-certificacion">
+    <!-- Main Application -->
+    <div id="app" class="hidden">
+        <!-- Navigation -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">Sistema de Órdenes</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="create-order">Crear Orden</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="orders">Órdenes Creadas</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="finished-orders">Órdenes Finalizadas</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="final-certification">Certificación Final</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="final-certifications">Certificaciones Finales</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="charts">Gráficas</a>
+                        </li>
+                        <li class="nav-item admin-only hidden">
+                            <a class="nav-link" href="#" data-tab="export-import">Exportación/Importación</a>
+                        </li>
+                    </ul>
+                    <div class="d-flex">
+                        <span class="navbar-text me-3" id="user-info"></span>
+                        <button class="btn btn-outline-light btn-sm" id="logout-btn">Cerrar Sesión</button>
+                    </div>
                 </div>
-            
-            <label>Total ($): <span id="cert-final-total">0.00</span></label>
-            <button onclick="acceptFinalCert()">Aceptar Certificación Final</button>
-        </div>
-    </div>
+            </div>
+        </nav>
 
-    <div id="certificaciones-finales" class="tab-content">
-        <h3>📜 Certificaciones Finales</h3>
-        <input type="text" id="filter-cert-final" placeholder="Filtrar Certificaciones...">
-        <button onclick="exportToExcel('cert-final-table', 'Certificaciones_Finales')">Exportar a Excel</button>
-        <div id="cert-final-list">
-            <table id="cert-final-table">
-                <thead><tr><th>N° Cert.</th><th>Empresa</th><th>Total</th><th>Acciones</th></tr></thead>
-                <tbody></tbody>
-            </table>
-        </div>
-    </div>
+        <!-- Tab Content -->
+        <div class="container mt-4">
+            <!-- Create Order Tab -->
+            <div id="create-order" class="tab-content">
+                <h3>Crear Orden de Trabajo</h3>
+                <form id="order-form">
+                    <!-- Información General -->
+                    <div class="form-section">
+                        <h5>I. Información General</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Número de la Orden de Trabajo</label>
+                                    <input type="text" class="form-control" id="order-number" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Usuario</label>
+                                    <input type="text" class="form-control" id="order-user" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Fecha Actual</label>
+                                    <input type="text" class="form-control" id="order-date" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Contrato</label>
+                                    <select class="form-control" id="contract" required>
+                                        <option value="">Seleccione...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary mt-1 admin-only hidden" onclick="editList('contract')">Editar Lista</button>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Trabajo / Obra a realizar</label>
+                                    <select class="form-control" id="work-type" required>
+                                        <option value="">Seleccione...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary mt-1 admin-only hidden" onclick="editList('work-type')">Editar Lista</button>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Municipio</label>
+                                    <select class="form-control" id="municipality" required>
+                                        <option value="">Seleccione...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary mt-1 admin-only hidden" onclick="editList('municipality')">Editar Lista</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Zona</label>
+                                    <input type="text" class="form-control" id="zone" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Responsable que Solicita la Obra</label>
+                                    <input type="text" class="form-control" id="requester" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Responsable que Autoriza</label>
+                                    <input type="text" class="form-control" id="approver" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-    <div id="graficas" class="tab-content">
-        <h3>📈 Gráficas</h3>
-        <p>Aquí se integrarían librerías de gráficos como Chart.js o D3.js para visualizar los datos de las Órdenes Creadas, Finalizadas y Certificaciones Finales, con opciones de filtrado por Fecha, Empresa, Cantidad de Órdenes, Sumatoria de Importes y Trabajo / Obra a realizar.</p>
-        
+                    <!-- Información de la Contratista -->
+                    <div class="form-section">
+                        <h5>II. Información de la Contratista</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Empresa</label>
+                                    <select class="form-control" id="company" required onchange="updateCompanyInfo()">
+                                        <option value="">Seleccione...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary mt-1 admin-only hidden" onclick="editList('company')">Editar Lista</button>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">RIF</label>
+                                    <input type="text" class="form-control" id="rif" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Apellido y Nombre del Responsable</label>
+                                    <input type="text" class="form-control" id="company-responsible" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-[Image of Chart.js example bar chart]
+                    <!-- Información del Trabajo/Obra -->
+                    <div class="form-section">
+                        <h5>III. Información del Trabajo/Obra</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Descripción Detallada</label>
+                            <textarea class="form-control" id="description" rows="3" required></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Mano de Obra</label>
+                                    <select class="form-control" id="labor">
+                                        <option value="">Seleccione...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary mt-1 admin-only hidden" onclick="editList('labor')">Editar Lista</button>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Materiales</label>
+                                    <select class="form-control" id="materials">
+                                        <option value="">Seleccione...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary mt-1 admin-only hidden" onclick="editList('materials')">Editar Lista</button>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Equipos</label>
+                                    <select class="form-control" id="equipment">
+                                        <option value="">Seleccione...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary mt-1 admin-only hidden" onclick="editList('equipment')">Editar Lista</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Presupuesto Total de la Obra ($)</label>
+                                    <input type="number" class="form-control" id="total-budget" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Fecha de Inicio</label>
+                                    <input type="date" class="form-control" id="start-date" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Fecha de Finalización</label>
+                                    <input type="date" class="form-control" id="end-date" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ubicación Exacta de la Obra</label>
+                            <textarea class="form-control" id="location" rows="2" required></textarea>
+                        </div>
+                    </div>
 
-    </div>
+                    <!-- Tipo de Construcción -->
+                    <div class="form-section">
+                        <h5>Tipo de Construcción (Opcional)</h5>
+                        <div class="mb-3">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="construction-type" id="node-type" value="node">
+                                <label class="form-check-label" for="node-type">La construcción es un Nodo de Acceso</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="construction-type" id="isp-type" value="isp">
+                                <label class="form-check-label" for="isp-type">La construcción es un ISP</label>
+                            </div>
+                        </div>
 
-    <div id="exportacion-importacion" class="tab-content admin-only">
-        <h3>💾 Exportación e Importación de Información</h3>
-        <h4>Exportar Información</h4>
-        <button onclick="exportAllData()">Exportar Información (JSON)</button>
-        
-        <h4>Importar Información</h4>
-        <input type="file" id="import-file" accept=".json">
-        <button onclick="importAllData()">Importar Información (JSON)</button>
-    </div>
+                        <!-- Nodo de Acceso -->
+                        <div id="node-section" class="hidden">
+                            <h6>Datos Condicionales: La Construcción es de Nodo de Acceso</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Costo Proyectado de la Obra ($)</label>
+                                        <input type="number" class="form-control" id="node-cost" step="0.01">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Pago realizado por</label>
+                                        <select class="form-control" id="node-payment-by">
+                                            <option value="">Seleccione...</option>
+                                            <option value="Inter">Inter</option>
+                                            <option value="Cliente">Cliente</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <h6>Pago x VGT CANTV</h6>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Precio Unitario</label>
+                                        <input type="number" class="form-control" id="node-cantv-price" step="0.01">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Puntos</label>
+                                        <input type="number" class="form-control" id="node-cantv-points">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Pago x VGT CANTV a cargo de Inter</label>
+                                        <input type="number" class="form-control" id="node-cantv-total" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <h6>Pago x VGT EDC</h6>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Precio Unitario</label>
+                                        <input type="number" class="form-control" id="node-edc-price" step="0.01">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Puntos</label>
+                                        <input type="number" class="form-control" id="node-edc-points">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Pago x VGT EDC a cargo de Inter</label>
+                                        <input type="number" class="form-control" id="node-edc-total" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Descripción</label>
+                                <textarea class="form-control" id="node-description" rows="2"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Abono Mensual a Recibir por el cliente ($)</label>
+                                <input type="number" class="form-control" id="node-monthly-payment" step="0.01">
+                            </div>
+                        </div>
 
-</div>
+                        <!-- ISP -->
+                        <div id="isp-section" class="hidden">
+                            <h6>Datos Condicionales: La Construcción es de un ISP</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Costo Proyectado de la Obra ($)</label>
+                                        <input type="number" class="form-control" id="isp-cost" step="0.01">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Pago realizado por</label>
+                                        <select class="form-control" id="isp-payment-by">
+                                            <option value="">Seleccione...</option>
+                                            <option value="Inter">Inter</option>
+                                            <option value="Cliente">Cliente</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <h6>Pago x VGT CANTV</h6>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Precio Unitario</label>
+                                        <input type="number" class="form-control" id="isp-cantv-price" step="0.01">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Puntos</label>
+                                        <input type="number" class="form-control" id="isp-cantv-points">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Pago x VGT CANTV a cargo de Inter</label>
+                                        <input type="number" class="form-control" id="isp-cantv-total" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <h6>Pago x VGT EDC</h6>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Precio Unitario</label>
+                                        <input type="number" class="form-control" id="isp-edc-price" step="0.01">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Puntos</label>
+                                        <input type="number" class="form-control" id="isp-edc-points">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Pago x VGT EDC a cargo de Inter</label>
+                                        <input type="number" class="form-control" id="isp-edc-total" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Descripción</label>
+                                <textarea class="form-control" id="isp-description" rows="2"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Abono Mensual a Recibir por el cliente ($)</label>
+                                <input type="number" class="form-control" id="isp-monthly-payment" step="0.01">
+                            </div>
+                        </div>
+                    </div>
 
-<script>
-    // 3._ DATOS DEL SDK DE FIREBASE
-    const firebaseConfig = {
-        apiKey: "AIzaSyD8kNT9Fx_nTWh6PPu5zol5K8uzjrSQ0HY",
-        authDomain: "certificacionordenes.firebaseapp.com",
-        projectId: "certificacionordenes",
-        storageBucket: "certificacionordenes.firebasestorage.app",
-        messagingSenderId: "1031284418081",
-        appId: "1:1031284418081:web:7e921d43798a305756a560"
-    };
+                    <button type="submit" class="btn btn-primary">Guardar Orden</button>
+                    <button type="button" class="btn btn-success" onclick="generateOrderPDF()">Generar PDF</button>
+                </form>
+            </div>
 
-    // Inicializar Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = app.auth();
-    const db = app.firestore();
-
-    let currentUserRole = 'Usuario Normal'; // Rol por defecto
-    let currentUserId = null;
-    let otGlobalCounter = 0; // Contador de órdenes de trabajo
-
-    // 1._ INICIO DE SESIÓN Y ROLES
-    
-    /**
-     * Verifica la autenticación, carga el rol del usuario y actualiza la interfaz.
-     */
-    auth.onAuthStateChanged(async (user) => {
-        if (user) {
-            document.getElementById('login-form').style.display = 'none';
-            document.getElementById('app').style.display = 'block';
-            currentUserId = user.uid;
-            document.getElementById('ot-usuario').textContent = user.email; // Mostrar el correo
-
-            // 4._ ASIGNACIÓN DE ROL: Admin para el primero, Normal para el resto.
-            let userDoc = await db.collection('users').doc(user.uid).get();
-            if (!userDoc.exists) {
-                // Primer inicio de sesión. Determinar rol.
-                const firstUserCheck = await db.collection('users').limit(1).get();
-                const isFirstUser = firstUserCheck.empty;
-
-                currentUserRole = isFirstUser ? 'Administrador' : 'Usuario Normal';
-                await db.collection('users').doc(user.uid).set({
-                    email: user.email,
-                    role: currentUserRole
-                });
-            } else {
-                currentUserRole = userDoc.data().role;
-            }
-
-            // Actualizar interfaz según el rol
-            updateUIByRole();
-            // Inicializar contadores y cargar datos
-            await loadGlobalCounters();
-            openTab('orden-trabajo', document.querySelector('#tabs .tab-button')); // Abrir pestaña por defecto
-
-        } else {
-            document.getElementById('login-form').style.display = 'block';
-            document.getElementById('app').style.display = 'none';
-            currentUserId = null;
-            currentUserRole = 'Usuario Normal';
-        }
-    });
-
-    /**
-     * Actualiza la visibilidad de las pestañas según el rol.
-     */
-    function updateUIByRole() {
-        const adminElements = document.querySelectorAll('.admin-only');
-        const normalElements = document.querySelectorAll('.normal-only');
-        const isAdmin = currentUserRole === 'Administrador';
-
-        adminElements.forEach(el => el.style.display = isAdmin ? 'block' : 'none');
-        // Lógica de botones de "Eliminar" (solo visible para Admin)
-        // Se manejará en el renderizado de listas.
-        
-        console.log("Rol del usuario:", currentUserRole);
-    }
-    
-    /**
-     * Inicia sesión con correo y contraseña.
-     */
-    async function loginUser() {
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-        try {
-            await auth.signInWithEmailAndPassword(email, password);
-            alert('Inicio de sesión exitoso!');
-        } catch (error) {
-            alert('Error al iniciar sesión: ' + error.message);
-        }
-    }
-
-    /**
-     * Registra un nuevo usuario.
-     */
-    async function registerUser() {
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-        try {
-            await auth.createUserWithEmailAndPassword(email, password);
-            alert('Registro exitoso. Se ha iniciado sesión.');
-        } catch (error) {
-            alert('Error al registrar: ' + error.message);
-        }
-    }
-
-    /**
-     * Cierra la sesión del usuario.
-     */
-    function logoutUser() {
-        auth.signOut();
-    }
-
-    // 2._ NAVEGACIÓN POR PESTAÑAS
-    /**
-     * Abre una pestaña y oculta las demás.
-     */
-    function openTab(tabName, elmnt) {
-        let i, tabcontent, tabbuttons;
-        tabcontent = document.getElementsByClassName("tab-content");
-        for (i = 0; i < tabcontent.length; i++) {
-            tabcontent[i].style.display = "none";
-        }
-        tabbuttons = document.getElementsByClassName("tab-button");
-        for (i = 0; i < tabbuttons.length; i++) {
-            tabbuttons[i].classList.remove("active");
-        }
-        document.getElementById(tabName).style.display = "block";
-        elmnt.classList.add("active");
-        
-        // Carga dinámica de datos al abrir pestañas
-        if (tabName === 'ordenes-creadas') {
-            loadOrders('En Proceso');
-        } else if (tabName === 'ordenes-finalizadas') {
-            loadOrders('Finalizado');
-        } else if (tabName === 'certificacion-final') {
-            // Se asume que las empresas de la lista de Cert. Final provienen de una lista maestra o las OT finalizadas
-            document.getElementById('cert-final-empresa').innerHTML = '<option value="">Seleccione Empresa</option><option>Empresa A</option><option>Empresa B</option>';
-            loadFinalCertNumber();
-        }
-    }
-
-
-    // --- GESTIÓN DE FIREBASE FIRESTORE Y CONTADORES ---
-
-    /**
-     * Carga los contadores globales (OT, Cert. Final)
-     */
-    async function loadGlobalCounters() {
-        const counterRef = db.collection('settings').doc('counters');
-        const doc = await counterRef.get();
-        if (doc.exists) {
-            otGlobalCounter = doc.data().otCounter || 0;
-        } else {
-            await counterRef.set({ otCounter: 0, certFinalCounter: 0 });
-        }
-        // Asignar el nuevo número de OT al formulario
-        document.getElementById('ot-numero').textContent = otGlobalCounter + 1;
-        document.getElementById('ot-fecha').textContent = new Date().toLocaleDateString('es-VE', { timeZone: 'America/Caracas' });
-    }
-
-    /**
-     * Guarda la Orden de Trabajo en Firestore e incrementa el contador.
-     */
-    async function saveOrder() {
-        // Obtenemos los datos del formulario (simplicado)
-        const newOtNumber = otGlobalCounter + 1;
-        const orderData = {
-            numeroOT: newOtNumber,
-            usuario: auth.currentUser.email,
-            fechaCreacion: new Date().toISOString(),
-            contrato: document.getElementById('ot-contrato').value,
-            empresa: document.getElementById('ot-empresa').value,
-            // ... agregar todos los campos del formulario ...
-            estado: 'En Proceso'
-        };
-
-        try {
-            // Guardar la OT
-            await db.collection('ordenes').doc(String(newOtNumber)).set(orderData);
-            
-            // Actualizar el contador
-            const counterRef = db.collection('settings').doc('counters');
-            await counterRef.update({ otCounter: newOtNumber });
-            otGlobalCounter = newOtNumber;
-            
-            document.getElementById('ot-numero').textContent = otGlobalCounter + 1; // Actualizar UI
-            alert(`Orden de Trabajo N° ${newOtNumber} creada con éxito.`);
-            loadOrders('En Proceso'); // Recargar lista
-        } catch (error) {
-            console.error("Error al guardar la orden: ", error);
-            alert("Error al guardar la orden: " + error.message);
-        }
-    }
-
-    /**
-     * Carga y muestra las Órdenes de Trabajo según el estado.
-     */
-    async function loadOrders(estado) {
-        const listBody = document.querySelector(estado === 'En Proceso' ? '#creadas-list tbody' : '#finalizadas-list tbody');
-        listBody.innerHTML = '';
-        const snapshot = await db.collection('ordenes').where('estado', '==', estado).orderBy('numeroOT').get();
-        
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const row = listBody.insertRow();
-            row.insertCell().textContent = data.numeroOT;
-            row.insertCell().textContent = data.usuario;
-            row.insertCell().textContent = new Date(data.fechaCreacion).toLocaleDateString();
-            row.insertCell().textContent = data.contrato;
-
-            const actionsCell = row.insertCell();
-            
-            // Botón de Descargar PDF
-            actionsCell.innerHTML += `<button onclick="downloadOTPDF(${data.numeroOT})">PDF OT</button>`;
-
-            if (estado === 'En Proceso') {
-                // Botón Finalizar (solo para órdenes en proceso)
-                actionsCell.innerHTML += `<button onclick="showFinalizationForm(${data.numeroOT})">Finalizar</button>`;
-            } else if (estado === 'Finalizado') {
-                // Botón de Certificación de Obra (solo para órdenes finalizadas)
-                actionsCell.innerHTML += `<button onclick="downloadCertObraPDF(${data.numeroOT})">PDF Cert.</button>`;
-            }
-
-            // Botón de Eliminar (solo para Admin)
-            if (currentUserRole === 'Administrador') {
-                actionsCell.innerHTML += `<button style="color: red;" onclick="deleteOrder(${data.numeroOT}, '${estado}')">Eliminar</button>`;
-            }
-        });
-    }
-
-    /**
-     * Muestra el formulario de Certificación de Obra.
-     */
-    async function showFinalizationForm(otNumber) {
-        const otDoc = await db.collection('ordenes').doc(String(otNumber)).get();
-        if (!otDoc.exists) return alert('Orden de Trabajo no encontrada.');
-        const otData = otDoc.data();
-
-        document.getElementById('cert-numero').textContent = otNumber;
-        document.getElementById('cert-empresa').textContent = otData.empresa;
-        document.getElementById('cert-ot-numero').textContent = otNumber;
-        // Asumiendo que la fecha de inicio es parte de los datos guardados de la OT
-        // document.getElementById('cert-fecha-inicio').textContent = otData.fechaInicio; 
-        
-        document.getElementById('certificacion-obra-form').style.display = 'block';
-        // Guardar el número de OT en una variable global o en un atributo para usarlo al aceptar
-        document.getElementById('certificacion-obra-form').dataset.otNumber = otNumber; 
-    }
-
-    /**
-     * Acepta la finalización, guarda la certificación y cambia el estado de la OT.
-     */
-    async function acceptFinalization() {
-        const otNumber = document.getElementById('certificacion-obra-form').dataset.otNumber;
-        const certData = {
-            otNumber: Number(otNumber),
-            numeroCertificacion: Number(otNumber), // Usar el mismo número de OT
-            fechaCertificacion: new Date().toISOString(),
-            empresa: document.getElementById('cert-empresa').textContent,
-            // ... Otros campos del formulario de certificación ...
-            importeTotal: Number(document.getElementById('cert-importe').value),
-            desviaciones: document.getElementById('cert-desviaciones').value
-        };
-
-        try {
-            // 1. Guardar la Certificación de Obra
-            await db.collection('certificacionesObra').doc(String(otNumber)).set(certData);
-            
-            // 2. Cambiar el estado de la Orden de Trabajo a 'Finalizado'
-            await db.collection('ordenes').doc(String(otNumber)).update({ estado: 'Finalizado' });
-
-            alert(`Orden N° ${otNumber} Finalizada y Certificación de Obra generada.`);
-            
-            // 3. Generar PDF de Certificación de Obra
-            generatePDF('cert-content-pdf', 'Certificación de Obra', 'Firma Jefe Técnico', 'Firma Gerente Técnico');
-            
-            // 4. Actualizar listas y ocultar formulario
-            document.getElementById('certificacion-obra-form').style.display = 'none';
-            loadOrders('En Proceso'); 
-            // La lista de finalizadas se cargará al cambiar de pestaña
-
-        } catch (error) {
-            console.error("Error al finalizar la orden: ", error);
-            alert("Error al finalizar la orden: " + error.message);
-        }
-    }
-
-    // --- FUNCIONES DE UTILIDAD (PDF, Excel, Exportación/Importación) ---
-
-    /**
-     * Genera un PDF de un elemento HTML usando jsPDF y html2canvas.
-     * @param {string} elementId ID del elemento contenedor.
-     * @param {string} title Título del documento (e.g., Orden de Trabajo).
-     * @param {string} signature1 Texto de la primera firma.
-     * @param {string} signature2 Texto de la segunda firma.
-     */
-    function generatePDF(elementId, title, signature1, signature2) {
-        // Uso de window.jspdf.jsPDF por el CDN
-        const { jsPDF } = window.jspdf;
-        const input = document.getElementById(elementId);
-        
-        // Clonar el contenido para añadir las firmas y trabajar con un DOM temporal
-        const content = input.cloneNode(true);
-        // Título especial: "Orden de Trabajo N°(Número)"
-        const otNumber = content.querySelector('#ot-numero')?.textContent || content.querySelector('#cert-numero')?.textContent || 'N/A';
-        const docTitle = `${title} N°${otNumber}`;
-
-        const margin = 10; // 1cm = 10mm
-
-        // Estilos para el PDF (márgenes y firmas)
-        const style = document.createElement('style');
-        style.textContent = `
-            .pdf-page { padding: ${margin}mm; box-sizing: border-box; }
-            .pdf-signatures { margin-top: 50px; display: flex; justify-content: space-around; width: 100%; }
-            .pdf-signature-box { border-top: 1px solid #000; padding-top: 5px; text-align: center; width: 45%; }
-        `;
-        document.head.appendChild(style);
-
-        // Crear contenedor para firmas (y texto en Certificación Final)
-        const signatureContainer = document.createElement('div');
-        signatureContainer.classList.add('pdf-signatures');
-        
-        if (title === 'Certificación Final') {
-            const finalCertText = document.createElement('p');
-            finalCertText.textContent = "Quedan archivadas cada una de las Ordenes de Trabajo finalizadas indicadas en la presente Certificación Final.";
-            content.appendChild(finalCertText);
-        }
-
-        signatureContainer.innerHTML = `
-            <div class="pdf-signature-box">${signature1}</div>
-            <div class="pdf-signature-box">${signature2}</div>
-        `;
-        content.appendChild(signatureContainer);
-        
-        // Añadir el contenido clonado y estilizado al cuerpo (temporalmente)
-        content.classList.add('pdf-page');
-        document.body.appendChild(content);
-
-        // Configuración para html2canvas y jsPDF (para multi-página, aunque es complejo)
-        html2canvas(content, { 
-            scale: 2 // Aumentar la escala para mejor calidad
-        }).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgWidth = 210; // A4 width in mm
-            const pageHeight = 297; // A4 height in mm
-            let imgHeight = canvas.height * imgWidth / canvas.width;
-            let heightLeft = imgHeight;
-            let position = 0;
-
-            pdf.setFontSize(14);
-            pdf.text(docTitle, 105, 15, null, null, 'center'); // Título centrado
-
-            // Lógica básica para salto de página (divide el canvas en páginas)
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-            
-            while (heightLeft >= 0) {
-                position = heightLeft - imgHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
-            }
-
-            pdf.save(`${docTitle}.pdf`);
-            
-            // Eliminar elementos temporales
-            document.body.removeChild(content);
-            document.head.removeChild(style);
-        });
-    }
-    
-    /**
-     * Exporta los datos de una tabla HTML a un archivo Excel (.xlsx) usando SheetJS.
-     * @param {string} tableId ID de la tabla HTML.
-     * @param {string} filename Nombre base del archivo.
-     */
-    function exportToExcel(tableId, filename) {
-        const table = document.getElementById(tableId);
-        if (!table) return alert('Tabla no encontrada para exportar.');
-        
-        // Convertir la tabla HTML a un libro de trabajo de SheetJS
-        const workbook = XLSX.utils.table_to_book(table, { sheet: filename });
-        
-        // Escribir y descargar el archivo XLSX
-        XLSX.writeFile(workbook, `${filename}.xlsx`);
-    }
-
-    /**
-     * Exporta TODA la información de Firestore a un archivo JSON. (Solo Admin)
-     */
-    async function exportAllData() {
-        if (currentUserRole !== 'Administrador') return alert('Acceso denegado.');
-
-        const collectionsToExport = ['ordenes', 'certificacionesObra', 'certificacionesFinales', 'users', 'settings'];
-        const exportData = {};
-
-        try {
-            for (const colName of collectionsToExport) {
-                const snapshot = await db.collection(colName).get();
-                exportData[colName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            }
-
-            const dataStr = JSON.stringify(exportData, null, 2);
-            const blob = new Blob([dataStr], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `backup_firestore_${new Date().toISOString().slice(0, 10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            alert('Información exportada con éxito.');
-
-        } catch (error) {
-            console.error("Error al exportar datos: ", error);
-            alert("Error al exportar datos: " + error.message);
-        }
-    }
-
-    /**
-     * Importa información desde un archivo JSON a Firestore. (Solo Admin)
-     */
-    function importAllData() {
-        if (currentUserRole !== 'Administrador') return alert('Acceso denegado.');
-        const fileInput = document.getElementById('import-file');
-        const file = fileInput.files[0];
-
-        if (!file) return alert('Por favor, seleccione un archivo JSON.');
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const importData = JSON.parse(e.target.result);
+            <!-- Orders Tab -->
+            <div id="orders" class="tab-content hidden">
+                <h3>Órdenes Creadas</h3>
                 
-                // Advertencia y confirmación para evitar sobreescritura accidental
-                if (!confirm('ADVERTENCIA: ¿Está seguro que desea importar estos datos? Esto SOBREESCRIBIRÁ la información existente en las colecciones de Firestore.')) {
-                    return;
+                <!-- Filtros -->
+                <div class="filter-section">
+                    <h5>Filtros</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Número de Orden</label>
+                                <input type="text" class="form-control" id="filter-order-number">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Contrato</label>
+                                <select class="form-control" id="filter-contract">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Trabajo/Obra</label>
+                                <select class="form-control" id="filter-work-type">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Empresa</label>
+                                <select class="form-control" id="filter-company">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="applyFilters()">Aplicar Filtros</button>
+                    <button class="btn btn-secondary" onclick="clearFilters()">Limpiar Filtros</button>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-3">
+                    <button class="btn btn-success" onclick="exportOrdersToExcel()">Exportar a Excel</button>
+                </div>
+                
+                <div id="orders-list"></div>
+            </div>
+
+            <!-- Finished Orders Tab -->
+            <div id="finished-orders" class="tab-content hidden">
+                <h3>Órdenes Finalizadas</h3>
+                
+                <!-- Filtros -->
+                <div class="filter-section">
+                    <h5>Filtros</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Número de Orden</label>
+                                <input type="text" class="form-control" id="filter-finished-order-number">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Empresa</label>
+                                <select class="form-control" id="filter-finished-company">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Fecha Inicio</label>
+                                <input type="date" class="form-control" id="filter-finished-start-date">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Fecha Fin</label>
+                                <input type="date" class="form-control" id="filter-finished-end-date">
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="applyFinishedFilters()">Aplicar Filtros</button>
+                    <button class="btn btn-secondary" onclick="clearFinishedFilters()">Limpiar Filtros</button>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-3">
+                    <button class="btn btn-success" onclick="exportFinishedOrdersToExcel()">Exportar Órdenes a Excel</button>
+                    <button class="btn btn-success" onclick="exportCertificationsToExcel()">Exportar Certificaciones a Excel</button>
+                </div>
+                
+                <div id="finished-orders-list"></div>
+            </div>
+
+            <!-- Final Certification Tab -->
+            <div id="final-certification" class="tab-content hidden">
+                <h3>Certificación Final</h3>
+                <form id="final-certification-form">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Número de Certificación Final</label>
+                                <input type="text" class="form-control" id="final-cert-number" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Empresa</label>
+                                <select class="form-control" id="final-cert-company" required onchange="loadFinishedOrdersForCompany()">
+                                    <option value="">Seleccione...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Órdenes Realizadas</label>
+                        <div id="finished-orders-selector"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Total ($)</label>
+                        <input type="number" class="form-control" id="final-cert-total" readonly>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Aceptar Certificación Final</button>
+                </form>
+            </div>
+
+            <!-- Final Certifications Tab -->
+            <div id="final-certifications" class="tab-content hidden">
+                <h3>Certificaciones Finales</h3>
+                
+                <!-- Filtros -->
+                <div class="filter-section">
+                    <h5>Filtros</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Número de Certificación</label>
+                                <input type="text" class="form-control" id="filter-cert-number">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Empresa</label>
+                                <select class="form-control" id="filter-cert-company">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Fecha</label>
+                                <input type="date" class="form-control" id="filter-cert-date">
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="applyCertFilters()">Aplicar Filtros</button>
+                    <button class="btn btn-secondary" onclick="clearCertFilters()">Limpiar Filtros</button>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-3">
+                    <button class="btn btn-success" onclick="exportFinalCertificationsToExcel()">Exportar a Excel</button>
+                </div>
+                
+                <div id="final-certifications-list"></div>
+            </div>
+
+            <!-- Charts Tab -->
+            <div id="charts" class="tab-content hidden">
+                <h3>Gráficas</h3>
+                
+                <!-- Filtros -->
+                <div class="filter-section">
+                    <h5>Filtros</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Fecha Desde</label>
+                                <input type="date" class="form-control" id="chart-start-date">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Fecha Hasta</label>
+                                <input type="date" class="form-control" id="chart-end-date">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Empresa</label>
+                                <select class="form-control" id="chart-company">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Tipo de Gráfica</label>
+                                <select class="form-control" id="chart-type">
+                                    <option value="count">Cantidad de Órdenes</option>
+                                    <option value="amount">Sumatoria de Importes</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="updateCharts()">Actualizar Gráficas</button>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <canvas id="orders-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <canvas id="finished-orders-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="chart-container">
+                            <canvas id="certifications-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export/Import Tab -->
+            <div id="export-import" class="tab-content hidden">
+                <h3>Exportación e Importación</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Exportar Información</h5>
+                                <p class="card-text">Descargue un archivo JSON con toda la información del sistema para respaldo.</p>
+                                <button class="btn btn-primary" onclick="exportData()">Exportar Información</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Importar Información</h5>
+                                <p class="card-text">Cargue un archivo JSON con información previamente respaldada.</p>
+                                <input type="file" class="form-control mb-3" id="import-file" accept=".json">
+                                <button class="btn btn-primary" onclick="importData()">Importar Información</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for List Editing -->
+    <div class="modal fade" id="listModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="listModalTitle">Editar Lista</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Elementos (uno por línea)</label>
+                        <textarea class="form-control" id="listItems" rows="10"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveList()">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Finalizing Order -->
+    <div class="modal fade" id="finalizeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Finalizar Orden de Trabajo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="finalize-form">
+                        <input type="hidden" id="finalize-order-id">
+                        
+                        <div class="form-section">
+                            <h5>I. Datos de Certificación</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Número de Certificación</label>
+                                        <input type="text" class="form-control" id="cert-number" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Fecha de Certificación</label>
+                                        <input type="text" class="form-control" id="cert-date" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <h5>II. Identificación</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Empresa</label>
+                                        <input type="text" class="form-control" id="cert-company" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">RIF</label>
+                                        <input type="text" class="form-control" id="cert-rif" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <h5>III. Información del Proyecto</h5>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Corresponde Orden de trabajo N°</label>
+                                        <input type="text" class="form-control" id="cert-order-number" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Fechas de Inicio</label>
+                                        <input type="text" class="form-control" id="cert-start-date" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Fin de la Obra</label>
+                                        <input type="date" class="form-control" id="cert-end-date" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Importe Total de la Obra ($)</label>
+                                <input type="number" class="form-control" id="cert-total-amount" step="0.01" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <h5>IV. Desviaciones y Justificación</h5>
+                            <div class="mb-3">
+                                <textarea class="form-control" id="cert-deviations" rows="4" required></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Atrás</button>
+                    <button type="button" class="btn btn-primary" onclick="acceptFinalization()">Aceptar Finalización</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyD8kNT9Fx_nTWh6PPu5zol5K8uzjrSQ0HY",
+            authDomain: "certificacionordenes.firebaseapp.com",
+            projectId: "certificacionordenes",
+            storageBucket: "certificacionordenes.firebasestorage.app",
+            messagingSenderId: "1031284418081",
+            appId: "1:1031284418081:web:7e921d43798a305756a560"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Global variables
+        let currentUser = null;
+        let isAdmin = false;
+        let currentEditingList = null;
+        let orders = [];
+        let finishedOrders = [];
+        let finalCertifications = [];
+        let lists = {};
+        let companies = [];
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if user is logged in
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    currentUser = user;
+                    checkAdminStatus();
+                    showApp();
+                } else {
+                    showLogin();
                 }
+            });
 
-                const batch = db.batch();
-                let docCount = 0;
+            // Login form submission
+            document.getElementById('login-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                auth.signInWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        currentUser = userCredential.user;
+                        checkAdminStatus();
+                        showApp();
+                    })
+                    .catch((error) => {
+                        document.getElementById('login-error').textContent = error.message;
+                        document.getElementById('login-error').classList.remove('hidden');
+                    });
+            });
 
-                for (const colName in importData) {
-                    if (Array.isArray(importData[colName])) {
-                        importData[colName].forEach(docData => {
-                            const docId = docData.id;
-                            delete docData.id; // Remover el ID del objeto para evitar que se guarde como campo
-                            const docRef = db.collection(colName).doc(docId);
-                            batch.set(docRef, docData);
-                            docCount++;
+            // Logout button
+            document.getElementById('logout-btn').addEventListener('click', function() {
+                auth.signOut();
+            });
+
+            // Navigation tabs
+            document.querySelectorAll('[data-tab]').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    showTab(tabId);
+                });
+            });
+
+            // Order form submission
+            document.getElementById('order-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveOrder();
+            });
+
+            // Final certification form submission
+            document.getElementById('final-certification-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveFinalCertification();
+            });
+
+            // Construction type radio buttons
+            document.querySelectorAll('input[name="construction-type"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'node') {
+                        document.getElementById('node-section').classList.remove('hidden');
+                        document.getElementById('isp-section').classList.add('hidden');
+                    } else if (this.value === 'isp') {
+                        document.getElementById('isp-section').classList.remove('hidden');
+                        document.getElementById('node-section').classList.add('hidden');
+                    } else {
+                        document.getElementById('node-section').classList.add('hidden');
+                        document.getElementById('isp-section').classList.add('hidden');
+                    }
+                });
+            });
+
+            // Calculate totals for node section
+            document.getElementById('node-cantv-price').addEventListener('input', calculateNodeTotals);
+            document.getElementById('node-cantv-points').addEventListener('input', calculateNodeTotals);
+            document.getElementById('node-edc-price').addEventListener('input', calculateNodeTotals);
+            document.getElementById('node-edc-points').addEventListener('input', calculateNodeTotals);
+
+            // Calculate totals for isp section
+            document.getElementById('isp-cantv-price').addEventListener('input', calculateIspTotals);
+            document.getElementById('isp-cantv-points').addEventListener('input', calculateIspTotals);
+            document.getElementById('isp-edc-price').addEventListener('input', calculateIspTotals);
+            document.getElementById('isp-edc-points').addEventListener('input', calculateIspTotals);
+        });
+
+        // Show login section
+        function showLogin() {
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('app').classList.add('hidden');
+        }
+
+        // Show application
+        function showApp() {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            document.getElementById('user-info').textContent = currentUser.email;
+            
+            // Load initial data
+            loadLists();
+            loadCompanies();
+            loadOrders();
+            loadFinishedOrders();
+            loadFinalCertifications();
+            
+            // Initialize create order form
+            initializeCreateOrderForm();
+            
+            // Show first tab
+            showTab('create-order');
+        }
+
+        // Check if user is admin
+        function checkAdminStatus() {
+            // Check if user is the first user (admin)
+            db.collection('users').doc(currentUser.uid).get()
+                .then(doc => {
+                    if (doc.exists) {
+                        isAdmin = doc.data().isAdmin;
+                    } else {
+                        // First user becomes admin
+                        isAdmin = true;
+                        db.collection('users').doc(currentUser.uid).set({
+                            email: currentUser.email,
+                            isAdmin: true,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
                         });
                     }
-                }
+                    
+                    // Show/hide admin elements
+                    document.querySelectorAll('.admin-only').forEach(el => {
+                        if (isAdmin) {
+                            el.classList.remove('hidden');
+                        } else {
+                            el.classList.add('hidden');
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error checking admin status:', error);
+                });
+        }
 
-                await batch.commit();
-                alert(`Importación exitosa. ${docCount} documentos guardados.`);
-                // Recargar contadores y datos después de la importación
-                await loadGlobalCounters();
-                loadOrders('En Proceso'); 
-
-            } catch (error) {
-                console.error("Error al importar datos: ", error);
-                alert("Error al procesar el archivo o importar a Firestore: " + error.message);
+        // Show specific tab
+        function showTab(tabId) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabId).classList.remove('hidden');
+            
+            // Update active nav link
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            
+            // Load tab-specific data
+            if (tabId === 'orders') {
+                displayOrders();
+            } else if (tabId === 'finished-orders') {
+                displayFinishedOrders();
+            } else if (tabId === 'final-certifications') {
+                displayFinalCertifications();
+            } else if (tabId === 'charts') {
+                initializeCharts();
             }
-        };
-        reader.readAsText(file);
-    }
-    
-    // Función de ejemplo para descarga de PDF de OT
-    function downloadOTPDF(otNumber) {
-        // En una aplicación completa, cargarías los datos de la OT y luego llamarías a generatePDF
-        alert(`Generando PDF para Orden de Trabajo N° ${otNumber}`);
-        // Llamada simulada: generatePDF(..., 'Orden de Trabajo', ...);
-    }
+        }
 
-    // Función de ejemplo para descarga de PDF de Certificación de Obra
-    function downloadCertObraPDF(otNumber) {
-        // En una aplicación completa, cargarías los datos de la Certificación de Obra y luego llamarías a generatePDF
-        alert(`Generando PDF para Certificación de Obra N° ${otNumber}`);
-        // Llamada simulada: generatePDF(..., 'Certificación de Obra', 'Firma Jefe Técnico', 'Firma Gerente Técnico');
-    }
+        // Load lists from Firestore
+        function loadLists() {
+            db.collection('lists').get()
+                .then(snapshot => {
+                    lists = {};
+                    snapshot.forEach(doc => {
+                        lists[doc.id] = doc.data().items || [];
+                    });
+                    
+                    // Initialize list options in forms
+                    initializeListOptions();
+                })
+                .catch(error => {
+                    console.error('Error loading lists:', error);
+                });
+        }
 
-</script>
+        // Load companies from Firestore
+        function loadCompanies() {
+            db.collection('companies').get()
+                .then(snapshot => {
+                    companies = [];
+                    snapshot.forEach(doc => {
+                        companies.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    // Initialize company options in forms
+                    initializeCompanyOptions();
+                })
+                .catch(error => {
+                    console.error('Error loading companies:', error);
+                });
+        }
+
+        // Initialize list options in forms
+        function initializeListOptions() {
+            // Contract list
+            const contractSelect = document.getElementById('contract');
+            updateSelectOptions(contractSelect, lists.contract || ['Acometidas y Empotrados', 'Relevamientos y Proyectos', 'Nodo de Acceso']);
+            
+            // Work type list
+            const workTypeSelect = document.getElementById('work-type');
+            updateSelectOptions(workTypeSelect, lists.workType || ['Construcción de Acometida', 'Construcción Nodo Acceso', 'Construcción ISP', 'Construcción Feeder (Pedestales - Zanjados - Tanquillas - Instalación de Postes)', 'Mantenimiento de Red', 'Relevamiento']);
+            
+            // Municipality list
+            const municipalitySelect = document.getElementById('municipality');
+            updateSelectOptions(municipalitySelect, lists.municipality || ['Libertador', 'Sucre', 'Baruta', 'Chacao', 'El Hatillo']);
+            
+            // Labor list
+            const laborSelect = document.getElementById('labor');
+            updateSelectOptions(laborSelect, lists.labor || []);
+            
+            // Materials list
+            const materialsSelect = document.getElementById('materials');
+            updateSelectOptions(materialsSelect, lists.materials || []);
+            
+            // Equipment list
+            const equipmentSelect = document.getElementById('equipment');
+            updateSelectOptions(equipmentSelect, lists.equipment || []);
+            
+            // Filter lists
+            const filterContract = document.getElementById('filter-contract');
+            updateSelectOptions(filterContract, lists.contract || ['Acometidas y Empotrados', 'Relevamientos y Proyectos', 'Nodo de Acceso'], true);
+            
+            const filterWorkType = document.getElementById('filter-work-type');
+            updateSelectOptions(filterWorkType, lists.workType || ['Construcción de Acometida', 'Construcción Nodo Acceso', 'Construcción ISP', 'Construcción Feeder (Pedestales - Zanjados - Tanquillas - Instalación de Postes)', 'Mantenimiento de Red', 'Relevamiento'], true);
+        }
+
+        // Initialize company options in forms
+        function initializeCompanyOptions() {
+            // Company list in create order form
+            const companySelect = document.getElementById('company');
+            updateCompanySelectOptions(companySelect);
+            
+            // Company list in filters
+            const filterCompany = document.getElementById('filter-company');
+            updateCompanySelectOptions(filterCompany, true);
+            
+            const filterFinishedCompany = document.getElementById('filter-finished-company');
+            updateCompanySelectOptions(filterFinishedCompany, true);
+            
+            const filterCertCompany = document.getElementById('filter-cert-company');
+            updateCompanySelectOptions(filterCertCompany, true);
+            
+            const chartCompany = document.getElementById('chart-company');
+            updateCompanySelectOptions(chartCompany, true);
+            
+            // Company list in final certification form
+            const finalCertCompany = document.getElementById('final-cert-company');
+            updateCompanySelectOptions(finalCertCompany);
+        }
+
+        // Update select options
+        function updateSelectOptions(selectElement, items, includeAll = false) {
+            // Clear existing options except the first one
+            while (selectElement.options.length > (includeAll ? 1 : 0)) {
+                selectElement.remove(includeAll ? 1 : 0);
+            }
+            
+            // Add new options
+            if (items && items.length > 0) {
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    selectElement.appendChild(option);
+                });
+            }
+        }
+
+        // Update company select options
+        function updateCompanySelectOptions(selectElement, includeAll = false) {
+            // Clear existing options except the first one
+            while (selectElement.options.length > (includeAll ? 1 : 0)) {
+                selectElement.remove(includeAll ? 1 : 0);
+            }
+            
+            // Add new options
+            if (companies && companies.length > 0) {
+                companies.forEach(company => {
+                    const option = document.createElement('option');
+                    option.value = company.id;
+                    option.textContent = company.name;
+                    selectElement.appendChild(option);
+                });
+            }
+        }
+
+        // Initialize create order form
+        function initializeCreateOrderForm() {
+            // Set order number
+            db.collection('orders').orderBy('orderNumber', 'desc').limit(1).get()
+                .then(snapshot => {
+                    let nextOrderNumber = 1;
+                    if (!snapshot.empty) {
+                        const lastOrder = snapshot.docs[0].data();
+                        nextOrderNumber = lastOrder.orderNumber + 1;
+                    }
+                    document.getElementById('order-number').value = nextOrderNumber;
+                })
+                .catch(error => {
+                    console.error('Error getting next order number:', error);
+                    document.getElementById('order-number').value = 1;
+                });
+            
+            // Set user
+            document.getElementById('order-user').value = currentUser.email;
+            
+            // Set current date (GMT-4)
+            const now = new Date();
+            const offset = -4 * 60; // GMT-4 in minutes
+            const localDate = new Date(now.getTime() + offset * 60 * 1000);
+            document.getElementById('order-date').value = localDate.toISOString().split('T')[0];
+        }
+
+        // Update company info when company is selected
+        function updateCompanyInfo() {
+            const companyId = document.getElementById('company').value;
+            const company = companies.find(c => c.id === companyId);
+            
+            if (company) {
+                document.getElementById('rif').value = company.rif || '';
+                document.getElementById('company-responsible').value = company.responsible || '';
+            } else {
+                document.getElementById('rif').value = '';
+                document.getElementById('company-responsible').value = '';
+            }
+        }
+
+        // Calculate totals for node construction
+        function calculateNodeTotals() {
+            const cantvPrice = parseFloat(document.getElementById('node-cantv-price').value) || 0;
+            const cantvPoints = parseFloat(document.getElementById('node-cantv-points').value) || 0;
+            const edcPrice = parseFloat(document.getElementById('node-edc-price').value) || 0;
+            const edcPoints = parseFloat(document.getElementById('node-edc-points').value) || 0;
+            
+            document.getElementById('node-cantv-total').value = (cantvPrice * cantvPoints).toFixed(2);
+            document.getElementById('node-edc-total').value = (edcPrice * edcPoints).toFixed(2);
+        }
+
+        // Calculate totals for ISP construction
+        function calculateIspTotals() {
+            const cantvPrice = parseFloat(document.getElementById('isp-cantv-price').value) || 0;
+            const cantvPoints = parseFloat(document.getElementById('isp-cantv-points').value) || 0;
+            const edcPrice = parseFloat(document.getElementById('isp-edc-price').value) || 0;
+            const edcPoints = parseFloat(document.getElementById('isp-edc-points').value) || 0;
+            
+            document.getElementById('isp-cantv-total').value = (cantvPrice * cantvPoints).toFixed(2);
+            document.getElementById('isp-edc-total').value = (edcPrice * edcPoints).toFixed(2);
+        }
+
+        // Edit list (admin only)
+        function editList(listType) {
+            if (!isAdmin) return;
+            
+            currentEditingList = listType;
+            document.getElementById('listModalTitle').textContent = `Editar Lista: ${listType}`;
+            
+            // Load current items
+            const items = lists[listType] || [];
+            document.getElementById('listItems').value = items.join('\n');
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('listModal'));
+            modal.show();
+        }
+
+        // Save list (admin only)
+        function saveList() {
+            if (!isAdmin || !currentEditingList) return;
+            
+            const itemsText = document.getElementById('listItems').value;
+            const items = itemsText.split('\n').filter(item => item.trim() !== '');
+            
+            // Save to Firestore
+            db.collection('lists').doc(currentEditingList).set({
+                items: items
+            })
+            .then(() => {
+                // Update local lists
+                lists[currentEditingList] = items;
+                
+                // Update UI
+                initializeListOptions();
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('listModal'));
+                modal.hide();
+            })
+            .catch(error => {
+                console.error('Error saving list:', error);
+                alert('Error al guardar la lista: ' + error.message);
+            });
+        }
+
+        // Save order to Firestore
+        function saveOrder() {
+            const orderData = {
+                orderNumber: parseInt(document.getElementById('order-number').value),
+                user: document.getElementById('order-user').value,
+                date: document.getElementById('order-date').value,
+                contract: document.getElementById('contract').value,
+                workType: document.getElementById('work-type').value,
+                municipality: document.getElementById('municipality').value,
+                zone: document.getElementById('zone').value,
+                requester: document.getElementById('requester').value,
+                approver: document.getElementById('approver').value,
+                company: document.getElementById('company').value,
+                rif: document.getElementById('rif').value,
+                companyResponsible: document.getElementById('company-responsible').value,
+                description: document.getElementById('description').value,
+                labor: document.getElementById('labor').value,
+                materials: document.getElementById('materials').value,
+                equipment: document.getElementById('equipment').value,
+                totalBudget: parseFloat(document.getElementById('total-budget').value),
+                startDate: document.getElementById('start-date').value,
+                endDate: document.getElementById('end-date').value,
+                location: document.getElementById('location').value,
+                constructionType: document.querySelector('input[name="construction-type"]:checked')?.value || '',
+                status: 'En Proceso',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: currentUser.uid
+            };
+            
+            // Add construction-specific data
+            if (orderData.constructionType === 'node') {
+                orderData.nodeCost = parseFloat(document.getElementById('node-cost').value) || 0;
+                orderData.nodePaymentBy = document.getElementById('node-payment-by').value;
+                orderData.nodeCantvPrice = parseFloat(document.getElementById('node-cantv-price').value) || 0;
+                orderData.nodeCantvPoints = parseFloat(document.getElementById('node-cantv-points').value) || 0;
+                orderData.nodeCantvTotal = parseFloat(document.getElementById('node-cantv-total').value) || 0;
+                orderData.nodeEdcPrice = parseFloat(document.getElementById('node-edc-price').value) || 0;
+                orderData.nodeEdcPoints = parseFloat(document.getElementById('node-edc-points').value) || 0;
+                orderData.nodeEdcTotal = parseFloat(document.getElementById('node-edc-total').value) || 0;
+                orderData.nodeDescription = document.getElementById('node-description').value;
+                orderData.nodeMonthlyPayment = parseFloat(document.getElementById('node-monthly-payment').value) || 0;
+            } else if (orderData.constructionType === 'isp') {
+                orderData.ispCost = parseFloat(document.getElementById('isp-cost').value) || 0;
+                orderData.ispPaymentBy = document.getElementById('isp-payment-by').value;
+                orderData.ispCantvPrice = parseFloat(document.getElementById('isp-cantv-price').value) || 0;
+                orderData.ispCantvPoints = parseFloat(document.getElementById('isp-cantv-points').value) || 0;
+                orderData.ispCantvTotal = parseFloat(document.getElementById('isp-cantv-total').value) || 0;
+                orderData.ispEdcPrice = parseFloat(document.getElementById('isp-edc-price').value) || 0;
+                orderData.ispEdcPoints = parseFloat(document.getElementById('isp-edc-points').value) || 0;
+                orderData.ispEdcTotal = parseFloat(document.getElementById('isp-edc-total').value) || 0;
+                orderData.ispDescription = document.getElementById('isp-description').value;
+                orderData.ispMonthlyPayment = parseFloat(document.getElementById('isp-monthly-payment').value) || 0;
+            }
+            
+            // Save to Firestore
+            db.collection('orders').add(orderData)
+                .then(() => {
+                    alert('Orden guardada exitosamente');
+                    document.getElementById('order-form').reset();
+                    initializeCreateOrderForm();
+                    loadOrders();
+                })
+                .catch(error => {
+                    console.error('Error saving order:', error);
+                    alert('Error al guardar la orden: ' + error.message);
+                });
+        }
+
+        // Load orders from Firestore
+        function loadOrders() {
+            db.collection('orders').orderBy('orderNumber', 'asc').get()
+                .then(snapshot => {
+                    orders = [];
+                    snapshot.forEach(doc => {
+                        orders.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    // Display orders if on the orders tab
+                    if (!document.getElementById('orders').classList.contains('hidden')) {
+                        displayOrders();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading orders:', error);
+                });
+        }
+
+        // Display orders in the orders tab
+        function displayOrders() {
+            const ordersList = document.getElementById('orders-list');
+            ordersList.innerHTML = '';
+            
+            if (orders.length === 0) {
+                ordersList.innerHTML = '<p>No hay órdenes creadas.</p>';
+                return;
+            }
+            
+            // Apply filters if any
+            let filteredOrders = [...orders];
+            const orderNumberFilter = document.getElementById('filter-order-number').value;
+            const contractFilter = document.getElementById('filter-contract').value;
+            const workTypeFilter = document.getElementById('filter-work-type').value;
+            const companyFilter = document.getElementById('filter-company').value;
+            
+            if (orderNumberFilter) {
+                filteredOrders = filteredOrders.filter(order => 
+                    order.orderNumber.toString().includes(orderNumberFilter)
+                );
+            }
+            
+            if (contractFilter) {
+                filteredOrders = filteredOrders.filter(order => 
+                    order.contract === contractFilter
+                );
+            }
+            
+            if (workTypeFilter) {
+                filteredOrders = filteredOrders.filter(order => 
+                    order.workType === workTypeFilter
+                );
+            }
+            
+            if (companyFilter) {
+                filteredOrders = filteredOrders.filter(order => 
+                    order.company === companyFilter
+                );
+            }
+            
+            // Display filtered orders
+            filteredOrders.forEach(order => {
+                const orderCard = document.createElement('div');
+                orderCard.className = 'order-card';
+                
+                const company = companies.find(c => c.id === order.company);
+                const companyName = company ? company.name : 'Empresa no encontrada';
+                
+                orderCard.innerHTML = `
+                    <div class="order-header">
+                        <h5>Orden de Trabajo N° ${order.orderNumber}</h5>
+                        <div class="order-actions">
+                            <button class="btn btn-sm btn-primary" onclick="generateOrderPDF('${order.id}')">Descargar PDF</button>
+                            <button class="btn btn-sm btn-success" onclick="finalizeOrder('${order.id}')">Finalizar</button>
+                            ${isAdmin ? `<button class="btn btn-sm btn-danger" onclick="deleteOrder('${order.id}')">Eliminar</button>` : ''}
+                        </div>
+                    </div>
+                    <p><strong>Empresa:</strong> ${companyName}</p>
+                    <p><strong>Trabajo/Obra:</strong> ${order.workType}</p>
+                    <p><strong>Ubicación:</strong> ${order.municipality} - ${order.zone}</p>
+                    <p><strong>Fecha de Inicio:</strong> ${order.startDate}</p>
+                    <p><strong>Estado:</strong> ${order.status}</p>
+                `;
+                
+                ordersList.appendChild(orderCard);
+            });
+        }
+
+        // Apply filters to orders
+        function applyFilters() {
+            displayOrders();
+        }
+
+        // Clear filters
+        function clearFilters() {
+            document.getElementById('filter-order-number').value = '';
+            document.getElementById('filter-contract').value = '';
+            document.getElementById('filter-work-type').value = '';
+            document.getElementById('filter-company').value = '';
+            displayOrders();
+        }
+
+        // Finalize order
+        function finalizeOrder(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            // Set form values
+            document.getElementById('finalize-order-id').value = orderId;
+            document.getElementById('cert-number').value = order.orderNumber;
+            
+            // Set current date (GMT-4)
+            const now = new Date();
+            const offset = -4 * 60; // GMT-4 in minutes
+            const localDate = new Date(now.getTime() + offset * 60 * 1000);
+            document.getElementById('cert-date').value = localDate.toISOString().split('T')[0];
+            
+            document.getElementById('cert-company').value = order.company;
+            document.getElementById('cert-rif').value = order.rif;
+            document.getElementById('cert-order-number').value = order.orderNumber;
+            document.getElementById('cert-start-date').value = order.startDate;
+            document.getElementById('cert-end-date').value = '';
+            document.getElementById('cert-total-amount').value = order.totalBudget || '';
+            document.getElementById('cert-deviations').value = '';
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('finalizeModal'));
+            modal.show();
+        }
+
+        // Accept finalization
+        function acceptFinalization() {
+            const orderId = document.getElementById('finalize-order-id').value;
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            const certificationData = {
+                orderId: orderId,
+                orderNumber: order.orderNumber,
+                certificationDate: document.getElementById('cert-date').value,
+                company: order.company,
+                rif: order.rif,
+                startDate: order.startDate,
+                endDate: document.getElementById('cert-end-date').value,
+                totalAmount: parseFloat(document.getElementById('cert-total-amount').value),
+                deviations: document.getElementById('cert-deviations').value,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: currentUser.uid
+            };
+            
+            // Save certification and update order status
+            db.collection('certifications').add(certificationData)
+                .then(() => {
+                    // Update order status to "Finalizado"
+                    return db.collection('orders').doc(orderId).update({
+                        status: 'Finalizado'
+                    });
+                })
+                .then(() => {
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('finalizeModal'));
+                    modal.hide();
+                    
+                    // Reload data
+                    loadOrders();
+                    loadFinishedOrders();
+                    
+                    // Generate PDF
+                    generateCertificationPDF(orderId);
+                })
+                .catch(error => {
+                    console.error('Error finalizing order:', error);
+                    alert('Error al finalizar la orden: ' + error.message);
+                });
+        }
+
+        // Delete order (admin only)
+        function deleteOrder(orderId) {
+            if (!isAdmin) return;
+            
+            if (confirm('¿Está seguro de que desea eliminar esta orden?')) {
+                db.collection('orders').doc(orderId).delete()
+                    .then(() => {
+                        loadOrders();
+                    })
+                    .catch(error => {
+                        console.error('Error deleting order:', error);
+                        alert('Error al eliminar la orden: ' + error.message);
+                    });
+            }
+        }
+
+        // Load finished orders from Firestore
+        function loadFinishedOrders() {
+            db.collection('orders').where('status', '==', 'Finalizado').orderBy('orderNumber', 'asc').get()
+                .then(snapshot => {
+                    finishedOrders = [];
+                    snapshot.forEach(doc => {
+                        finishedOrders.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    // Load certifications for finished orders
+                    return db.collection('certifications').get();
+                })
+                .then(snapshot => {
+                    const certifications = {};
+                    snapshot.forEach(doc => {
+                        const cert = doc.data();
+                        certifications[cert.orderId] = {
+                            id: doc.id,
+                            ...cert
+                        };
+                    });
+                    
+                    // Associate certifications with orders
+                    finishedOrders.forEach(order => {
+                        order.certification = certifications[order.id];
+                    });
+                    
+                    // Display finished orders if on the finished orders tab
+                    if (!document.getElementById('finished-orders').classList.contains('hidden')) {
+                        displayFinishedOrders();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading finished orders:', error);
+                });
+        }
+
+        // Display finished orders
+        function displayFinishedOrders() {
+            const finishedOrdersList = document.getElementById('finished-orders-list');
+            finishedOrdersList.innerHTML = '';
+            
+            if (finishedOrders.length === 0) {
+                finishedOrdersList.innerHTML = '<p>No hay órdenes finalizadas.</p>';
+                return;
+            }
+            
+            // Apply filters if any
+            let filteredOrders = [...finishedOrders];
+            const orderNumberFilter = document.getElementById('filter-finished-order-number').value;
+            const companyFilter = document.getElementById('filter-finished-company').value;
+            const startDateFilter = document.getElementById('filter-finished-start-date').value;
+            const endDateFilter = document.getElementById('filter-finished-end-date').value;
+            
+            if (orderNumberFilter) {
+                filteredOrders = filteredOrders.filter(order => 
+                    order.orderNumber.toString().includes(orderNumberFilter)
+                );
+            }
+            
+            if (companyFilter) {
+                filteredOrders = filteredOrders.filter(order => 
+                    order.company === companyFilter
+                );
+            }
+            
+            if (startDateFilter) {
+                filteredOrders = filteredOrders.filter(order => 
+                    order.startDate >= startDateFilter
+                );
+            }
+            
+            if (endDateFilter) {
+                filteredOrders = filteredOrders.filter(order => 
+                    order.endDate <= endDateFilter
+                );
+            }
+            
+            // Display filtered orders
+            filteredOrders.forEach(order => {
+                const orderCard = document.createElement('div');
+                orderCard.className = 'order-card';
+                
+                const company = companies.find(c => c.id === order.company);
+                const companyName = company ? company.name : 'Empresa no encontrada';
+                
+                orderCard.innerHTML = `
+                    <div class="order-header">
+                        <h5>Orden de Trabajo N° ${order.orderNumber} - Finalizada</h5>
+                        <div class="order-actions">
+                            <button class="btn btn-sm btn-primary" onclick="generateOrderPDF('${order.id}')">Descargar PDF Orden</button>
+                            <button class="btn btn-sm btn-info" onclick="generateCertificationPDF('${order.id}')">Descargar PDF Certificación</button>
+                            ${isAdmin ? `<button class="btn btn-sm btn-danger" onclick="deleteOrder('${order.id}')">Eliminar</button>` : ''}
+                        </div>
+                    </div>
+                    <p><strong>Empresa:</strong> ${companyName}</p>
+                    <p><strong>Trabajo/Obra:</strong> ${order.workType}</p>
+                    <p><strong>Ubicación:</strong> ${order.municipality} - ${order.zone}</p>
+                    <p><strong>Fecha de Inicio:</strong> ${order.startDate}</p>
+                    <p><strong>Fecha de Finalización:</strong> ${order.certification ? order.certification.endDate : 'N/A'}</p>
+                    <p><strong>Importe Total:</strong> $${order.certification ? order.certification.totalAmount.toFixed(2) : 'N/A'}</p>
+                `;
+                
+                finishedOrdersList.appendChild(orderCard);
+            });
+        }
+
+        // Apply filters to finished orders
+        function applyFinishedFilters() {
+            displayFinishedOrders();
+        }
+
+        // Clear finished orders filters
+        function clearFinishedFilters() {
+            document.getElementById('filter-finished-order-number').value = '';
+            document.getElementById('filter-finished-company').value = '';
+            document.getElementById('filter-finished-start-date').value = '';
+            document.getElementById('filter-finished-end-date').value = '';
+            displayFinishedOrders();
+        }
+
+        // Load final certifications from Firestore
+        function loadFinalCertifications() {
+            db.collection('finalCertifications').orderBy('certNumber', 'asc').get()
+                .then(snapshot => {
+                    finalCertifications = [];
+                    snapshot.forEach(doc => {
+                        finalCertifications.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    // Display final certifications if on the final certifications tab
+                    if (!document.getElementById('final-certifications').classList.contains('hidden')) {
+                        displayFinalCertifications();
+                    }
+                    
+                    // Initialize final certification form
+                    initializeFinalCertificationForm();
+                })
+                .catch(error => {
+                    console.error('Error loading final certifications:', error);
+                });
+        }
+
+        // Initialize final certification form
+        function initializeFinalCertificationForm() {
+            // Set final certification number
+            db.collection('finalCertifications').orderBy('certNumber', 'desc').limit(1).get()
+                .then(snapshot => {
+                    let nextCertNumber = 1;
+                    if (!snapshot.empty) {
+                        const lastCert = snapshot.docs[0].data();
+                        nextCertNumber = lastCert.certNumber + 1;
+                    }
+                    document.getElementById('final-cert-number').value = nextCertNumber;
+                })
+                .catch(error => {
+                    console.error('Error getting next certification number:', error);
+                    document.getElementById('final-cert-number').value = 1;
+                });
+        }
+
+        // Load finished orders for a specific company
+        function loadFinishedOrdersForCompany() {
+            const companyId = document.getElementById('final-cert-company').value;
+            const selector = document.getElementById('finished-orders-selector');
+            selector.innerHTML = '';
+            
+            if (!companyId) {
+                document.getElementById('final-cert-total').value = '';
+                return;
+            }
+            
+            // Get finished orders for the selected company
+            const companyFinishedOrders = finishedOrders.filter(order => order.company === companyId);
+            
+            if (companyFinishedOrders.length === 0) {
+                selector.innerHTML = '<p>No hay órdenes finalizadas para esta empresa.</p>';
+                document.getElementById('final-cert-total').value = '';
+                return;
+            }
+            
+            // Create checkboxes for each order
+            companyFinishedOrders.forEach(order => {
+                const company = companies.find(c => c.id === order.company);
+                const companyName = company ? company.name : 'Empresa no encontrada';
+                const totalAmount = order.certification ? order.certification.totalAmount : 0;
+                
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input order-checkbox" type="checkbox" value="${order.id}" data-amount="${totalAmount}" onchange="updateFinalCertTotal()">
+                    <label class="form-check-label">
+                        Orden ${order.orderNumber} - ${companyName} - $${totalAmount.toFixed(2)}
+                    </label>
+                `;
+                selector.appendChild(div);
+            });
+            
+            updateFinalCertTotal();
+        }
+
+        // Update total for final certification
+        function updateFinalCertTotal() {
+            const checkboxes = document.querySelectorAll('.order-checkbox:checked');
+            let total = 0;
+            
+            checkboxes.forEach(checkbox => {
+                total += parseFloat(checkbox.getAttribute('data-amount'));
+            });
+            
+            document.getElementById('final-cert-total').value = total.toFixed(2);
+        }
+
+        // Save final certification
+        function saveFinalCertification() {
+            const companyId = document.getElementById('final-cert-company').value;
+            const checkboxes = document.querySelectorAll('.order-checkbox:checked');
+            
+            if (!companyId || checkboxes.length === 0) {
+                alert('Seleccione una empresa y al menos una orden finalizada.');
+                return;
+            }
+            
+            const orderIds = Array.from(checkboxes).map(checkbox => checkbox.value);
+            const total = parseFloat(document.getElementById('final-cert-total').value);
+            
+            const finalCertData = {
+                certNumber: parseInt(document.getElementById('final-cert-number').value),
+                company: companyId,
+                orderIds: orderIds,
+                total: total,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: currentUser.uid
+            };
+            
+            // Save to Firestore
+            db.collection('finalCertifications').add(finalCertData)
+                .then(() => {
+                    alert('Certificación final guardada exitosamente');
+                    document.getElementById('final-certification-form').reset();
+                    initializeFinalCertificationForm();
+                    loadFinalCertifications();
+                })
+                .catch(error => {
+                    console.error('Error saving final certification:', error);
+                    alert('Error al guardar la certificación final: ' + error.message);
+                });
+        }
+
+        // Display final certifications
+        function displayFinalCertifications() {
+            const finalCertificationsList = document.getElementById('final-certifications-list');
+            finalCertificationsList.innerHTML = '';
+            
+            if (finalCertifications.length === 0) {
+                finalCertificationsList.innerHTML = '<p>No hay certificaciones finales.</p>';
+                return;
+            }
+            
+            // Apply filters if any
+            let filteredCerts = [...finalCertifications];
+            const certNumberFilter = document.getElementById('filter-cert-number').value;
+            const companyFilter = document.getElementById('filter-cert-company').value;
+            const dateFilter = document.getElementById('filter-cert-date').value;
+            
+            if (certNumberFilter) {
+                filteredCerts = filteredCerts.filter(cert => 
+                    cert.certNumber.toString().includes(certNumberFilter)
+                );
+            }
+            
+            if (companyFilter) {
+                filteredCerts = filteredCerts.filter(cert => 
+                    cert.company === companyFilter
+                );
+            }
+            
+            if (dateFilter) {
+                filteredCerts = filteredCerts.filter(cert => 
+                    cert.createdAt && cert.createdAt.toDate().toISOString().split('T')[0] === dateFilter
+                );
+            }
+            
+            // Display filtered certifications
+            filteredCerts.forEach(cert => {
+                const company = companies.find(c => c.id === cert.company);
+                const companyName = company ? company.name : 'Empresa no encontrada';
+                
+                const certDiv = document.createElement('div');
+                certDiv.className = 'order-card';
+                
+                certDiv.innerHTML = `
+                    <div class="order-header">
+                        <h5>Certificación Final N° ${cert.certNumber}</h5>
+                        <div class="order-actions">
+                            <button class="btn btn-sm btn-primary" onclick="generateFinalCertificationPDF('${cert.id}')">Descargar PDF Certificación Final</button>
+                            <button class="btn btn-sm btn-info" onclick="toggleOrders('${cert.id}')">Ver Órdenes</button>
+                            ${isAdmin ? `<button class="btn btn-sm btn-danger" onclick="deleteFinalCertification('${cert.id}')">Eliminar</button>` : ''}
+                        </div>
+                    </div>
+                    <p><strong>Empresa:</strong> ${companyName}</p>
+                    <p><strong>Total:</strong> $${cert.total.toFixed(2)}</p>
+                    <div id="orders-${cert.id}" class="certification-tree hidden"></div>
+                `;
+                
+                finalCertificationsList.appendChild(certDiv);
+                
+                // Load orders for this certification
+                loadOrdersForFinalCertification(cert);
+            });
+        }
+
+        // Load orders for a final certification
+        function loadOrdersForFinalCertification(cert) {
+            const ordersDiv = document.getElementById(`orders-${cert.id}`);
+            ordersDiv.innerHTML = '';
+            
+            cert.orderIds.forEach(orderId => {
+                const order = finishedOrders.find(o => o.id === orderId);
+                if (!order) return;
+                
+                const company = companies.find(c => c.id === order.company);
+                const companyName = company ? company.name : 'Empresa no encontrada';
+                
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'ms-3 mt-2';
+                orderDiv.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Orden Finalizada ${order.orderNumber} - ${companyName}</span>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="generateCertificationPDF('${order.id}')">PDF Certificación</button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="generateOrderPDF('${order.id}')">PDF Orden</button>
+                        </div>
+                    </div>
+                `;
+                
+                ordersDiv.appendChild(orderDiv);
+            });
+        }
+
+        // Toggle orders visibility for a final certification
+        function toggleOrders(certId) {
+            const ordersDiv = document.getElementById(`orders-${certId}`);
+            ordersDiv.classList.toggle('hidden');
+        }
+
+        // Apply filters to final certifications
+        function applyCertFilters() {
+            displayFinalCertifications();
+        }
+
+        // Clear final certifications filters
+        function clearCertFilters() {
+            document.getElementById('filter-cert-number').value = '';
+            document.getElementById('filter-cert-company').value = '';
+            document.getElementById('filter-cert-date').value = '';
+            displayFinalCertifications();
+        }
+
+        // Delete final certification (admin only)
+        function deleteFinalCertification(certId) {
+            if (!isAdmin) return;
+            
+            if (confirm('¿Está seguro de que desea eliminar esta certificación final?')) {
+                db.collection('finalCertifications').doc(certId).delete()
+                    .then(() => {
+                        loadFinalCertifications();
+                    })
+                    .catch(error => {
+                        console.error('Error deleting final certification:', error);
+                        alert('Error al eliminar la certificación final: ' + error.message);
+                    });
+            }
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+            // Create chart contexts
+            const ordersCtx = document.getElementById('orders-chart').getContext('2d');
+            const finishedOrdersCtx = document.getElementById('finished-orders-chart').getContext('2d');
+            const certificationsCtx = document.getElementById('certifications-chart').getContext('2d');
+            
+            // Create charts
+            window.ordersChart = new Chart(ordersCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Órdenes Creadas',
+                        data: [],
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            window.finishedOrdersChart = new Chart(finishedOrdersCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Órdenes Finalizadas',
+                        data: [],
+                        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            window.certificationsChart = new Chart(certificationsCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Certificaciones Finales',
+                        data: [],
+                        backgroundColor: 'rgba(153, 102, 255, 0.5)',
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            // Update charts with initial data
+            updateCharts();
+        }
+
+        // Update charts with filtered data
+        function updateCharts() {
+            const startDate = document.getElementById('chart-start-date').value;
+            const endDate = document.getElementById('chart-end-date').value;
+            const companyFilter = document.getElementById('chart-company').value;
+            const chartType = document.getElementById('chart-type').value;
+            
+            // Filter data
+            let filteredOrders = [...orders];
+            let filteredFinishedOrders = [...finishedOrders];
+            let filteredCerts = [...finalCertifications];
+            
+            if (startDate) {
+                filteredOrders = filteredOrders.filter(order => order.date >= startDate);
+                filteredFinishedOrders = filteredFinishedOrders.filter(order => 
+                    order.certification && order.certification.certificationDate >= startDate
+                );
+                filteredCerts = filteredCerts.filter(cert => 
+                    cert.createdAt && cert.createdAt.toDate().toISOString().split('T')[0] >= startDate
+                );
+            }
+            
+            if (endDate) {
+                filteredOrders = filteredOrders.filter(order => order.date <= endDate);
+                filteredFinishedOrders = filteredFinishedOrders.filter(order => 
+                    order.certification && order.certification.certificationDate <= endDate
+                );
+                filteredCerts = filteredCerts.filter(cert => 
+                    cert.createdAt && cert.createdAt.toDate().toISOString().split('T')[0] <= endDate
+                );
+            }
+            
+            if (companyFilter) {
+                filteredOrders = filteredOrders.filter(order => order.company === companyFilter);
+                filteredFinishedOrders = filteredFinishedOrders.filter(order => order.company === companyFilter);
+                filteredCerts = filteredCerts.filter(cert => cert.company === companyFilter);
+            }
+            
+            // Group by work type
+            const workTypes = [...new Set([
+                ...filteredOrders.map(o => o.workType),
+                ...filteredFinishedOrders.map(o => o.workType)
+            ])].filter(Boolean);
+            
+            // Prepare data for charts
+            const ordersData = workTypes.map(type => {
+                const typeOrders = filteredOrders.filter(o => o.workType === type);
+                return chartType === 'count' ? typeOrders.length : 
+                    typeOrders.reduce((sum, order) => sum + (order.totalBudget || 0), 0);
+            });
+            
+            const finishedOrdersData = workTypes.map(type => {
+                const typeOrders = filteredFinishedOrders.filter(o => o.workType === type);
+                return chartType === 'count' ? typeOrders.length : 
+                    typeOrders.reduce((sum, order) => sum + (order.certification ? order.certification.totalAmount : 0), 0);
+            });
+            
+            // For certifications, group by company
+            const certCompanies = [...new Set(filteredCerts.map(c => c.company))].filter(Boolean);
+            const certificationsData = certCompanies.map(companyId => {
+                const companyCerts = filteredCerts.filter(c => c.company === companyId);
+                return chartType === 'count' ? companyCerts.length : 
+                    companyCerts.reduce((sum, cert) => sum + cert.total, 0);
+            });
+            
+            const companyNames = certCompanies.map(id => {
+                const company = companies.find(c => c.id === id);
+                return company ? company.name : 'Empresa no encontrada';
+            });
+            
+            // Update charts
+            window.ordersChart.data.labels = workTypes;
+            window.ordersChart.data.datasets[0].data = ordersData;
+            window.ordersChart.data.datasets[0].label = chartType === 'count' ? 
+                'Cantidad de Órdenes Creadas' : 'Sumatoria de Importes de Órdenes Creadas';
+            window.ordersChart.update();
+            
+            window.finishedOrdersChart.data.labels = workTypes;
+            window.finishedOrdersChart.data.datasets[0].data = finishedOrdersData;
+            window.finishedOrdersChart.data.datasets[0].label = chartType === 'count' ? 
+                'Cantidad de Órdenes Finalizadas' : 'Sumatoria de Importes de Órdenes Finalizadas';
+            window.finishedOrdersChart.update();
+            
+            window.certificationsChart.data.labels = companyNames;
+            window.certificationsChart.data.datasets[0].data = certificationsData;
+            window.certificationsChart.data.datasets[0].label = chartType === 'count' ? 
+                'Cantidad de Certificaciones Finales' : 'Sumatoria de Importes de Certificaciones Finales';
+            window.certificationsChart.update();
+        }
+
+        // Export data to JSON
+        function exportData() {
+            const data = {
+                lists: lists,
+                companies: companies,
+                orders: orders,
+                finishedOrders: finishedOrders,
+                finalCertifications: finalCertifications,
+                exportDate: new Date().toISOString()
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `backup_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+
+        // Import data from JSON
+        function importData() {
+            const fileInput = document.getElementById('import-file');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Seleccione un archivo para importar.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    // Validate data structure
+                    if (!data.lists || !data.companies || !data.orders || !data.finishedOrders || !data.finalCertifications) {
+                        alert('El archivo no tiene el formato correcto.');
+                        return;
+                    }
+                    
+                    // Confirm import
+                    if (!confirm('¿Está seguro de que desea importar estos datos? Esto sobrescribirá la información actual.')) {
+                        return;
+                    }
+                    
+                    // Import data
+                    importDataToFirestore(data);
+                } catch (error) {
+                    console.error('Error parsing JSON:', error);
+                    alert('Error al leer el archivo: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Import data to Firestore
+        function importDataToFirestore(data) {
+            // Import lists
+            const listPromises = Object.entries(data.lists).map(([listId, items]) => 
+                db.collection('lists').doc(listId).set({ items })
+            );
+            
+            // Import companies
+            const companyPromises = data.companies.map(company => 
+                db.collection('companies').doc(company.id).set(company)
+            );
+            
+            // Import orders
+            const orderPromises = data.orders.map(order => {
+                const orderData = { ...order };
+                delete orderData.id; // Remove the ID to let Firestore generate a new one
+                return db.collection('orders').add(orderData);
+            });
+            
+            // Import certifications
+            const certPromises = data.finishedOrders
+                .filter(order => order.certification)
+                .map(order => {
+                    const certData = { ...order.certification };
+                    delete certData.id;
+                    return db.collection('certifications').add(certData);
+                });
+            
+            // Import final certifications
+            const finalCertPromises = data.finalCertifications.map(cert => {
+                const certData = { ...cert };
+                delete certData.id;
+                return db.collection('finalCertifications').add(certData);
+            });
+            
+            // Execute all promises
+            Promise.all([
+                ...listPromises,
+                ...companyPromises,
+                ...orderPromises,
+                ...certPromises,
+                ...finalCertPromises
+            ])
+            .then(() => {
+                alert('Datos importados exitosamente');
+                // Reload all data
+                loadLists();
+                loadCompanies();
+                loadOrders();
+                loadFinishedOrders();
+                loadFinalCertifications();
+            })
+            .catch(error => {
+                console.error('Error importing data:', error);
+                alert('Error al importar los datos: ' + error.message);
+            });
+        }
+
+        // Generate PDF for order
+        function generateOrderPDF(orderId = null) {
+            // This is a simplified version. In a real implementation, you would use jsPDF
+            // to generate a proper PDF with the order data.
+            
+            let order;
+            if (orderId) {
+                order = orders.find(o => o.id === orderId) || 
+                        finishedOrders.find(o => o.id === orderId);
+            } else {
+                // Use form data for new order
+                order = {
+                    orderNumber: document.getElementById('order-number').value,
+                    user: document.getElementById('order-user').value,
+                    date: document.getElementById('order-date').value,
+                    contract: document.getElementById('contract').value,
+                    workType: document.getElementById('work-type').value,
+                    municipality: document.getElementById('municipality').value,
+                    zone: document.getElementById('zone').value,
+                    requester: document.getElementById('requester').value,
+                    approver: document.getElementById('approver').value,
+                    company: document.getElementById('company').value,
+                    rif: document.getElementById('rif').value,
+                    companyResponsible: document.getElementById('company-responsible').value,
+                    description: document.getElementById('description').value,
+                    labor: document.getElementById('labor').value,
+                    materials: document.getElementById('materials').value,
+                    equipment: document.getElementById('equipment').value,
+                    totalBudget: document.getElementById('total-budget').value,
+                    startDate: document.getElementById('start-date').value,
+                    endDate: document.getElementById('end-date').value,
+                    location: document.getElementById('location').value
+                };
+                
+                // Add construction-specific data if applicable
+                const constructionType = document.querySelector('input[name="construction-type"]:checked')?.value;
+                if (constructionType === 'node') {
+                    order.constructionType = 'node';
+                    order.nodeCost = document.getElementById('node-cost').value;
+                    order.nodePaymentBy = document.getElementById('node-payment-by').value;
+                    order.nodeCantvPrice = document.getElementById('node-cantv-price').value;
+                    order.nodeCantvPoints = document.getElementById('node-cantv-points').value;
+                    order.nodeCantvTotal = document.getElementById('node-cantv-total').value;
+                    order.nodeEdcPrice = document.getElementById('node-edc-price').value;
+                    order.nodeEdcPoints = document.getElementById('node-edc-points').value;
+                    order.nodeEdcTotal = document.getElementById('node-edc-total').value;
+                    order.nodeDescription = document.getElementById('node-description').value;
+                    order.nodeMonthlyPayment = document.getElementById('node-monthly-payment').value;
+                } else if (constructionType === 'isp') {
+                    order.constructionType = 'isp';
+                    order.ispCost = document.getElementById('isp-cost').value;
+                    order.ispPaymentBy = document.getElementById('isp-payment-by').value;
+                    order.ispCantvPrice = document.getElementById('isp-cantv-price').value;
+                    order.ispCantvPoints = document.getElementById('isp-cantv-points').value;
+                    order.ispCantvTotal = document.getElementById('isp-cantv-total').value;
+                    order.ispEdcPrice = document.getElementById('isp-edc-price').value;
+                    order.ispEdcPoints = document.getElementById('isp-edc-points').value;
+                    order.ispEdcTotal = document.getElementById('isp-edc-total').value;
+                    order.ispDescription = document.getElementById('isp-description').value;
+                    order.ispMonthlyPayment = document.getElementById('isp-monthly-payment').value;
+                }
+            }
+            
+            if (!order) {
+                alert('No se encontró la orden especificada.');
+                return;
+            }
+            
+            // Get company name
+            const company = companies.find(c => c.id === order.company);
+            const companyName = company ? company.name : 'Empresa no encontrada';
+            
+            // Create PDF content
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Set margins
+            const margin = 10; // 1cm ≈ 10mm
+            let y = margin;
+            
+            // Title
+            doc.setFontSize(16);
+            doc.text(`Orden de Trabajo N° ${order.orderNumber}`, margin, y);
+            y += 10;
+            
+            // I. Información General
+            doc.setFontSize(12);
+            doc.text('I. Información General', margin, y);
+            y += 6;
+            
+            doc.setFontSize(10);
+            doc.text(`Usuario: ${order.user}`, margin, y);
+            y += 5;
+            doc.text(`Fecha: ${order.date}`, margin, y);
+            y += 5;
+            doc.text(`Contrato: ${order.contract}`, margin, y);
+            y += 5;
+            doc.text(`Trabajo/Obra: ${order.workType}`, margin, y);
+            y += 5;
+            doc.text(`Municipio: ${order.municipality}`, margin, y);
+            y += 5;
+            doc.text(`Zona: ${order.zone}`, margin, y);
+            y += 5;
+            doc.text(`Responsable que Solicita: ${order.requester}`, margin, y);
+            y += 5;
+            doc.text(`Responsable que Autoriza: ${order.approver}`, margin, y);
+            y += 10;
+            
+            // II. Información de la Contratista
+            doc.setFontSize(12);
+            doc.text('II. Información de la Contratista', margin, y);
+            y += 6;
+            
+            doc.setFontSize(10);
+            doc.text(`Empresa: ${companyName}`, margin, y);
+            y += 5;
+            doc.text(`RIF: ${order.rif}`, margin, y);
+            y += 5;
+            doc.text(`Responsable: ${order.companyResponsible}`, margin, y);
+            y += 10;
+            
+            // III. Información del Trabajo/Obra
+            doc.setFontSize(12);
+            doc.text('III. Información del Trabajo/Obra', margin, y);
+            y += 6;
+            
+            doc.setFontSize(10);
+            doc.text(`Descripción: ${order.description}`, margin, y);
+            y += 5;
+            doc.text(`Mano de Obra: ${order.labor}`, margin, y);
+            y += 5;
+            doc.text(`Materiales: ${order.materials}`, margin, y);
+            y += 5;
+            doc.text(`Equipos: ${order.equipment}`, margin, y);
+            y += 5;
+            doc.text(`Presupuesto Total: $${order.totalBudget}`, margin, y);
+            y += 5;
+            doc.text(`Fecha Inicio: ${order.startDate}`, margin, y);
+            y += 5;
+            doc.text(`Fecha Finalización: ${order.endDate}`, margin, y);
+            y += 5;
+            doc.text(`Ubicación: ${order.location}`, margin, y);
+            y += 10;
+            
+            // Construction-specific data
+            if (order.constructionType === 'node') {
+                doc.setFontSize(12);
+                doc.text('Datos Condicionales: La Construcción es un Nodo de Acceso', margin, y);
+                y += 6;
+                
+                doc.setFontSize(10);
+                doc.text(`Costo Proyectado: $${order.nodeCost}`, margin, y);
+                y += 5;
+                doc.text(`Pago realizado por: ${order.nodePaymentBy}`, margin, y);
+                y += 5;
+                doc.text(`Pago x VGT CANTV: $${order.nodeCantvTotal}`, margin, y);
+                y += 5;
+                doc.text(`Pago x VGT EDC: $${order.nodeEdcTotal}`, margin, y);
+                y += 5;
+                doc.text(`Descripción: ${order.nodeDescription}`, margin, y);
+                y += 5;
+                doc.text(`Abono Mensual: $${order.nodeMonthlyPayment}`, margin, y);
+                y += 10;
+            } else if (order.constructionType === 'isp') {
+                doc.setFontSize(12);
+                doc.text('Datos Condicionales: La Construcción es un ISP', margin, y);
+                y += 6;
+                
+                doc.setFontSize(10);
+                doc.text(`Costo Proyectado: $${order.ispCost}`, margin, y);
+                y += 5;
+                doc.text(`Pago realizado por: ${order.ispPaymentBy}`, margin, y);
+                y += 5;
+                doc.text(`Pago x VGT CANTV: $${order.ispCantvTotal}`, margin, y);
+                y += 5;
+                doc.text(`Pago x VGT EDC: $${order.ispEdcTotal}`, margin, y);
+                y += 5;
+                doc.text(`Descripción: ${order.ispDescription}`, margin, y);
+                y += 5;
+                doc.text(`Abono Mensual: $${order.ispMonthlyPayment}`, margin, y);
+                y += 10;
+            }
+            
+            // Check if we need a new page
+            if (y > 270) {
+                doc.addPage();
+                y = margin;
+            }
+            
+            // Signatures
+            doc.setFontSize(12);
+            doc.text('Firma Contratista:', margin, y);
+            y += 20;
+            doc.text('Firma Responsable:', margin, y);
+            
+            // Save PDF
+            doc.save(`Orden_de_Trabajo_${order.orderNumber}.pdf`);
+        }
+
+        // Generate PDF for certification
+        function generateCertificationPDF(orderId) {
+            const order = finishedOrders.find(o => o.id === orderId);
+            if (!order || !order.certification) {
+                alert('No se encontró la certificación especificada.');
+                return;
+            }
+            
+            // Get company name
+            const company = companies.find(c => c.id === order.company);
+            const companyName = company ? company.name : 'Empresa no encontrada';
+            
+            // Create PDF content
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Set margins
+            const margin = 10; // 1cm ≈ 10mm
+            let y = margin;
+            
+            // Title
+            doc.setFontSize(16);
+            doc.text(`Certificación de Obra N° ${order.certification.orderNumber}`, margin, y);
+            y += 10;
+            
+            // I. Datos de Certificación
+            doc.setFontSize(12);
+            doc.text('I. Datos de Certificación', margin, y);
+            y += 6;
+            
+            doc.setFontSize(10);
+            doc.text(`Número de Certificación: ${order.certification.orderNumber}`, margin, y);
+            y += 5;
+            doc.text(`Fecha de Certificación: ${order.certification.certificationDate}`, margin, y);
+            y += 10;
+            
+            // II. Identificación
+            doc.setFontSize(12);
+            doc.text('II. Identificación', margin, y);
+            y += 6;
+            
+            doc.setFontSize(10);
+            doc.text(`Empresa: ${companyName}`, margin, y);
+            y += 5;
+            doc.text(`RIF: ${order.certification.rif}`, margin, y);
+            y += 10;
+            
+            // III. Información del Proyecto
+            doc.setFontSize(12);
+            doc.text('III. Información del Proyecto', margin, y);
+            y += 6;
+            
+            doc.setFontSize(10);
+            doc.text(`Corresponde Orden de trabajo N°: ${order.certification.orderNumber}`, margin, y);
+            y += 5;
+            doc.text(`Fechas de Inicio: ${order.certification.startDate}`, margin, y);
+            y += 5;
+            doc.text(`Fin de la Obra: ${order.certification.endDate}`, margin, y);
+            y += 5;
+            doc.text(`Importe Total de la Obra: $${order.certification.totalAmount}`, margin, y);
+            y += 10;
+            
+            // IV. Desviaciones y Justificación
+            doc.setFontSize(12);
+            doc.text('IV. Desviaciones y Justificación', margin, y);
+            y += 6;
+            
+            doc.setFontSize(10);
+            const deviations = doc.splitTextToSize(order.certification.deviations, 180);
+            doc.text(deviations, margin, y);
+            y += deviations.length * 5;
+            
+            // Check if we need a new page
+            if (y > 270) {
+                doc.addPage();
+                y = margin;
+            }
+            
+            // Signatures
+            doc.setFontSize(12);
+            doc.text('Firma Jefe Técnico:', margin, y);
+            y += 20;
+            doc.text('Firma Gerente Técnico:', margin, y);
+            
+            // Save PDF
+            doc.save(`Certificacion_de_Obra_${order.certification.orderNumber}.pdf`);
+        }
+
+        // Generate PDF for final certification
+        function generateFinalCertificationPDF(certId) {
+            const cert = finalCertifications.find(c => c.id === certId);
+            if (!cert) {
+                alert('No se encontró la certificación final especificada.');
+                return;
+            }
+            
+            // Get company name
+            const company = companies.find(c => c.id === cert.company);
+            const companyName = company ? company.name : 'Empresa no encontrada';
+            
+            // Get orders for this certification
+            const certOrders = finishedOrders.filter(o => cert.orderIds.includes(o.id));
+            
+            // Create PDF content
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Set margins
+            const margin = 10; // 1cm ≈ 10mm
+            let y = margin;
+            
+            // Title
+            doc.setFontSize(16);
+            doc.text(`Certificación Final N° ${cert.certNumber}`, margin, y);
+            y += 10;
+            
+            // Basic info
+            doc.setFontSize(12);
+            doc.text(`Empresa: ${companyName}`, margin, y);
+            y += 7;
+            doc.text(`Total: $${cert.total.toFixed(2)}`, margin, y);
+            y += 10;
+            
+            // Orders list
+            doc.setFontSize(12);
+            doc.text('Órdenes Realizadas:', margin, y);
+            y += 7;
+            
+            doc.setFontSize(10);
+            certOrders.forEach(order => {
+                const orderTotal = order.certification ? order.certification.totalAmount : 0;
+                doc.text(`- Orden ${order.orderNumber}: $${orderTotal.toFixed(2)}`, margin, y);
+                y += 5;
+                
+                // Check if we need a new page
+                if (y > 270) {
+                    doc.addPage();
+                    y = margin;
+                }
+            });
+            
+            y += 5;
+            
+            // Footer text
+            doc.setFontSize(10);
+            doc.text('Quedan archivadas cada una de las Órdenes de Trabajo finalizadas indicadas en la presente Certificación Final.', margin, y);
+            
+            // Save PDF
+            doc.save(`Certificacion_Final_${cert.certNumber}.pdf`);
+        }
+
+        // Export orders to Excel
+        function exportOrdersToExcel() {
+            const data = orders.map(order => {
+                const company = companies.find(c => c.id === order.company);
+                return {
+                    'Número de Orden': order.orderNumber,
+                    'Usuario': order.user,
+                    'Fecha': order.date,
+                    'Contrato': order.contract,
+                    'Trabajo/Obra': order.workType,
+                    'Municipio': order.municipality,
+                    'Zona': order.zone,
+                    'Responsable que Solicita': order.requester,
+                    'Responsable que Autoriza': order.approver,
+                    'Empresa': company ? company.name : '',
+                    'RIF': order.rif,
+                    'Responsable Empresa': order.companyResponsible,
+                    'Descripción': order.description,
+                    'Mano de Obra': order.labor,
+                    'Materiales': order.materials,
+                    'Equipos': order.equipment,
+                    'Presupuesto Total': order.totalBudget,
+                    'Fecha Inicio': order.startDate,
+                    'Fecha Finalización': order.endDate,
+                    'Ubicación': order.location,
+                    'Estado': order.status
+                };
+            });
+            
+            exportToExcel(data, 'Órdenes_de_Trabajo');
+        }
+
+        // Export finished orders to Excel
+        function exportFinishedOrdersToExcel() {
+            const data = finishedOrders.map(order => {
+                const company = companies.find(c => c.id === order.company);
+                return {
+                    'Número de Orden': order.orderNumber,
+                    'Usuario': order.user,
+                    'Fecha': order.date,
+                    'Contrato': order.contract,
+                    'Trabajo/Obra': order.workType,
+                    'Municipio': order.municipality,
+                    'Zona': order.zone,
+                    'Responsable que Solicita': order.requester,
+                    'Responsable que Autoriza': order.approver,
+                    'Empresa': company ? company.name : '',
+                    'RIF': order.rif,
+                    'Responsable Empresa': order.companyResponsible,
+                    'Descripción': order.description,
+                    'Mano de Obra': order.labor,
+                    'Materiales': order.materials,
+                    'Equipos': order.equipment,
+                    'Presupuesto Total': order.totalBudget,
+                    'Fecha Inicio': order.startDate,
+                    'Fecha Finalización': order.certification ? order.certification.endDate : '',
+                    'Ubicación': order.location,
+                    'Estado': order.status,
+                    'Importe Total Certificado': order.certification ? order.certification.totalAmount : ''
+                };
+            });
+            
+            exportToExcel(data, 'Órdenes_Finalizadas');
+        }
+
+        // Export certifications to Excel
+        function exportCertificationsToExcel() {
+            const data = finishedOrders
+                .filter(order => order.certification)
+                .map(order => {
+                    const company = companies.find(c => c.id === order.company);
+                    return {
+                        'Número de Certificación': order.certification.orderNumber,
+                        'Fecha de Certificación': order.certification.certificationDate,
+                        'Empresa': company ? company.name : '',
+                        'RIF': order.certification.rif,
+                        'Orden de Trabajo N°': order.certification.orderNumber,
+                        'Fecha de Inicio': order.certification.startDate,
+                        'Fin de la Obra': order.certification.endDate,
+                        'Importe Total': order.certification.totalAmount,
+                        'Desviaciones y Justificación': order.certification.deviations
+                    };
+                });
+            
+            exportToExcel(data, 'Certificaciones_de_Obra');
+        }
+
+        // Export final certifications to Excel
+        function exportFinalCertificationsToExcel() {
+            const data = finalCertifications.map(cert => {
+                const company = companies.find(c => c.id === cert.company);
+                return {
+                    'Número de Certificación Final': cert.certNumber,
+                    'Empresa': company ? company.name : '',
+                    'Total': cert.total,
+                    'Fecha de Creación': cert.createdAt ? cert.createdAt.toDate().toISOString().split('T')[0] : ''
+                };
+            });
+            
+            exportToExcel(data, 'Certificaciones_Finales');
+        }
+
+        // Export data to Excel
+        function exportToExcel(data, filename) {
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Datos');
+            XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+    </script>
 </body>
 </html>
