@@ -495,6 +495,27 @@
             display: block;
         }
 
+        /* NUEVO: Estilo específico para campos de presupuesto con valores largos */
+        input[type="number"][id="presupuesto_total"],
+        input[type="number"][name="presupuesto_total"] {
+            font-size: 14px !important;
+            padding: 12px !important;
+            font-family: 'Courier New', monospace !important;
+            letter-spacing: 0.5px;
+        }
+
+        /* Para mejorar la visualización de números grandes */
+        .input-currency input[type="number"] {
+            text-align: right;
+            direction: ltr;
+        }
+
+        /* Estilo cuando el campo tiene error por valor muy grande */
+        .input-currency .field-error {
+            border: 2px solid var(--color-error) !important;
+            background-color: #fff0f0 !important;
+        }
+
     </style>
 </head>
 <body>
@@ -1599,12 +1620,29 @@
             console.log("=== END DEBUG ===");
         }
 
-        // *** FUNCIÓN DE VALIDACIÓN PARA CAMPOS NUMÉRICOS ***
+        // *** FUNCIÓN DE VALIDACIÓN MEJORADA PARA CAMPOS NUMÉRICOS ***
         function validateNumberField(input) {
             console.log(`Validando campo numérico: ${input.id} = ${input.value}`);
             
             // Remover cualquier caracter no numérico excepto punto y coma
             let value = input.value.replace(/[^\d,.-]/g, '');
+            
+            // Validación específica para Presupuesto Total
+            if (input.id === 'presupuesto_total' || input.name === 'presupuesto_total') {
+                // Validar formato: máximo 10 enteros + 2 decimales
+                const regex = /^\d{1,10}([.,]\d{0,2})?$/;
+                if (value && !regex.test(value)) {
+                    input.style.borderColor = 'var(--color-error)';
+                    input.classList.add('field-error');
+                    
+                    const errorElement = document.getElementById(`${input.id}-error`);
+                    if (errorElement) {
+                        errorElement.textContent = 'Formato inválido. Máximo: 10 dígitos enteros + 2 decimales';
+                        errorElement.style.display = 'block';
+                    }
+                    return;
+                }
+            }
             
             // Reemplazar coma por punto para cálculo interno
             const numericValue = parseFloat(value.replace(',', '.'));
@@ -1612,15 +1650,48 @@
             if (isNaN(numericValue) || numericValue < 0) {
                 input.style.borderColor = 'var(--color-error)';
                 input.classList.add('field-error');
+                
+                const errorElement = document.getElementById(`${input.id}-error`);
+                if (errorElement) {
+                    errorElement.style.display = 'block';
+                }
             } else {
                 input.style.borderColor = '';
                 input.classList.remove('field-error');
+                
+                // Ocultar mensaje de error
+                const errorElement = document.getElementById(`${input.id}-error`);
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                
                 // Formatear visualmente con separadores si es un número grande
                 if (numericValue >= 1000) {
-                    input.value = numericValue.toLocaleString('es-VE', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    });
+                    // Para Presupuesto Total, usar formato más legible
+                    if (input.id === 'presupuesto_total' || input.name === 'presupuesto_total') {
+                        input.value = numericValue.toLocaleString('es-VE', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                            useGrouping: true
+                        });
+                    } else {
+                        input.value = numericValue.toLocaleString('es-VE', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                    }
+                }
+                
+                // Validar valor máximo para Presupuesto Total
+                if ((input.id === 'presupuesto_total' || input.name === 'presupuesto_total') && numericValue > 9999999999.99) {
+                    input.style.borderColor = 'var(--color-error)';
+                    input.classList.add('field-error');
+                    
+                    const errorElement = document.getElementById(`${input.id}-error`);
+                    if (errorElement) {
+                        errorElement.textContent = 'El valor máximo permitido es 9,999,999,999.99';
+                        errorElement.style.display = 'block';
+                    }
                 }
             }
         }
@@ -1711,15 +1782,25 @@
                             inputHTML = `<input type="date" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
                             break;
                         case 'number':
-                            // CAMPO NUMÉRICO CORREGIDO: Se agregó validación personalizada
+                            // CAMPO NUMÉRICO MEJORADO: Admite 10 enteros + 2 decimales
+                            const maxValue = field.label === 'Presupuesto Total de la Obra' ? '9999999999.99' : '';
+                            const maxLength = field.label === 'Presupuesto Total de la Obra' ? '13' : ''; // 10 enteros + punto + 2 decimales
+                            
                             inputHTML = `
                                 <div class="${inputClass}">
                                     <input type="number" step="0.01" min="0" id="${fieldId}" name="${fieldId}" 
                                            placeholder="0.00" ${requiredAttribute} ${isDisabled}
+                                           ${maxValue ? `max="${maxValue}"` : ''}
+                                           ${maxLength ? `maxlength="${maxLength}"` : ''}
                                            oninput="validateNumberField(this)"
-                                           onblur="validateNumberField(this)">
+                                           onblur="validateNumberField(this)"
+                                           style="${field.label === 'Presupuesto Total de la Obra' ? 'font-size: 14px; padding: 12px;' : ''}">
                                 </div>
-                                <span class="error-message" id="${fieldId}-error" style="display: none;">Por favor, ingrese un valor numérico válido</span>
+                                <span class="error-message" id="${fieldId}-error" style="display: none;">
+                                    ${field.label === 'Presupuesto Total de la Obra' ? 
+                                      'Máximo: 9,999,999,999.99' : 
+                                      'Por favor, ingrese un valor numérico válido'}
+                                </span>
                             `;
                             break;
                         case 'text':
@@ -1899,6 +1980,20 @@
                             if (isNaN(numericValue) || numericValue < 0) {
                                 console.log(`❌ Valor numérico inválido: ${value}`);
                                 firstInvalidField = inputElement;
+                                break;
+                            }
+
+                            // VALIDACIÓN ADICIONAL PARA PRESUPUESTO TOTAL
+                            if (field.label === 'Presupuesto Total de la Obra' && numericValue > 9999999999.99) {
+                                console.log(`❌ Valor excede el máximo permitido: ${numericValue}`);
+                                firstInvalidField = inputElement;
+                                
+                                // Mostrar mensaje específico
+                                const errorElement = document.getElementById(`${inputElement.id}-error`);
+                                if (errorElement) {
+                                    errorElement.textContent = 'El presupuesto no puede exceder 9,999,999,999.99';
+                                    errorElement.style.display = 'block';
+                                }
                                 break;
                             }
                         } 
@@ -4129,7 +4224,7 @@
                 case 'contains':
                     return fieldValue.toString().toLowerCase().includes(filterValue.toLowerCase());
                 case 'equals':
-                    return fieldValue.toString().toLowerCase() === filterValue.toLowerCase();
+                    return fieldValue.toString().toLowerCase() === filterValue.toLowerCase());
                 case 'startsWith':
                     return fieldValue.toString().toLowerCase().startsWith(filterValue.toLowerCase());
                 case 'endsWith':
