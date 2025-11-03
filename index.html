@@ -524,7 +524,7 @@
         <h2>🔒 Iniciar Sesión</h2>
         <input type="email" id="email" placeholder="Correo Electrónico" required><br>
         <input type="password" id="password" placeholder="Contraseña" required><br>
-        <button onclick="login()">Acceder</button>
+        <button id="login-button">Acceder</button>
         <p id="login-error"></p>
     </div>
 
@@ -1141,7 +1141,7 @@
             }
         }
 
-        // SIN CAMBIOS MAYORES
+        // *** FUNCIÓN LOGIN CORREGIDA - MOVIDA AL INICIO ***
         async function login() {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
@@ -1230,6 +1230,9 @@
 
         // MODIFICADA: Usa getRoleFromEmail() para los 3 roles
         window.onload = function() {
+            // Configurar event listener para el botón de login
+            document.getElementById('login-button').addEventListener('click', login);
+            
             firebase.auth().onAuthStateChanged(user => {
                 if (user) {
                     let role = getRoleFromEmail(user.email); 
@@ -2740,7 +2743,7 @@
                             case 'contains':
                                 return fieldValue.toString().toLowerCase().includes(filterValue.toLowerCase());
                             case 'equals':
-                                return fieldValue.toString().toLowerCase() === filterValue.toLowerCase();
+                                return fieldValue.toString().toLowerCase() === filterValue.toLowerCase());
                             case 'startsWith':
                                 return fieldValue.toString().toLowerCase().startsWith(filterValue.toLowerCase());
                             case 'endsWith':
@@ -3199,7 +3202,7 @@
                             case 'contains':
                                 return fieldValue.toString().toLowerCase().includes(filterValue.toLowerCase());
                             case 'equals':
-                                return fieldValue.toString().toLowerCase() === filterValue.toLowerCase();
+                                return fieldValue.toString().toLowerCase() === filterValue.toLowerCase());
                             case 'startsWith':
                                 return fieldValue.toString().toLowerCase().startsWith(filterValue.toLowerCase());
                             case 'endsWith':
