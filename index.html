@@ -452,6 +452,36 @@
             background-color: #138496;
         }
 
+        /* NUEVOS ESTILOS PARA CAMPOS NUMÉRICOS */
+        .input-currency {
+            position: relative;
+        }
+
+        .input-currency::before {
+            content: "$";
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-text);
+            font-weight: bold;
+            z-index: 1;
+        }
+
+        .input-currency input {
+            padding-left: 25px !important;
+        }
+
+        /* Estilos para campos numéricos en formularios */
+        input[type="number"] {
+            text-align: right;
+        }
+
+        .currency-display {
+            font-weight: bold;
+            color: var(--color-success);
+        }
+
     </style>
 </head>
 <body>
@@ -963,12 +993,14 @@
             { title: "I. Información General", fields: [
                 { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
                 { id: "ot_number", label: "Orden de Trabajo", type: "ot_counter", required: true },
-                // CAMPO NUEVO: Autocompletar con el usuario logueado (user-auto-fill)
                 { id: "user_auto_fill", label: "Usuario que Crea la Orden", type: "user-auto-fill", required: true },
                 { id: "current_date", label: "Fecha Actual", type: "date-auto", required: true }
             ]},
             { title: "II. Información de la Contratista", fields: []},
-            { title: "III. Información del Trabajo/Obra", fields: []}
+            { title: "III. Información del Trabajo/Obra", fields: [
+                // NUEVO CAMPO: Presupuesto Total de la Obra
+                { id: "presupuesto_total", label: "Presupuesto Total de la Obra", type: "number", required: true }
+            ]}
         ];
         
         // *** 2. LÓGICA DE FIREBASE: CARGA Y GUARDADO ***
@@ -1215,6 +1247,7 @@
                     <button onclick="addField(${secIndex}, 'select')">➕ Agregar Lista (Select)</button>
                     <button onclick="addField(${secIndex}, 'date-input')">📅 Agregar Campo de Fecha</button>
                     <button onclick="addField(${secIndex}, 'textarea')">📝 Agregar Área de Texto</button>
+                    <button onclick="addField(${secIndex}, 'number')">🔢 Agregar Campo Numérico</button>
                     <hr>
                     <div id="fields-container-${secIndex}"></div>
                 `;
@@ -1279,7 +1312,7 @@
         function addField(secIndex, type) {
             const newField = {
                 id: `dynamic_field_${Date.now()}`,
-                label: `Nuevo Campo ${type === 'select' || type === 'autofill-select' ? 'Lista' : (type === 'date-input' ? 'Fecha' : (type === 'textarea' ? 'Texto Largo' : 'Texto'))}`,
+                label: `Nuevo Campo ${type === 'select' || type === 'autofill-select' ? 'Lista' : (type === 'date-input' ? 'Fecha' : (type === 'textarea' ? 'Texto Largo' : (type === 'number' ? 'Numérico' : 'Texto')))}`,
                 type: type,
                 required: false
             };
@@ -1504,6 +1537,7 @@
                     let isDisabled = '';
                     let onChangeEvent = '';
                     let isAutofillField = false;
+                    let inputClass = '';
 
                     if (section.title.includes('II. Información de la Contratista')) {
                         const autofillKeys = ["Apellido y Nombre del Responsable", "Rif"];
@@ -1520,6 +1554,10 @@
                     const isFixedField = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
                     const requiredAttribute = field.required && !isFixedField ? 'required' : '';
 
+                    // NUEVO: Aplicar clase de moneda para campos numéricos específicos
+                    if (field.label === 'Presupuesto Total de la Obra') {
+                        inputClass = 'input-currency';
+                    }
 
                     switch (field.type) {
                         case 'static':
@@ -1530,7 +1568,6 @@
                             value = otCounter;
                             inputHTML = `<input type="text" value="${value}" disabled>`;
                             break;
-                        // TIPO DE CAMPO: user-auto-fill
                         case 'user-auto-fill':
                             value = currentUserEmail;
                             inputHTML = `<input type="text" value="${value}" disabled>`;
@@ -1542,9 +1579,17 @@
                         case 'date-input':
                             inputHTML = `<input type="date" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
                             break;
-                        case 'text':
                         case 'number':
-                            inputHTML = `<input type="${field.type}" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
+                            // NUEVO: Campo numérico con formato de moneda
+                            inputHTML = `
+                                <div class="${inputClass}">
+                                    <input type="number" step="0.01" min="0" id="${fieldId}" name="${fieldId}" 
+                                           placeholder="0.00" ${requiredAttribute} ${isDisabled}>
+                                </div>
+                            `;
+                            break;
+                        case 'text':
+                            inputHTML = `<input type="text" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
                             break;
                         case 'textarea':
                             inputHTML = `<textarea id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled} style="min-height: 100px;"></textarea>`;
@@ -1595,7 +1640,7 @@
             autofillSelects.forEach(select => autofillContratistaData(select));
         }
 
-        // FUNCIÓN ACTUALIZADA: Ahora incluye títulos separados para CANTV y EDC
+        // FUNCIÓN ACTUALIZADA: Ahora incluye campos numéricos para exportación a Excel
         function renderConditionalSection(prefix, title) {
             const onChangeFunc = `calculateNewTotal('${prefix}')`;
             
@@ -1661,8 +1706,12 @@
                     <p><label for="${prefix}_descripcion">Descripción (*):</label>
                         <textarea id="${prefix}_descripcion" name="${prefix}_descripcion" required style="min-height: 120px;"></textarea></p>
                     
+                    <!-- CAMPO ACTUALIZADO: Ahora es numérico para exportación a Excel -->
                     <p><label for="${prefix}_abono_mensual">Abono Mensual a Recibir por el cliente (*):</label>
-                        <input type="text" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual" required></p>
+                        <div class="input-currency">
+                            <input type="number" step="0.01" min="0" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual" placeholder="0.00" required>
+                        </div>
+                    </p>
                         
                 </div>
             `;
@@ -1687,7 +1736,6 @@
             // 1. VALIDACIÓN DE CAMPOS DINÁMICOS Y AUTOLENADOS 
             for (const section of formStructure) {
                 for (const field of section.fields) {
-                    // user-auto-fill al listado de campos fijos
                     const isFixed = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
                     
                     if (!field.required || isFixed) continue;
@@ -1717,7 +1765,7 @@
                     document.getElementById(`${prefix}_precio_unitario1`),
                     document.getElementById(`${prefix}_puntos1`),
                     document.getElementById(`${prefix}_descripcion`),
-                    document.getElementById(`${prefix}_abono_mensual`)
+                    document.getElementById(`${prefix}_abono_mensual`) // NUEVO: campo numérico
                 ];
 
                 // VERIFICAR QUE LOS ELEMENTOS EXISTAN
@@ -1759,9 +1807,9 @@
             
             // Obtener datos fijos
             const caracasDate = getCurrentCaracasDate(); 
-            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR'; // Obtener email
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR';
 
-            // 4. Recopilar datos estáticos y dinámicos del formulario principal - CORREGIDO
+            // 4. Recopilar datos estáticos y dinámicos del formulario principal
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     let value;
@@ -1770,21 +1818,24 @@
                                 : field.id;
 
                     if (field.type === 'ot_counter') value = otCounter.toString();
-                    // TIPO DE CAMPO: user-auto-fill
                     else if (field.type === 'user-auto-fill') value = currentUserEmail; 
                     else if (field.type === 'date-auto') value = caracasDate;
                     else if (field.type === 'static') value = field.value;
                     else {
                         const inputElement = document.getElementById(fieldId);
                         value = inputElement ? inputElement.value : formData.get(fieldId);
+                        
+                        // NUEVO: Para campos numéricos, guardar como número
+                        if (field.type === 'number' && value && value.trim() !== '') {
+                            value = parseFloat(value.replace(',', '.'));
+                            if (isNaN(value)) value = 0;
+                        }
                     }
                     
                     // Aplicar formato de fecha DD/MM/AAAA para todos los campos de fecha guardados
-                    // CORRECCIÓN: Verificar que value no sea null/undefined/string vacío
                     if (field.type === 'date-input' && value && value.trim() !== '') {
                         orderData[field.label] = formatDateToDDMMYYYY(value);
                     } else {
-                        // CORRECCIÓN: Asegurar que siempre haya un valor válido
                         const sanitizedValue = sanitizeInput(value);
                         orderData[field.label] = (sanitizedValue && sanitizedValue.trim() !== '') ? sanitizedValue : 'N/A';
                     }
@@ -1813,7 +1864,11 @@
                 orderData[`${prefix} | Puntos EDC`] = parseFloat(document.getElementById(`${prefix}_puntos1`).value.replace(',', '.')).toFixed(0) || '0'; 
 
                 orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value) || 'N/A';
-                orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value) || 'N/A';
+                
+                // NUEVO: Guardar Abono Mensual como número para Excel
+                const abonoMensualValue = document.getElementById(`${prefix}_abono_mensual`).value;
+                orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = abonoMensualValue ? 
+                    parseFloat(abonoMensualValue.replace(',', '.')) : 0;
             }
 
             // 6. AGREGAR ESTADO "EN CURSO" A LA ORDEN
@@ -1821,7 +1876,7 @@
             orderData['Fecha de Creación'] = caracasDate;
 
             // 7. **GUARDAR EN FIREBASE**
-            console.log("Datos a guardar en Firebase:", orderData); // Para debugging
+            console.log("Datos a guardar en Firebase:", orderData);
             
             try {
                 const docRef = await ORDERS_COLLECTION.add(orderData); 
@@ -1834,7 +1889,7 @@
                 // 9. Guardar la nueva estructura/contador
                 await saveFormStructure(true); 
 
-                // 10. Generar PDF - CORREGIDO
+                // 10. Generar PDF
                 console.log('Generando PDF para nueva orden...');
                 await generatePDF(orderData);
                 console.log('PDF generado exitosamente');
@@ -3201,7 +3256,7 @@
             });
             
             // Campos especiales
-            if (selectedField.includes('Pago x VGT') || selectedField.includes('Costo Proyectado')) {
+            if (selectedField.includes('Pago x VGT') || selectedField.includes('Costo Proyectado') || selectedField.includes('Presupuesto Total') || selectedField.includes('Abono Mensual')) {
                 fieldType = 'number';
             }
             
@@ -3442,7 +3497,7 @@
             });
             
             // Campos especiales
-            if (selectedField.includes('Importe Total') || selectedField.includes('Pago x VGT')) {
+            if (selectedField.includes('Importe Total') || selectedField.includes('Pago x VGT') || selectedField.includes('Presupuesto Total') || selectedField.includes('Abono Mensual')) {
                 fieldType = 'number';
             }
             
@@ -3799,8 +3854,18 @@
                         // Mantener formato de fecha consistente
                         value = String(value);
                     } else if (typeof value === 'number') {
-                        // Mantener números como están
+                        // Mantener números como están (Excel los reconocerá como números)
                         value = value;
+                        
+                        // NUEVO: Agregar formato de moneda para campos específicos
+                        if (field === 'Presupuesto Total de la Obra' || 
+                            field.includes('Abono Mensual a Recibir por el cliente') ||
+                            field.includes('Pago x VGT') ||
+                            field.includes('Costo Proyectado')) {
+                            // El valor se mantiene como número para Excel, pero se formatea para visualización
+                            // Excel manejará el formato de moneda
+                            value = value;
+                        }
                     } else {
                         // Para strings, limpiar y mantener como están
                         value = String(value).trim();
