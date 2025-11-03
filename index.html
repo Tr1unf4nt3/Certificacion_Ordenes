@@ -482,6 +482,19 @@
             color: var(--color-success);
         }
 
+        /* Estilos para campos con error de validación */
+        .field-error {
+            border: 2px solid var(--color-error) !important;
+            background-color: #fff0f0;
+        }
+
+        .error-message {
+            color: var(--color-error);
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: block;
+        }
+
     </style>
 </head>
 <body>
@@ -513,6 +526,7 @@
             <h3>Nueva Orden de Trabajo</h3>
             <form id="work-order-form"></form>
             <button onclick="generateWorkOrder()">✅ Crear Orden y Generar PDF</button>
+            <button onclick="debugPresupuestoField()" style="background-color: var(--color-warning); margin-left: 10px;">🐛 Debug Campo</button>
         </div>
 
         <!-- Pestaña 2: Visualización de Órdenes de Trabajo en Curso -->
@@ -809,6 +823,10 @@
         // Verificar si Firebase ya está inicializado
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
+            console.log("✅ Firebase inicializado correctamente");
+        } else {
+            firebase.app();
+            console.log("✅ Firebase ya estaba inicializado, usando instancia existente");
         }
         const db = firebase.firestore();
         
@@ -1384,12 +1402,21 @@
          * Función que autocompleta los campos de Responsable y Rif al cambiar la empresa.
          */
         function autofillContratistaData(selectElement) {
+            if (!selectElement) {
+                console.error('Elemento select no proporcionado');
+                return;
+            }
+            
             const selectedCompanyName = selectElement.value;
             const data = CONTRATISTAS_DATA[selectedCompanyName];
             
             if (!data) {
-                document.getElementById('Apellido y Nombre del Responsable').value = '';
-                document.getElementById('Rif').value = '';
+                // Limpiar campos si no hay datos
+                const responsibleField = document.getElementById('Apellido y Nombre del Responsable');
+                const rifField = document.getElementById('Rif');
+                
+                if (responsibleField) responsibleField.value = '';
+                if (rifField) rifField.value = '';
                 return;
             }
 
@@ -1407,44 +1434,55 @@
         // FUNCIÓN CORREGIDA: Ahora calcula correctamente ambos totales por separado
         function calculateNewTotal(prefix) {
             try {
+                console.log(`Calculando total para: ${prefix}`);
+                
+                // Verificar que los elementos existan antes de acceder a ellos
+                const precioUnitarioEl = document.getElementById(`${prefix}_precio_unitario`);
+                const puntosEl = document.getElementById(`${prefix}_puntos`);
+                const totalDisplay = document.getElementById(`${prefix}_total_display`);
+                const totalHidden = document.getElementById(`${prefix}_total_hidden`);
+                
+                const precioUnitario1El = document.getElementById(`${prefix}_precio_unitario1`);
+                const puntos1El = document.getElementById(`${prefix}_puntos1`);
+                const totalDisplay1 = document.getElementById(`${prefix}_total_display1`);
+                const totalHidden1 = document.getElementById(`${prefix}_total_hidden1`);
+                
+                // Si algún elemento crítico no existe, salir
+                if (!precioUnitarioEl || !puntosEl || !totalDisplay || !totalHidden ||
+                    !precioUnitario1El || !puntos1El || !totalDisplay1 || !totalHidden1) {
+                    console.warn(`Elementos no encontrados para prefijo: ${prefix}`);
+                    return;
+                }
+                
                 // Cálculo para CANTV
                 const precioUnitario = parseFloat(
-                    (document.getElementById(`${prefix}_precio_unitario`).value || '0')
-                    .replace(',', '.')
+                    (precioUnitarioEl.value || '0').replace(',', '.')
                 ) || 0;
                 
                 const puntos = parseFloat(
-                    (document.getElementById(`${prefix}_puntos`).value || '0')
-                    .replace(',', '.')
+                    (puntosEl.value || '0').replace(',', '.')
                 ) || 0;
                 
                 const total = precioUnitario * puntos;
                 
-                // VERIFICAR QUE LOS ELEMENTOS EXISTAN
-                const totalDisplay = document.getElementById(`${prefix}_total_display`);
-                const totalHidden = document.getElementById(`${prefix}_total_hidden`);
-                
-                if (totalDisplay) totalDisplay.textContent = total.toFixed(2);
-                if (totalHidden) totalHidden.value = total.toFixed(2);
+                totalDisplay.textContent = total.toFixed(2);
+                totalHidden.value = total.toFixed(2);
                 
                 // Cálculo para EDC
                 const precioUnitario1 = parseFloat(
-                    (document.getElementById(`${prefix}_precio_unitario1`).value || '0')
-                    .replace(',', '.')
+                    (precioUnitario1El.value || '0').replace(',', '.')
                 ) || 0;
                 
                 const puntos1 = parseFloat(
-                    (document.getElementById(`${prefix}_puntos1`).value || '0')
-                    .replace(',', '.')
+                    (puntos1El.value || '0').replace(',', '.')
                 ) || 0;
                 
                 const total1 = precioUnitario1 * puntos1;
                 
-                const totalDisplay1 = document.getElementById(`${prefix}_total_display1`);
-                const totalHidden1 = document.getElementById(`${prefix}_total_hidden1`);
+                totalDisplay1.textContent = total1.toFixed(2);
+                totalHidden1.value = total1.toFixed(2);
                 
-                if (totalDisplay1) totalDisplay1.textContent = total1.toFixed(2);
-                if (totalHidden1) totalHidden1.value = total1.toFixed(2);
+                console.log(`Cálculos completados: CANTV=${total.toFixed(2)}, EDC=${total1.toFixed(2)}`);
                 
             } catch (error) {
                 console.error('Error en calculateNewTotal:', error);
@@ -1454,6 +1492,8 @@
 
         function toggleConditionalSection(type) {
             try {
+                console.log(`Activando sección: ${type}`);
+                
                 const nodeAccessSection = document.getElementById('conditional_node_acceso_section');
                 const ispSection = document.getElementById('conditional_isp_section');
                 const nodeAccessButton = document.getElementById('check_node_acceso');
@@ -1461,7 +1501,11 @@
 
                 // VERIFICAR QUE LOS ELEMENTOS EXISTAN
                 if (!nodeAccessSection || !ispSection || !nodeAccessButton || !ispButton) {
-                    console.error('Elementos de sección condicional no encontrados');
+                    console.error('❌ Elementos de sección condicional no encontrados en el DOM');
+                    // Intentar renderizar el formulario nuevamente
+                    setTimeout(() => {
+                        renderWorkOrderForm();
+                    }, 500);
                     return;
                 }
 
@@ -1471,22 +1515,22 @@
                 nodeAccessButton.classList.remove('active');
                 ispButton.classList.remove('active');
                 
-                // 2. Resetear inputs y selecciones
-                
-                const fieldsToReset = ['costo_proyectado', 'precio_unitario', 'puntos', 'precio_unitario1', 'puntos1', 'descripcion', 'abono_mensual'];
-                const selectsToReset = ['pago_por_realizado'];
+                // 2. Resetear inputs solo si la sección existe
+                const resetSection = (prefix) => {
+                    const fieldsToReset = ['costo_proyectado', 'precio_unitario', 'puntos', 'precio_unitario1', 'puntos1', 'descripcion', 'abono_mensual'];
+                    const selectsToReset = ['pago_por_realizado'];
 
-                ['node_acceso', 'isp'].forEach(prefix => {
                     fieldsToReset.forEach(field => {
                         const el = document.getElementById(`${prefix}_${field}`);
                         if (el) el.value = '';
                     });
+                    
                     selectsToReset.forEach(field => {
                         const el = document.getElementById(`${prefix}_${field}`);
-                        if (el) el.value = 'Inter'; // Valor por defecto
+                        if (el) el.value = 'Inter';
                     });
                     
-                    // Verificar que existan antes de intentar acceder
+                    // Resetear displays
                     const totalDisplay = document.getElementById(`${prefix}_total_display`);
                     const totalDisplay1 = document.getElementById(`${prefix}_total_display1`);
                     const totalHidden = document.getElementById(`${prefix}_total_hidden`);
@@ -1496,28 +1540,101 @@
                     if (totalDisplay1) totalDisplay1.textContent = '0.00';
                     if (totalHidden) totalHidden.value = '0.00';
                     if (totalHidden1) totalHidden1.value = '0.00';
-                });
+                };
 
+                // Resetear ambas secciones
+                resetSection('node_acceso');
+                resetSection('isp');
 
                 // 3. Mostrar la sección seleccionada
                 if (type === 'node_acceso') {
                     nodeAccessSection.style.display = 'block';
                     nodeAccessButton.classList.add('active');
+                    console.log('✅ Sección Nodo de Acceso activada');
                 } else if (type === 'isp') {
                     ispSection.style.display = 'block';
                     ispButton.classList.add('active');
+                    console.log('✅ Sección ISP activada');
+                } else {
+                    console.log('❌ Ninguna sección seleccionada');
                 }
+                
             } catch (error) {
-                console.error('Error en toggleConditionalSection:', error);
+                console.error('❌ Error en toggleConditionalSection:', error);
             }
         }
 
+        // *** FUNCIÓN DE DEBUG PARA EL CAMPO PRESUPUESTO ***
+        function debugPresupuestoField() {
+            console.log("=== DEBUG PRESUPUESTO FIELD ===");
+            
+            // Buscar el campo presupuesto_total de diferentes maneras
+            const presupuestoById = document.getElementById('presupuesto_total');
+            const presupuestoByName = document.querySelector('[name="presupuesto_total"]');
+            const presupuestoByPlaceholder = document.querySelector('input[placeholder="0.00"]');
+            const allNumberInputs = document.querySelectorAll('input[type="number"]');
+            
+            console.log("Por ID:", presupuestoById);
+            console.log("Por name:", presupuestoByName);
+            console.log("Por placeholder:", presupuestoByPlaceholder);
+            console.log("Todos los inputs numéricos:", allNumberInputs);
+            
+            if (presupuestoById) {
+                console.log("Valor actual:", presupuestoById.value);
+                console.log("Tipo:", presupuestoById.type);
+                console.log("Required:", presupuestoById.required);
+                console.log("Validity:", presupuestoById.validity);
+                console.log("Validity.valid:", presupuestoById.validity.valid);
+                console.log("Validity.valueMissing:", presupuestoById.validity.valueMissing);
+                console.log("Validity.badInput:", presupuestoById.validity.badInput);
+                console.log("Validity.rangeOverflow:", presupuestoById.validity.rangeOverflow);
+                console.log("Validity.rangeUnderflow:", presupuestoById.validity.rangeUnderflow);
+                console.log("Validity.stepMismatch:", presupuestoById.validity.stepMismatch);
+                console.log("Validity.typeMismatch:", presupuestoById.validity.typeMismatch);
+            }
+            
+            // Verificar la estructura del formulario
+            console.log("Form structure:", formStructure);
+            
+            console.log("=== END DEBUG ===");
+        }
+
+        // *** FUNCIÓN DE VALIDACIÓN PARA CAMPOS NUMÉRICOS ***
+        function validateNumberField(input) {
+            console.log(`Validando campo numérico: ${input.id} = ${input.value}`);
+            
+            // Remover cualquier caracter no numérico excepto punto y coma
+            let value = input.value.replace(/[^\d,.-]/g, '');
+            
+            // Reemplazar coma por punto para cálculo interno
+            const numericValue = parseFloat(value.replace(',', '.'));
+            
+            if (isNaN(numericValue) || numericValue < 0) {
+                input.style.borderColor = 'var(--color-error)';
+                input.classList.add('field-error');
+            } else {
+                input.style.borderColor = '';
+                input.classList.remove('field-error');
+                // Formatear visualmente con separadores si es un número grande
+                if (numericValue >= 1000) {
+                    input.value = numericValue.toLocaleString('es-VE', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                }
+            }
+        }
 
         function renderWorkOrderForm() {
             const formElement = document.getElementById('work-order-form');
+            if (!formElement) {
+                console.error('Elemento work-order-form no encontrado');
+                return;
+            }
+            
             formElement.innerHTML = '';
             const todayCaracas = getCurrentCaracasDate(); 
-            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO'; // Obtener email
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO';
 
             if (!formStructure) {
                  formElement.innerHTML = '<p>Cargando estructura del formulario...</p>';
@@ -1554,7 +1671,7 @@
                     const isFixedField = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
                     const requiredAttribute = field.required && !isFixedField ? 'required' : '';
 
-                    // NUEVO: Aplicar clase de moneda para campos numéricos específicos
+                    // Aplicar clase de moneda para campos numéricos específicos
                     if (field.label === 'Presupuesto Total de la Obra') {
                         inputClass = 'input-currency';
                     }
@@ -1580,12 +1697,15 @@
                             inputHTML = `<input type="date" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
                             break;
                         case 'number':
-                            // NUEVO: Campo numérico con formato de moneda
+                            // CAMPO NUMÉRICO CORREGIDO: Se agregó validación personalizada
                             inputHTML = `
                                 <div class="${inputClass}">
                                     <input type="number" step="0.01" min="0" id="${fieldId}" name="${fieldId}" 
-                                           placeholder="0.00" ${requiredAttribute} ${isDisabled}>
+                                           placeholder="0.00" ${requiredAttribute} ${isDisabled}
+                                           oninput="validateNumberField(this)"
+                                           onblur="validateNumberField(this)">
                                 </div>
+                                <span class="error-message" id="${fieldId}-error" style="display: none;">Por favor, ingrese un valor numérico válido</span>
                             `;
                             break;
                         case 'text':
@@ -1632,12 +1752,18 @@
             // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN ISP ---
             formElement.innerHTML += renderConditionalSection('isp', 'Datos Condicionales: La Construcción es de un ISP');
             
-            // Inicializar las secciones ocultas
-            toggleConditionalSection(null);
-            
-            // Inicializar autollenado con el valor por defecto
-            const autofillSelects = document.querySelectorAll('select[onchange="autofillContratistaData(this)"]');
-            autofillSelects.forEach(select => autofillContratistaData(select));
+            // Inicializar las secciones ocultas después de un pequeño delay
+            setTimeout(() => {
+                toggleConditionalSection(null);
+                
+                // Inicializar autollenado con el valor por defecto
+                const autofillSelects = document.querySelectorAll('select[onchange="autofillContratistaData(this)"]');
+                autofillSelects.forEach(select => {
+                    if (select) autofillContratistaData(select);
+                });
+                
+                console.log("✅ Formulario renderizado completamente");
+            }, 100);
         }
 
         // FUNCIÓN ACTUALIZADA: Ahora incluye campos numéricos para exportación a Excel
@@ -1709,7 +1835,9 @@
                     <!-- CAMPO ACTUALIZADO: Ahora es numérico para exportación a Excel -->
                     <p><label for="${prefix}_abono_mensual">Abono Mensual a Recibir por el cliente (*):</label>
                         <div class="input-currency">
-                            <input type="number" step="0.01" min="0" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual" placeholder="0.00" required>
+                            <input type="number" step="0.01" min="0" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual" placeholder="0.00" required
+                                   oninput="validateNumberField(this)" onblur="validateNumberField(this)">
+                            <span class="error-message" id="${prefix}_abono_mensual-error" style="display: none;">Por favor, ingrese un valor numérico válido</span>
                         </div>
                     </p>
                         
@@ -1727,8 +1855,11 @@
                       .replace(/'/g, '&#039;');
         }
 
-
+        // *** FUNCIÓN generateWorkOrder CORREGIDA ***
         async function generateWorkOrder() {
+            console.log("🔍 Iniciando validación del formulario...");
+            debugPresupuestoField(); // Debug para ver el estado del campo
+
             const form = document.getElementById('work-order-form');
             const selectedType = document.querySelector('.conditional-check.active');
             let firstInvalidField = null;
@@ -1746,9 +1877,33 @@
                     
                     const inputElement = document.getElementById(fieldId);
 
-                    if (inputElement && !inputElement.disabled && !inputElement.checkValidity()) {
-                        firstInvalidField = inputElement;
-                        break; 
+                    console.log(`Validando campo: ${field.label} (ID: ${fieldId})`, inputElement);
+
+                    if (inputElement && !inputElement.disabled) {
+                        // VALIDACIÓN ESPECIAL PARA CAMPOS NUMÉRICOS (INCLUYENDO PRESUPUESTO TOTAL)
+                        if (field.type === 'number') {
+                            const value = inputElement.value.trim();
+                            console.log(`Campo numérico ${field.label}: valor = "${value}"`);
+                            
+                            if (!value) {
+                                console.log(`❌ Campo numérico vacío: ${field.label}`);
+                                firstInvalidField = inputElement;
+                                break;
+                            }
+                            
+                            const numericValue = parseFloat(value.replace(',', '.'));
+                            if (isNaN(numericValue) || numericValue < 0) {
+                                console.log(`❌ Valor numérico inválido: ${value}`);
+                                firstInvalidField = inputElement;
+                                break;
+                            }
+                        } 
+                        // VALIDACIÓN PARA OTROS TIPOS DE CAMPOS
+                        else if (!inputElement.checkValidity()) {
+                            console.log(`❌ Validación HTML5 falló para: ${field.label}`);
+                            firstInvalidField = inputElement;
+                            break;
+                        }
                     }
                 }
                 if (firstInvalidField) break; 
@@ -1756,36 +1911,58 @@
 
             // 2. VALIDACIÓN DE SECCIÓN CONDICIONAL
             if (!firstInvalidField && selectedType) {
+                console.log(`Validando sección condicional: ${selectedType.textContent}`);
                 const prefix = selectedType.id.replace('check_', '');
                 const camposCondicionales = [
-                    document.getElementById(`${prefix}_costo_proyectado`),
-                    document.getElementById(`${prefix}_pago_por_realizado`),
-                    document.getElementById(`${prefix}_precio_unitario`),
-                    document.getElementById(`${prefix}_puntos`),
-                    document.getElementById(`${prefix}_precio_unitario1`),
-                    document.getElementById(`${prefix}_puntos1`),
-                    document.getElementById(`${prefix}_descripcion`),
-                    document.getElementById(`${prefix}_abono_mensual`) // NUEVO: campo numérico
+                    { id: `${prefix}_costo_proyectado`, type: 'text', name: 'Costo Proyectado' },
+                    { id: `${prefix}_pago_por_realizado`, type: 'select', name: 'Pago realizado por' },
+                    { id: `${prefix}_precio_unitario`, type: 'number', name: 'Precio Unitario CANTV' },
+                    { id: `${prefix}_puntos`, type: 'number', name: 'Puntos CANTV' },
+                    { id: `${prefix}_precio_unitario1`, type: 'number', name: 'Precio Unitario EDC' },
+                    { id: `${prefix}_puntos1`, type: 'number', name: 'Puntos EDC' },
+                    { id: `${prefix}_descripcion`, type: 'textarea', name: 'Descripción' },
+                    { id: `${prefix}_abono_mensual`, type: 'number', name: 'Abono Mensual' }
                 ];
 
-                // VERIFICAR QUE LOS ELEMENTOS EXISTAN
                 for (const campo of camposCondicionales) {
-                    if (!campo) {
-                        console.error(`Campo condicional no encontrado: ${prefix}`);
+                    const element = document.getElementById(campo.id);
+                    console.log(`Validando campo condicional: ${campo.name}`, element);
+                    
+                    if (!element) {
+                        console.error(`❌ Campo condicional no encontrado: ${campo.id}`);
                         firstInvalidField = document.getElementById(`check_${prefix}`);
                         break;
                     }
                     
-                    if (campo.type === 'text' || campo.type === 'select' || campo.tagName === 'TEXTAREA' || campo.type === 'date') {
-                        if (!campo.value.trim()) {
-                            firstInvalidField = campo;
+                    const value = element.value.trim();
+                    
+                    if (campo.type === 'text' || campo.type === 'textarea') {
+                        if (!value) {
+                            console.log(`❌ Campo de texto vacío: ${campo.name}`);
+                            firstInvalidField = element;
                             break;
                         }
                     } 
+                    else if (campo.type === 'select') {
+                        if (!value || value === 'Inter') { // Asumiendo que 'Inter' es el valor por defecto
+                            console.log(`❌ Selección no válida: ${campo.name}`);
+                            firstInvalidField = element;
+                            break;
+                        }
+                    }
                     else if (campo.type === 'number') {
-                        const numericValue = parseFloat(campo.value.replace(',', '.'));
+                        console.log(`Campo numérico ${campo.name}: valor = "${value}"`);
+                        
+                        if (!value) {
+                            console.log(`❌ Campo numérico vacío: ${campo.name}`);
+                            firstInvalidField = element;
+                            break;
+                        }
+                        
+                        const numericValue = parseFloat(value.replace(',', '.'));
                         if (isNaN(numericValue) || numericValue < 0) {
-                            firstInvalidField = campo;
+                            console.log(`❌ Valor numérico inválido: ${value}`);
+                            firstInvalidField = element;
                             break;
                         }
                     }
@@ -1794,13 +1971,34 @@
 
             // 3. MANEJO DEL ERROR
             if (firstInvalidField) {
+                console.log('❌ Validación falló en campo:', firstInvalidField);
                 alert('⚠️ Atención: Debe completar los campos obligatorios faltantes marcados con (*). El sistema lo llevará al primer error.');
                 
-                firstInvalidField.reportValidity();
                 firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 firstInvalidField.focus();
+                
+                // Agregar estilo visual al campo inválido
+                firstInvalidField.style.border = '2px solid var(--color-error)';
+                firstInvalidField.classList.add('field-error');
+                
+                // Mostrar mensaje de error específico
+                const errorElement = document.getElementById(`${firstInvalidField.id}-error`);
+                if (errorElement) {
+                    errorElement.style.display = 'block';
+                }
+                
+                setTimeout(() => {
+                    firstInvalidField.style.border = '';
+                    firstInvalidField.classList.remove('field-error');
+                    if (errorElement) {
+                        errorElement.style.display = 'none';
+                    }
+                }, 5000);
+                
                 return;
             }
+
+            console.log('✅ Todas las validaciones pasaron, procediendo a crear orden...');
 
             const formData = new FormData(form);
             const orderData = {};
@@ -1825,7 +2023,7 @@
                         const inputElement = document.getElementById(fieldId);
                         value = inputElement ? inputElement.value : formData.get(fieldId);
                         
-                        // NUEVO: Para campos numéricos, guardar como número
+                        // Para campos numéricos, guardar como número
                         if (field.type === 'number' && value && value.trim() !== '') {
                             value = parseFloat(value.replace(',', '.'));
                             if (isNaN(value)) value = 0;
@@ -1865,7 +2063,7 @@
 
                 orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value) || 'N/A';
                 
-                // NUEVO: Guardar Abono Mensual como número para Excel
+                // Guardar Abono Mensual como número para Excel
                 const abonoMensualValue = document.getElementById(`${prefix}_abono_mensual`).value;
                 orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = abonoMensualValue ? 
                     parseFloat(abonoMensualValue.replace(',', '.')) : 0;
