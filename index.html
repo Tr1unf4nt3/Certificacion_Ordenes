@@ -1625,6 +1625,20 @@
             }
         }
 
+        // *** FUNCIÓN sanitizeInput CORREGIDA ***
+        function sanitizeInput(str) {
+            // Asegurar que siempre sea string
+            if (str === null || str === undefined) return '';
+            if (typeof str !== 'string') str = String(str);
+            if (!str) return str;
+            
+            return str.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#039;');
+        }
+
         function renderWorkOrderForm() {
             const formElement = document.getElementById('work-order-form');
             if (!formElement) {
@@ -1845,17 +1859,7 @@
             `;
         }
 
-        // SIN CAMBIOS
-        function sanitizeInput(str) {
-            if (typeof str !== 'string' || !str) return str;
-            return str.replace(/&/g, '&amp;')
-                      .replace(/</g, '&lt;')
-                      .replace(/>/g, '&gt;')
-                      .replace(/"/g, '&quot;')
-                      .replace(/'/g, '&#039;');
-        }
-
-        // *** FUNCIÓN generateWorkOrder CORREGIDA ***
+        // *** FUNCIÓN generateWorkOrder CORREGIDA - VERSIÓN DEFINITIVA ***
         async function generateWorkOrder() {
             console.log("🔍 Iniciando validación del formulario...");
             debugPresupuestoField(); // Debug para ver el estado del campo
@@ -2007,7 +2011,7 @@
             const caracasDate = getCurrentCaracasDate(); 
             const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR';
 
-            // 4. Recopilar datos estáticos y dinámicos del formulario principal
+            // 4. Recopilar datos estáticos y dinámicos del formulario principal - CORREGIDO
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     let value;
@@ -2015,28 +2019,43 @@
                                 ? field.label 
                                 : field.id;
 
-                    if (field.type === 'ot_counter') value = otCounter.toString();
-                    else if (field.type === 'user-auto-fill') value = currentUserEmail; 
-                    else if (field.type === 'date-auto') value = caracasDate;
-                    else if (field.type === 'static') value = field.value;
+                    if (field.type === 'ot_counter') {
+                        value = otCounter.toString();
+                    }
+                    else if (field.type === 'user-auto-fill') {
+                        value = currentUserEmail; 
+                    }
+                    else if (field.type === 'date-auto') {
+                        value = caracasDate;
+                    }
+                    else if (field.type === 'static') {
+                        value = field.value;
+                    }
                     else {
                         const inputElement = document.getElementById(fieldId);
                         value = inputElement ? inputElement.value : formData.get(fieldId);
                         
                         // Para campos numéricos, guardar como número
-                        if (field.type === 'number' && value && value.trim() !== '') {
-                            value = parseFloat(value.replace(',', '.'));
+                        if (field.type === 'number' && value && String(value).trim() !== '') {
+                            value = parseFloat(String(value).replace(',', '.'));
                             if (isNaN(value)) value = 0;
                         }
                     }
                     
+                    // CORRECCIÓN: Manejo seguro de valores antes de sanitizar
+                    let finalValue;
+                    
                     // Aplicar formato de fecha DD/MM/AAAA para todos los campos de fecha guardados
-                    if (field.type === 'date-input' && value && value.trim() !== '') {
-                        orderData[field.label] = formatDateToDDMMYYYY(value);
+                    if (field.type === 'date-input' && value && String(value).trim() !== '') {
+                        finalValue = formatDateToDDMMYYYY(String(value));
                     } else {
-                        const sanitizedValue = sanitizeInput(value);
-                        orderData[field.label] = (sanitizedValue && sanitizedValue.trim() !== '') ? sanitizedValue : 'N/A';
+                        // Asegurar que el valor sea una cadena antes de sanitizar
+                        const stringValue = value !== null && value !== undefined ? String(value) : '';
+                        const sanitizedValue = sanitizeInput(stringValue);
+                        finalValue = (sanitizedValue && sanitizedValue.trim() !== '') ? sanitizedValue : 'N/A';
                     }
+                    
+                    orderData[field.label] = finalValue;
                 });
             });
             
@@ -2048,25 +2067,46 @@
                 
                 calculateNewTotal(prefix); 
 
-                orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value) || 'N/A';
-                orderData[`${prefix} | Pago realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value) || 'N/A';
+                // CORRECCIÓN: Manejo seguro de valores en sección condicional
+                const costoProyectadoEl = document.getElementById(`${prefix}_costo_proyectado`);
+                const pagoRealizadoEl = document.getElementById(`${prefix}_pago_por_realizado`);
+                const precioUnitarioEl = document.getElementById(`${prefix}_precio_unitario`);
+                const puntosEl = document.getElementById(`${prefix}_puntos`);
+                const precioUnitario1El = document.getElementById(`${prefix}_precio_unitario1`);
+                const puntos1El = document.getElementById(`${prefix}_puntos1`);
+                const descripcionEl = document.getElementById(`${prefix}_descripcion`);
+                const abonoMensualEl = document.getElementById(`${prefix}_abono_mensual`);
+
+                orderData[`${prefix} | Costo Proyectado de la Obra`] = costoProyectadoEl && costoProyectadoEl.value ? 
+                    sanitizeInput(String(costoProyectadoEl.value)) : 'N/A';
+                
+                orderData[`${prefix} | Pago realizado por`] = pagoRealizadoEl && pagoRealizadoEl.value ? 
+                    sanitizeInput(String(pagoRealizadoEl.value)) : 'N/A';
                 
                 // Guardar ambos totales calculados
                 orderData[`${prefix} | Pago x VGT CANTV a cargo de Inter`] = formData.get(`${prefix}_total_hidden`) || '0.00';
                 orderData[`${prefix} | Pago x VGT EDC a cargo de Inter`] = formData.get(`${prefix}_total_hidden1`) || '0.00';
 
-                orderData[`${prefix} | Precio Unitario CANTV`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2) || '0.00';
-                orderData[`${prefix} | Puntos CANTV`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0) || '0'; 
+                // CORRECCIÓN: Manejo seguro de valores numéricos
+                orderData[`${prefix} | Precio Unitario CANTV`] = precioUnitarioEl && precioUnitarioEl.value ? 
+                    parseFloat(String(precioUnitarioEl.value).replace(',', '.')).toFixed(2) : '0.00';
                 
-                orderData[`${prefix} | Precio Unitario EDC`] = parseFloat(document.getElementById(`${prefix}_precio_unitario1`).value.replace(',', '.')).toFixed(2) || '0.00';
-                orderData[`${prefix} | Puntos EDC`] = parseFloat(document.getElementById(`${prefix}_puntos1`).value.replace(',', '.')).toFixed(0) || '0'; 
+                orderData[`${prefix} | Puntos CANTV`] = puntosEl && puntosEl.value ? 
+                    parseFloat(String(puntosEl.value).replace(',', '.')).toFixed(0) : '0'; 
+                
+                orderData[`${prefix} | Precio Unitario EDC`] = precioUnitario1El && precioUnitario1El.value ? 
+                    parseFloat(String(precioUnitario1El.value).replace(',', '.')).toFixed(2) : '0.00';
+                
+                orderData[`${prefix} | Puntos EDC`] = puntos1El && puntos1El.value ? 
+                    parseFloat(String(puntos1El.value).replace(',', '.')).toFixed(0) : '0'; 
 
-                orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value) || 'N/A';
+                orderData[`${prefix} | Descripción`] = descripcionEl && descripcionEl.value ? 
+                    sanitizeInput(String(descripcionEl.value)) : 'N/A';
                 
                 // Guardar Abono Mensual como número para Excel
-                const abonoMensualValue = document.getElementById(`${prefix}_abono_mensual`).value;
+                const abonoMensualValue = abonoMensualEl ? abonoMensualEl.value : '';
                 orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = abonoMensualValue ? 
-                    parseFloat(abonoMensualValue.replace(',', '.')) : 0;
+                    parseFloat(String(abonoMensualValue).replace(',', '.')) : 0;
             }
 
             // 6. AGREGAR ESTADO "EN CURSO" A LA ORDEN
