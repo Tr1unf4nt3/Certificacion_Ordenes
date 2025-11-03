@@ -452,70 +452,6 @@
             background-color: #138496;
         }
 
-        /* NUEVOS ESTILOS PARA CAMPOS NUMÉRICOS */
-        .input-currency {
-            position: relative;
-        }
-
-        .input-currency::before {
-            content: "$";
-            position: absolute;
-            left: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--color-text);
-            font-weight: bold;
-            z-index: 1;
-        }
-
-        .input-currency input {
-            padding-left: 25px !important;
-        }
-
-        /* Estilos para campos numéricos en formularios */
-        input[type="number"] {
-            text-align: right;
-        }
-
-        .currency-display {
-            font-weight: bold;
-            color: var(--color-success);
-        }
-
-        /* Estilos para campos con error de validación */
-        .field-error {
-            border: 2px solid var(--color-error) !important;
-            background-color: #fff0f0;
-        }
-
-        .error-message {
-            color: var(--color-error);
-            font-size: 0.85em;
-            margin-top: 5px;
-            display: block;
-        }
-
-        /* NUEVO: Estilo específico para campos de presupuesto con valores largos */
-        input[type="number"][id="presupuesto_total"],
-        input[type="number"][name="presupuesto_total"] {
-            font-size: 14px !important;
-            padding: 12px !important;
-            font-family: 'Courier New', monospace !important;
-            letter-spacing: 0.5px;
-        }
-
-        /* Para mejorar la visualización de números grandes */
-        .input-currency input[type="number"] {
-            text-align: right;
-            direction: ltr;
-        }
-
-        /* Estilo cuando el campo tiene error por valor muy grande */
-        .input-currency .field-error {
-            border: 2px solid var(--color-error) !important;
-            background-color: #fff0f0 !important;
-        }
-
     </style>
 </head>
 <body>
@@ -524,7 +460,7 @@
         <h2>🔒 Iniciar Sesión</h2>
         <input type="email" id="email" placeholder="Correo Electrónico" required><br>
         <input type="password" id="password" placeholder="Contraseña" required><br>
-        <button id="login-button">Acceder</button>
+        <button onclick="login()">Acceder</button>
         <p id="login-error"></p>
     </div>
 
@@ -547,7 +483,6 @@
             <h3>Nueva Orden de Trabajo</h3>
             <form id="work-order-form"></form>
             <button onclick="generateWorkOrder()">✅ Crear Orden y Generar PDF</button>
-            <button onclick="debugPresupuestoField()" style="background-color: var(--color-warning); margin-left: 10px;">🐛 Debug Campo</button>
         </div>
 
         <!-- Pestaña 2: Visualización de Órdenes de Trabajo en Curso -->
@@ -844,10 +779,6 @@
         // Verificar si Firebase ya está inicializado
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
-            console.log("✅ Firebase inicializado correctamente");
-        } else {
-            firebase.app();
-            console.log("✅ Firebase ya estaba inicializado, usando instancia existente");
         }
         const db = firebase.firestore();
         
@@ -1032,14 +963,12 @@
             { title: "I. Información General", fields: [
                 { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
                 { id: "ot_number", label: "Orden de Trabajo", type: "ot_counter", required: true },
+                // CAMPO NUEVO: Autocompletar con el usuario logueado (user-auto-fill)
                 { id: "user_auto_fill", label: "Usuario que Crea la Orden", type: "user-auto-fill", required: true },
                 { id: "current_date", label: "Fecha Actual", type: "date-auto", required: true }
             ]},
             { title: "II. Información de la Contratista", fields: []},
-            { title: "III. Información del Trabajo/Obra", fields: [
-                // NUEVO CAMPO: Presupuesto Total de la Obra
-                { id: "presupuesto_total", label: "Presupuesto Total de la Obra", type: "number", required: true }
-            ]}
+            { title: "III. Información del Trabajo/Obra", fields: []}
         ];
         
         // *** 2. LÓGICA DE FIREBASE: CARGA Y GUARDADO ***
@@ -1141,7 +1070,7 @@
             }
         }
 
-        // *** FUNCIÓN LOGIN CORREGIDA - MOVIDA AL INICIO ***
+        // SIN CAMBIOS MAYORES
         async function login() {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
@@ -1230,9 +1159,6 @@
 
         // MODIFICADA: Usa getRoleFromEmail() para los 3 roles
         window.onload = function() {
-            // Configurar event listener para el botón de login
-            document.getElementById('login-button').addEventListener('click', login);
-            
             firebase.auth().onAuthStateChanged(user => {
                 if (user) {
                     let role = getRoleFromEmail(user.email); 
@@ -1289,7 +1215,6 @@
                     <button onclick="addField(${secIndex}, 'select')">➕ Agregar Lista (Select)</button>
                     <button onclick="addField(${secIndex}, 'date-input')">📅 Agregar Campo de Fecha</button>
                     <button onclick="addField(${secIndex}, 'textarea')">📝 Agregar Área de Texto</button>
-                    <button onclick="addField(${secIndex}, 'number')">🔢 Agregar Campo Numérico</button>
                     <hr>
                     <div id="fields-container-${secIndex}"></div>
                 `;
@@ -1354,7 +1279,7 @@
         function addField(secIndex, type) {
             const newField = {
                 id: `dynamic_field_${Date.now()}`,
-                label: `Nuevo Campo ${type === 'select' || type === 'autofill-select' ? 'Lista' : (type === 'date-input' ? 'Fecha' : (type === 'textarea' ? 'Texto Largo' : (type === 'number' ? 'Numérico' : 'Texto')))}`,
+                label: `Nuevo Campo ${type === 'select' || type === 'autofill-select' ? 'Lista' : (type === 'date-input' ? 'Fecha' : (type === 'textarea' ? 'Texto Largo' : 'Texto'))}`,
                 type: type,
                 required: false
             };
@@ -1426,21 +1351,12 @@
          * Función que autocompleta los campos de Responsable y Rif al cambiar la empresa.
          */
         function autofillContratistaData(selectElement) {
-            if (!selectElement) {
-                console.error('Elemento select no proporcionado');
-                return;
-            }
-            
             const selectedCompanyName = selectElement.value;
             const data = CONTRATISTAS_DATA[selectedCompanyName];
             
             if (!data) {
-                // Limpiar campos si no hay datos
-                const responsibleField = document.getElementById('Apellido y Nombre del Responsable');
-                const rifField = document.getElementById('Rif');
-                
-                if (responsibleField) responsibleField.value = '';
-                if (rifField) rifField.value = '';
+                document.getElementById('Apellido y Nombre del Responsable').value = '';
+                document.getElementById('Rif').value = '';
                 return;
             }
 
@@ -1458,55 +1374,44 @@
         // FUNCIÓN CORREGIDA: Ahora calcula correctamente ambos totales por separado
         function calculateNewTotal(prefix) {
             try {
-                console.log(`Calculando total para: ${prefix}`);
-                
-                // Verificar que los elementos existan antes de acceder a ellos
-                const precioUnitarioEl = document.getElementById(`${prefix}_precio_unitario`);
-                const puntosEl = document.getElementById(`${prefix}_puntos`);
-                const totalDisplay = document.getElementById(`${prefix}_total_display`);
-                const totalHidden = document.getElementById(`${prefix}_total_hidden`);
-                
-                const precioUnitario1El = document.getElementById(`${prefix}_precio_unitario1`);
-                const puntos1El = document.getElementById(`${prefix}_puntos1`);
-                const totalDisplay1 = document.getElementById(`${prefix}_total_display1`);
-                const totalHidden1 = document.getElementById(`${prefix}_total_hidden1`);
-                
-                // Si algún elemento crítico no existe, salir
-                if (!precioUnitarioEl || !puntosEl || !totalDisplay || !totalHidden ||
-                    !precioUnitario1El || !puntos1El || !totalDisplay1 || !totalHidden1) {
-                    console.warn(`Elementos no encontrados para prefijo: ${prefix}`);
-                    return;
-                }
-                
                 // Cálculo para CANTV
                 const precioUnitario = parseFloat(
-                    (precioUnitarioEl.value || '0').replace(',', '.')
+                    (document.getElementById(`${prefix}_precio_unitario`).value || '0')
+                    .replace(',', '.')
                 ) || 0;
                 
                 const puntos = parseFloat(
-                    (puntosEl.value || '0').replace(',', '.')
+                    (document.getElementById(`${prefix}_puntos`).value || '0')
+                    .replace(',', '.')
                 ) || 0;
                 
                 const total = precioUnitario * puntos;
                 
-                totalDisplay.textContent = total.toFixed(2);
-                totalHidden.value = total.toFixed(2);
+                // VERIFICAR QUE LOS ELEMENTOS EXISTAN
+                const totalDisplay = document.getElementById(`${prefix}_total_display`);
+                const totalHidden = document.getElementById(`${prefix}_total_hidden`);
+                
+                if (totalDisplay) totalDisplay.textContent = total.toFixed(2);
+                if (totalHidden) totalHidden.value = total.toFixed(2);
                 
                 // Cálculo para EDC
                 const precioUnitario1 = parseFloat(
-                    (precioUnitario1El.value || '0').replace(',', '.')
+                    (document.getElementById(`${prefix}_precio_unitario1`).value || '0')
+                    .replace(',', '.')
                 ) || 0;
                 
                 const puntos1 = parseFloat(
-                    (puntos1El.value || '0').replace(',', '.')
+                    (document.getElementById(`${prefix}_puntos1`).value || '0')
+                    .replace(',', '.')
                 ) || 0;
                 
                 const total1 = precioUnitario1 * puntos1;
                 
-                totalDisplay1.textContent = total1.toFixed(2);
-                totalHidden1.value = total1.toFixed(2);
+                const totalDisplay1 = document.getElementById(`${prefix}_total_display1`);
+                const totalHidden1 = document.getElementById(`${prefix}_total_hidden1`);
                 
-                console.log(`Cálculos completados: CANTV=${total.toFixed(2)}, EDC=${total1.toFixed(2)}`);
+                if (totalDisplay1) totalDisplay1.textContent = total1.toFixed(2);
+                if (totalHidden1) totalHidden1.value = total1.toFixed(2);
                 
             } catch (error) {
                 console.error('Error en calculateNewTotal:', error);
@@ -1516,8 +1421,6 @@
 
         function toggleConditionalSection(type) {
             try {
-                console.log(`Activando sección: ${type}`);
-                
                 const nodeAccessSection = document.getElementById('conditional_node_acceso_section');
                 const ispSection = document.getElementById('conditional_isp_section');
                 const nodeAccessButton = document.getElementById('check_node_acceso');
@@ -1525,11 +1428,7 @@
 
                 // VERIFICAR QUE LOS ELEMENTOS EXISTAN
                 if (!nodeAccessSection || !ispSection || !nodeAccessButton || !ispButton) {
-                    console.error('❌ Elementos de sección condicional no encontrados en el DOM');
-                    // Intentar renderizar el formulario nuevamente
-                    setTimeout(() => {
-                        renderWorkOrderForm();
-                    }, 500);
+                    console.error('Elementos de sección condicional no encontrados');
                     return;
                 }
 
@@ -1539,22 +1438,22 @@
                 nodeAccessButton.classList.remove('active');
                 ispButton.classList.remove('active');
                 
-                // 2. Resetear inputs solo si la sección existe
-                const resetSection = (prefix) => {
-                    const fieldsToReset = ['costo_proyectado', 'precio_unitario', 'puntos', 'precio_unitario1', 'puntos1', 'descripcion', 'abono_mensual'];
-                    const selectsToReset = ['pago_por_realizado'];
+                // 2. Resetear inputs y selecciones
+                
+                const fieldsToReset = ['costo_proyectado', 'precio_unitario', 'puntos', 'precio_unitario1', 'puntos1', 'descripcion', 'abono_mensual'];
+                const selectsToReset = ['pago_por_realizado'];
 
+                ['node_acceso', 'isp'].forEach(prefix => {
                     fieldsToReset.forEach(field => {
                         const el = document.getElementById(`${prefix}_${field}`);
                         if (el) el.value = '';
                     });
-                    
                     selectsToReset.forEach(field => {
                         const el = document.getElementById(`${prefix}_${field}`);
-                        if (el) el.value = 'Inter';
+                        if (el) el.value = 'Inter'; // Valor por defecto
                     });
                     
-                    // Resetear displays
+                    // Verificar que existan antes de intentar acceder
                     const totalDisplay = document.getElementById(`${prefix}_total_display`);
                     const totalDisplay1 = document.getElementById(`${prefix}_total_display1`);
                     const totalHidden = document.getElementById(`${prefix}_total_hidden`);
@@ -1564,165 +1463,28 @@
                     if (totalDisplay1) totalDisplay1.textContent = '0.00';
                     if (totalHidden) totalHidden.value = '0.00';
                     if (totalHidden1) totalHidden1.value = '0.00';
-                };
+                });
 
-                // Resetear ambas secciones
-                resetSection('node_acceso');
-                resetSection('isp');
 
                 // 3. Mostrar la sección seleccionada
                 if (type === 'node_acceso') {
                     nodeAccessSection.style.display = 'block';
                     nodeAccessButton.classList.add('active');
-                    console.log('✅ Sección Nodo de Acceso activada');
                 } else if (type === 'isp') {
                     ispSection.style.display = 'block';
                     ispButton.classList.add('active');
-                    console.log('✅ Sección ISP activada');
-                } else {
-                    console.log('❌ Ninguna sección seleccionada');
                 }
-                
             } catch (error) {
-                console.error('❌ Error en toggleConditionalSection:', error);
+                console.error('Error en toggleConditionalSection:', error);
             }
         }
 
-        // *** FUNCIÓN DE DEBUG PARA EL CAMPO PRESUPUESTO ***
-        function debugPresupuestoField() {
-            console.log("=== DEBUG PRESUPUESTO FIELD ===");
-            
-            // Buscar el campo presupuesto_total de diferentes maneras
-            const presupuestoById = document.getElementById('presupuesto_total');
-            const presupuestoByName = document.querySelector('[name="presupuesto_total"]');
-            const presupuestoByPlaceholder = document.querySelector('input[placeholder="0.00"]');
-            const allNumberInputs = document.querySelectorAll('input[type="number"]');
-            
-            console.log("Por ID:", presupuestoById);
-            console.log("Por name:", presupuestoByName);
-            console.log("Por placeholder:", presupuestoByPlaceholder);
-            console.log("Todos los inputs numéricos:", allNumberInputs);
-            
-            if (presupuestoById) {
-                console.log("Valor actual:", presupuestoById.value);
-                console.log("Tipo:", presupuestoById.type);
-                console.log("Required:", presupuestoById.required);
-                console.log("Validity:", presupuestoById.validity);
-                console.log("Validity.valid:", presupuestoById.validity.valid);
-                console.log("Validity.valueMissing:", presupuestoById.validity.valueMissing);
-                console.log("Validity.badInput:", presupuestoById.validity.badInput);
-                console.log("Validity.rangeOverflow:", presupuestoById.validity.rangeOverflow);
-                console.log("Validity.rangeUnderflow:", presupuestoById.validity.rangeUnderflow);
-                console.log("Validity.stepMismatch:", presupuestoById.validity.stepMismatch);
-                console.log("Validity.typeMismatch:", presupuestoById.validity.typeMismatch);
-            }
-            
-            // Verificar la estructura del formulario
-            console.log("Form structure:", formStructure);
-            
-            console.log("=== END DEBUG ===");
-        }
-
-        // *** FUNCIÓN DE VALIDACIÓN MEJORADA PARA CAMPOS NUMÉRICOS ***
-        function validateNumberField(input) {
-            console.log(`Validando campo numérico: ${input.id} = ${input.value}`);
-            
-            // Remover cualquier caracter no numérico excepto punto y coma
-            let value = input.value.replace(/[^\d,.-]/g, '');
-            
-            // Validación específica para Presupuesto Total
-            if (input.id === 'presupuesto_total' || input.name === 'presupuesto_total') {
-                // Validar formato: máximo 10 enteros + 2 decimales
-                const regex = /^\d{1,10}([.,]\d{0,2})?$/;
-                if (value && !regex.test(value)) {
-                    input.style.borderColor = 'var(--color-error)';
-                    input.classList.add('field-error');
-                    
-                    const errorElement = document.getElementById(`${input.id}-error`);
-                    if (errorElement) {
-                        errorElement.textContent = 'Formato inválido. Máximo: 10 dígitos enteros + 2 decimales';
-                        errorElement.style.display = 'block';
-                    }
-                    return;
-                }
-            }
-            
-            // Reemplazar coma por punto para cálculo interno
-            const numericValue = parseFloat(value.replace(',', '.'));
-            
-            if (isNaN(numericValue) || numericValue < 0) {
-                input.style.borderColor = 'var(--color-error)';
-                input.classList.add('field-error');
-                
-                const errorElement = document.getElementById(`${input.id}-error`);
-                if (errorElement) {
-                    errorElement.style.display = 'block';
-                }
-            } else {
-                input.style.borderColor = '';
-                input.classList.remove('field-error');
-                
-                // Ocultar mensaje de error
-                const errorElement = document.getElementById(`${input.id}-error`);
-                if (errorElement) {
-                    errorElement.style.display = 'none';
-                }
-                
-                // Formatear visualmente con separadores si es un número grande
-                if (numericValue >= 1000) {
-                    // Para Presupuesto Total, usar formato más legible
-                    if (input.id === 'presupuesto_total' || input.name === 'presupuesto_total') {
-                        input.value = numericValue.toLocaleString('es-VE', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                            useGrouping: true
-                        });
-                    } else {
-                        input.value = numericValue.toLocaleString('es-VE', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        });
-                    }
-                }
-                
-                // Validar valor máximo para Presupuesto Total
-                if ((input.id === 'presupuesto_total' || input.name === 'presupuesto_total') && numericValue > 9999999999.99) {
-                    input.style.borderColor = 'var(--color-error)';
-                    input.classList.add('field-error');
-                    
-                    const errorElement = document.getElementById(`${input.id}-error`);
-                    if (errorElement) {
-                        errorElement.textContent = 'El valor máximo permitido es 9,999,999,999.99';
-                        errorElement.style.display = 'block';
-                    }
-                }
-            }
-        }
-
-        // *** FUNCIÓN sanitizeInput CORREGIDA ***
-        function sanitizeInput(str) {
-            // Asegurar que siempre sea string
-            if (str === null || str === undefined) return '';
-            if (typeof str !== 'string') str = String(str);
-            if (!str) return str;
-            
-            return str.replace(/&/g, '&amp;')
-                      .replace(/</g, '&lt;')
-                      .replace(/>/g, '&gt;')
-                      .replace(/"/g, '&quot;')
-                      .replace(/'/g, '&#039;');
-        }
 
         function renderWorkOrderForm() {
             const formElement = document.getElementById('work-order-form');
-            if (!formElement) {
-                console.error('Elemento work-order-form no encontrado');
-                return;
-            }
-            
             formElement.innerHTML = '';
             const todayCaracas = getCurrentCaracasDate(); 
-            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO';
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO'; // Obtener email
 
             if (!formStructure) {
                  formElement.innerHTML = '<p>Cargando estructura del formulario...</p>';
@@ -1742,7 +1504,6 @@
                     let isDisabled = '';
                     let onChangeEvent = '';
                     let isAutofillField = false;
-                    let inputClass = '';
 
                     if (section.title.includes('II. Información de la Contratista')) {
                         const autofillKeys = ["Apellido y Nombre del Responsable", "Rif"];
@@ -1759,10 +1520,6 @@
                     const isFixedField = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
                     const requiredAttribute = field.required && !isFixedField ? 'required' : '';
 
-                    // Aplicar clase de moneda para campos numéricos específicos
-                    if (field.label === 'Presupuesto Total de la Obra') {
-                        inputClass = 'input-currency';
-                    }
 
                     switch (field.type) {
                         case 'static':
@@ -1773,6 +1530,7 @@
                             value = otCounter;
                             inputHTML = `<input type="text" value="${value}" disabled>`;
                             break;
+                        // TIPO DE CAMPO: user-auto-fill
                         case 'user-auto-fill':
                             value = currentUserEmail;
                             inputHTML = `<input type="text" value="${value}" disabled>`;
@@ -1784,30 +1542,9 @@
                         case 'date-input':
                             inputHTML = `<input type="date" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
                             break;
-                        case 'number':
-                            // CAMPO NUMÉRICO MEJORADO: Admite 10 enteros + 2 decimales
-                            const maxValue = field.label === 'Presupuesto Total de la Obra' ? '9999999999.99' : '';
-                            const maxLength = field.label === 'Presupuesto Total de la Obra' ? '13' : ''; // 10 enteros + punto + 2 decimales
-                            
-                            inputHTML = `
-                                <div class="${inputClass}">
-                                    <input type="number" step="0.01" min="0" id="${fieldId}" name="${fieldId}" 
-                                           placeholder="0.00" ${requiredAttribute} ${isDisabled}
-                                           ${maxValue ? `max="${maxValue}"` : ''}
-                                           ${maxLength ? `maxlength="${maxLength}"` : ''}
-                                           oninput="validateNumberField(this)"
-                                           onblur="validateNumberField(this)"
-                                           style="${field.label === 'Presupuesto Total de la Obra' ? 'font-size: 14px; padding: 12px;' : ''}">
-                                </div>
-                                <span class="error-message" id="${fieldId}-error" style="display: none;">
-                                    ${field.label === 'Presupuesto Total de la Obra' ? 
-                                      'Máximo: 9,999,999,999.99' : 
-                                      'Por favor, ingrese un valor numérico válido'}
-                                </span>
-                            `;
-                            break;
                         case 'text':
-                            inputHTML = `<input type="text" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
+                        case 'number':
+                            inputHTML = `<input type="${field.type}" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
                             break;
                         case 'textarea':
                             inputHTML = `<textarea id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled} style="min-height: 100px;"></textarea>`;
@@ -1850,21 +1587,15 @@
             // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN ISP ---
             formElement.innerHTML += renderConditionalSection('isp', 'Datos Condicionales: La Construcción es de un ISP');
             
-            // Inicializar las secciones ocultas después de un pequeño delay
-            setTimeout(() => {
-                toggleConditionalSection(null);
-                
-                // Inicializar autollenado con el valor por defecto
-                const autofillSelects = document.querySelectorAll('select[onchange="autofillContratistaData(this)"]');
-                autofillSelects.forEach(select => {
-                    if (select) autofillContratistaData(select);
-                });
-                
-                console.log("✅ Formulario renderizado completamente");
-            }, 100);
+            // Inicializar las secciones ocultas
+            toggleConditionalSection(null);
+            
+            // Inicializar autollenado con el valor por defecto
+            const autofillSelects = document.querySelectorAll('select[onchange="autofillContratistaData(this)"]');
+            autofillSelects.forEach(select => autofillContratistaData(select));
         }
 
-        // FUNCIÓN ACTUALIZADA: Ahora incluye campos numéricos para exportación a Excel
+        // FUNCIÓN ACTUALIZADA: Ahora incluye títulos separados para CANTV y EDC
         function renderConditionalSection(prefix, title) {
             const onChangeFunc = `calculateNewTotal('${prefix}')`;
             
@@ -1930,24 +1661,25 @@
                     <p><label for="${prefix}_descripcion">Descripción (*):</label>
                         <textarea id="${prefix}_descripcion" name="${prefix}_descripcion" required style="min-height: 120px;"></textarea></p>
                     
-                    <!-- CAMPO ACTUALIZADO: Ahora es numérico para exportación a Excel -->
                     <p><label for="${prefix}_abono_mensual">Abono Mensual a Recibir por el cliente (*):</label>
-                        <div class="input-currency">
-                            <input type="number" step="0.01" min="0" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual" placeholder="0.00" required
-                                   oninput="validateNumberField(this)" onblur="validateNumberField(this)">
-                            <span class="error-message" id="${prefix}_abono_mensual-error" style="display: none;">Por favor, ingrese un valor numérico válido</span>
-                        </div>
-                    </p>
+                        <input type="text" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual" required></p>
                         
                 </div>
             `;
         }
 
-        // *** FUNCIÓN generateWorkOrder CORREGIDA - VERSIÓN DEFINITIVA ***
-        async function generateWorkOrder() {
-            console.log("🔍 Iniciando validación del formulario...");
-            debugPresupuestoField(); // Debug para ver el estado del campo
+        // SIN CAMBIOS
+        function sanitizeInput(str) {
+            if (typeof str !== 'string' || !str) return str;
+            return str.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#039;');
+        }
 
+
+        async function generateWorkOrder() {
             const form = document.getElementById('work-order-form');
             const selectedType = document.querySelector('.conditional-check.active');
             let firstInvalidField = null;
@@ -1955,6 +1687,7 @@
             // 1. VALIDACIÓN DE CAMPOS DINÁMICOS Y AUTOLENADOS 
             for (const section of formStructure) {
                 for (const field of section.fields) {
+                    // user-auto-fill al listado de campos fijos
                     const isFixed = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
                     
                     if (!field.required || isFixed) continue;
@@ -1965,47 +1698,9 @@
                     
                     const inputElement = document.getElementById(fieldId);
 
-                    console.log(`Validando campo: ${field.label} (ID: ${fieldId})`, inputElement);
-
-                    if (inputElement && !inputElement.disabled) {
-                        // VALIDACIÓN ESPECIAL PARA CAMPOS NUMÉRICOS (INCLUYENDO PRESUPUESTO TOTAL)
-                        if (field.type === 'number') {
-                            const value = inputElement.value.trim();
-                            console.log(`Campo numérico ${field.label}: valor = "${value}"`);
-                            
-                            if (!value) {
-                                console.log(`❌ Campo numérico vacío: ${field.label}`);
-                                firstInvalidField = inputElement;
-                                break;
-                            }
-                            
-                            const numericValue = parseFloat(value.replace(',', '.'));
-                            if (isNaN(numericValue) || numericValue < 0) {
-                                console.log(`❌ Valor numérico inválido: ${value}`);
-                                firstInvalidField = inputElement;
-                                break;
-                            }
-
-                            // VALIDACIÓN ADICIONAL PARA PRESUPUESTO TOTAL
-                            if (field.label === 'Presupuesto Total de la Obra' && numericValue > 9999999999.99) {
-                                console.log(`❌ Valor excede el máximo permitido: ${numericValue}`);
-                                firstInvalidField = inputElement;
-                                
-                                // Mostrar mensaje específico
-                                const errorElement = document.getElementById(`${inputElement.id}-error`);
-                                if (errorElement) {
-                                    errorElement.textContent = 'El presupuesto no puede exceder 9,999,999,999.99';
-                                    errorElement.style.display = 'block';
-                                }
-                                break;
-                            }
-                        } 
-                        // VALIDACIÓN PARA OTROS TIPOS DE CAMPOS
-                        else if (!inputElement.checkValidity()) {
-                            console.log(`❌ Validación HTML5 falló para: ${field.label}`);
-                            firstInvalidField = inputElement;
-                            break;
-                        }
+                    if (inputElement && !inputElement.disabled && !inputElement.checkValidity()) {
+                        firstInvalidField = inputElement;
+                        break; 
                     }
                 }
                 if (firstInvalidField) break; 
@@ -2013,58 +1708,36 @@
 
             // 2. VALIDACIÓN DE SECCIÓN CONDICIONAL
             if (!firstInvalidField && selectedType) {
-                console.log(`Validando sección condicional: ${selectedType.textContent}`);
                 const prefix = selectedType.id.replace('check_', '');
                 const camposCondicionales = [
-                    { id: `${prefix}_costo_proyectado`, type: 'text', name: 'Costo Proyectado' },
-                    { id: `${prefix}_pago_por_realizado`, type: 'select', name: 'Pago realizado por' },
-                    { id: `${prefix}_precio_unitario`, type: 'number', name: 'Precio Unitario CANTV' },
-                    { id: `${prefix}_puntos`, type: 'number', name: 'Puntos CANTV' },
-                    { id: `${prefix}_precio_unitario1`, type: 'number', name: 'Precio Unitario EDC' },
-                    { id: `${prefix}_puntos1`, type: 'number', name: 'Puntos EDC' },
-                    { id: `${prefix}_descripcion`, type: 'textarea', name: 'Descripción' },
-                    { id: `${prefix}_abono_mensual`, type: 'number', name: 'Abono Mensual' }
+                    document.getElementById(`${prefix}_costo_proyectado`),
+                    document.getElementById(`${prefix}_pago_por_realizado`),
+                    document.getElementById(`${prefix}_precio_unitario`),
+                    document.getElementById(`${prefix}_puntos`),
+                    document.getElementById(`${prefix}_precio_unitario1`),
+                    document.getElementById(`${prefix}_puntos1`),
+                    document.getElementById(`${prefix}_descripcion`),
+                    document.getElementById(`${prefix}_abono_mensual`)
                 ];
 
+                // VERIFICAR QUE LOS ELEMENTOS EXISTAN
                 for (const campo of camposCondicionales) {
-                    const element = document.getElementById(campo.id);
-                    console.log(`Validando campo condicional: ${campo.name}`, element);
-                    
-                    if (!element) {
-                        console.error(`❌ Campo condicional no encontrado: ${campo.id}`);
+                    if (!campo) {
+                        console.error(`Campo condicional no encontrado: ${prefix}`);
                         firstInvalidField = document.getElementById(`check_${prefix}`);
                         break;
                     }
                     
-                    const value = element.value.trim();
-                    
-                    if (campo.type === 'text' || campo.type === 'textarea') {
-                        if (!value) {
-                            console.log(`❌ Campo de texto vacío: ${campo.name}`);
-                            firstInvalidField = element;
+                    if (campo.type === 'text' || campo.type === 'select' || campo.tagName === 'TEXTAREA' || campo.type === 'date') {
+                        if (!campo.value.trim()) {
+                            firstInvalidField = campo;
                             break;
                         }
                     } 
-                    else if (campo.type === 'select') {
-                        if (!value || value === 'Inter') { // Asumiendo que 'Inter' es el valor por defecto
-                            console.log(`❌ Selección no válida: ${campo.name}`);
-                            firstInvalidField = element;
-                            break;
-                        }
-                    }
                     else if (campo.type === 'number') {
-                        console.log(`Campo numérico ${campo.name}: valor = "${value}"`);
-                        
-                        if (!value) {
-                            console.log(`❌ Campo numérico vacío: ${campo.name}`);
-                            firstInvalidField = element;
-                            break;
-                        }
-                        
-                        const numericValue = parseFloat(value.replace(',', '.'));
+                        const numericValue = parseFloat(campo.value.replace(',', '.'));
                         if (isNaN(numericValue) || numericValue < 0) {
-                            console.log(`❌ Valor numérico inválido: ${value}`);
-                            firstInvalidField = element;
+                            firstInvalidField = campo;
                             break;
                         }
                     }
@@ -2073,41 +1746,20 @@
 
             // 3. MANEJO DEL ERROR
             if (firstInvalidField) {
-                console.log('❌ Validación falló en campo:', firstInvalidField);
                 alert('⚠️ Atención: Debe completar los campos obligatorios faltantes marcados con (*). El sistema lo llevará al primer error.');
                 
+                firstInvalidField.reportValidity();
                 firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 firstInvalidField.focus();
-                
-                // Agregar estilo visual al campo inválido
-                firstInvalidField.style.border = '2px solid var(--color-error)';
-                firstInvalidField.classList.add('field-error');
-                
-                // Mostrar mensaje de error específico
-                const errorElement = document.getElementById(`${firstInvalidField.id}-error`);
-                if (errorElement) {
-                    errorElement.style.display = 'block';
-                }
-                
-                setTimeout(() => {
-                    firstInvalidField.style.border = '';
-                    firstInvalidField.classList.remove('field-error');
-                    if (errorElement) {
-                        errorElement.style.display = 'none';
-                    }
-                }, 5000);
-                
                 return;
             }
-
-            console.log('✅ Todas las validaciones pasaron, procediendo a crear orden...');
 
             const formData = new FormData(form);
             const orderData = {};
             
             // Obtener datos fijos
             const caracasDate = getCurrentCaracasDate(); 
-            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR';
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR'; // Obtener email
 
             // 4. Recopilar datos estáticos y dinámicos del formulario principal - CORREGIDO
             formStructure.forEach(section => {
@@ -2117,43 +1769,25 @@
                                 ? field.label 
                                 : field.id;
 
-                    if (field.type === 'ot_counter') {
-                        value = otCounter.toString();
-                    }
-                    else if (field.type === 'user-auto-fill') {
-                        value = currentUserEmail; 
-                    }
-                    else if (field.type === 'date-auto') {
-                        value = caracasDate;
-                    }
-                    else if (field.type === 'static') {
-                        value = field.value;
-                    }
+                    if (field.type === 'ot_counter') value = otCounter.toString();
+                    // TIPO DE CAMPO: user-auto-fill
+                    else if (field.type === 'user-auto-fill') value = currentUserEmail; 
+                    else if (field.type === 'date-auto') value = caracasDate;
+                    else if (field.type === 'static') value = field.value;
                     else {
                         const inputElement = document.getElementById(fieldId);
                         value = inputElement ? inputElement.value : formData.get(fieldId);
-                        
-                        // Para campos numéricos, guardar como número
-                        if (field.type === 'number' && value && String(value).trim() !== '') {
-                            value = parseFloat(String(value).replace(',', '.'));
-                            if (isNaN(value)) value = 0;
-                        }
                     }
-                    
-                    // CORRECCIÓN: Manejo seguro de valores antes de sanitizar
-                    let finalValue;
                     
                     // Aplicar formato de fecha DD/MM/AAAA para todos los campos de fecha guardados
-                    if (field.type === 'date-input' && value && String(value).trim() !== '') {
-                        finalValue = formatDateToDDMMYYYY(String(value));
+                    // CORRECCIÓN: Verificar que value no sea null/undefined/string vacío
+                    if (field.type === 'date-input' && value && value.trim() !== '') {
+                        orderData[field.label] = formatDateToDDMMYYYY(value);
                     } else {
-                        // Asegurar que el valor sea una cadena antes de sanitizar
-                        const stringValue = value !== null && value !== undefined ? String(value) : '';
-                        const sanitizedValue = sanitizeInput(stringValue);
-                        finalValue = (sanitizedValue && sanitizedValue.trim() !== '') ? sanitizedValue : 'N/A';
+                        // CORRECCIÓN: Asegurar que siempre haya un valor válido
+                        const sanitizedValue = sanitizeInput(value);
+                        orderData[field.label] = (sanitizedValue && sanitizedValue.trim() !== '') ? sanitizedValue : 'N/A';
                     }
-                    
-                    orderData[field.label] = finalValue;
                 });
             });
             
@@ -2165,46 +1799,21 @@
                 
                 calculateNewTotal(prefix); 
 
-                // CORRECCIÓN: Manejo seguro de valores en sección condicional
-                const costoProyectadoEl = document.getElementById(`${prefix}_costo_proyectado`);
-                const pagoRealizadoEl = document.getElementById(`${prefix}_pago_por_realizado`);
-                const precioUnitarioEl = document.getElementById(`${prefix}_precio_unitario`);
-                const puntosEl = document.getElementById(`${prefix}_puntos`);
-                const precioUnitario1El = document.getElementById(`${prefix}_precio_unitario1`);
-                const puntos1El = document.getElementById(`${prefix}_puntos1`);
-                const descripcionEl = document.getElementById(`${prefix}_descripcion`);
-                const abonoMensualEl = document.getElementById(`${prefix}_abono_mensual`);
-
-                orderData[`${prefix} | Costo Proyectado de la Obra`] = costoProyectadoEl && costoProyectadoEl.value ? 
-                    sanitizeInput(String(costoProyectadoEl.value)) : 'N/A';
-                
-                orderData[`${prefix} | Pago realizado por`] = pagoRealizadoEl && pagoRealizadoEl.value ? 
-                    sanitizeInput(String(pagoRealizadoEl.value)) : 'N/A';
+                orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value) || 'N/A';
+                orderData[`${prefix} | Pago realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value) || 'N/A';
                 
                 // Guardar ambos totales calculados
                 orderData[`${prefix} | Pago x VGT CANTV a cargo de Inter`] = formData.get(`${prefix}_total_hidden`) || '0.00';
                 orderData[`${prefix} | Pago x VGT EDC a cargo de Inter`] = formData.get(`${prefix}_total_hidden1`) || '0.00';
 
-                // CORRECCIÓN: Manejo seguro de valores numéricos
-                orderData[`${prefix} | Precio Unitario CANTV`] = precioUnitarioEl && precioUnitarioEl.value ? 
-                    parseFloat(String(precioUnitarioEl.value).replace(',', '.')).toFixed(2) : '0.00';
+                orderData[`${prefix} | Precio Unitario CANTV`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2) || '0.00';
+                orderData[`${prefix} | Puntos CANTV`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0) || '0'; 
                 
-                orderData[`${prefix} | Puntos CANTV`] = puntosEl && puntosEl.value ? 
-                    parseFloat(String(puntosEl.value).replace(',', '.')).toFixed(0) : '0'; 
-                
-                orderData[`${prefix} | Precio Unitario EDC`] = precioUnitario1El && precioUnitario1El.value ? 
-                    parseFloat(String(precioUnitario1El.value).replace(',', '.')).toFixed(2) : '0.00';
-                
-                orderData[`${prefix} | Puntos EDC`] = puntos1El && puntos1El.value ? 
-                    parseFloat(String(puntos1El.value).replace(',', '.')).toFixed(0) : '0'; 
+                orderData[`${prefix} | Precio Unitario EDC`] = parseFloat(document.getElementById(`${prefix}_precio_unitario1`).value.replace(',', '.')).toFixed(2) || '0.00';
+                orderData[`${prefix} | Puntos EDC`] = parseFloat(document.getElementById(`${prefix}_puntos1`).value.replace(',', '.')).toFixed(0) || '0'; 
 
-                orderData[`${prefix} | Descripción`] = descripcionEl && descripcionEl.value ? 
-                    sanitizeInput(String(descripcionEl.value)) : 'N/A';
-                
-                // Guardar Abono Mensual como número para Excel
-                const abonoMensualValue = abonoMensualEl ? abonoMensualEl.value : '';
-                orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = abonoMensualValue ? 
-                    parseFloat(String(abonoMensualValue).replace(',', '.')) : 0;
+                orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value) || 'N/A';
+                orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value) || 'N/A';
             }
 
             // 6. AGREGAR ESTADO "EN CURSO" A LA ORDEN
@@ -2212,7 +1821,7 @@
             orderData['Fecha de Creación'] = caracasDate;
 
             // 7. **GUARDAR EN FIREBASE**
-            console.log("Datos a guardar en Firebase:", orderData);
+            console.log("Datos a guardar en Firebase:", orderData); // Para debugging
             
             try {
                 const docRef = await ORDERS_COLLECTION.add(orderData); 
@@ -2225,7 +1834,7 @@
                 // 9. Guardar la nueva estructura/contador
                 await saveFormStructure(true); 
 
-                // 10. Generar PDF
+                // 10. Generar PDF - CORREGIDO
                 console.log('Generando PDF para nueva orden...');
                 await generatePDF(orderData);
                 console.log('PDF generado exitosamente');
@@ -2743,7 +2352,7 @@
                             case 'contains':
                                 return fieldValue.toString().toLowerCase().includes(filterValue.toLowerCase());
                             case 'equals':
-                                return fieldValue.toString().toLowerCase() === filterValue.toLowerCase());
+                                return fieldValue.toString().toLowerCase() === filterValue.toLowerCase();
                             case 'startsWith':
                                 return fieldValue.toString().toLowerCase().startsWith(filterValue.toLowerCase());
                             case 'endsWith':
@@ -3202,7 +2811,7 @@
                             case 'contains':
                                 return fieldValue.toString().toLowerCase().includes(filterValue.toLowerCase());
                             case 'equals':
-                                return fieldValue.toString().toLowerCase() === filterValue.toLowerCase());
+                                return fieldValue.toString().toLowerCase() === filterValue.toLowerCase();
                             case 'startsWith':
                                 return fieldValue.toString().toLowerCase().startsWith(filterValue.toLowerCase());
                             case 'endsWith':
@@ -3592,7 +3201,7 @@
             });
             
             // Campos especiales
-            if (selectedField.includes('Pago x VGT') || selectedField.includes('Costo Proyectado') || selectedField.includes('Presupuesto Total') || selectedField.includes('Abono Mensual')) {
+            if (selectedField.includes('Pago x VGT') || selectedField.includes('Costo Proyectado')) {
                 fieldType = 'number';
             }
             
@@ -3833,7 +3442,7 @@
             });
             
             // Campos especiales
-            if (selectedField.includes('Importe Total') || selectedField.includes('Pago x VGT') || selectedField.includes('Presupuesto Total') || selectedField.includes('Abono Mensual')) {
+            if (selectedField.includes('Importe Total') || selectedField.includes('Pago x VGT')) {
                 fieldType = 'number';
             }
             
@@ -4190,18 +3799,8 @@
                         // Mantener formato de fecha consistente
                         value = String(value);
                     } else if (typeof value === 'number') {
-                        // Mantener números como están (Excel los reconocerá como números)
+                        // Mantener números como están
                         value = value;
-                        
-                        // NUEVO: Agregar formato de moneda para campos específicos
-                        if (field === 'Presupuesto Total de la Obra' || 
-                            field.includes('Abono Mensual a Recibir por el cliente') ||
-                            field.includes('Pago x VGT') ||
-                            field.includes('Costo Proyectado')) {
-                            // El valor se mantiene como número para Excel, pero se formatea para visualización
-                            // Excel manejará el formato de moneda
-                            value = value;
-                        }
                     } else {
                         // Para strings, limpiar y mantener como están
                         value = String(value).trim();
@@ -4227,7 +3826,7 @@
                 case 'contains':
                     return fieldValue.toString().toLowerCase().includes(filterValue.toLowerCase());
                 case 'equals':
-                    return fieldValue.toString().toLowerCase() === filterValue.toLowerCase());
+                    return fieldValue.toString().toLowerCase() === filterValue.toLowerCase();
                 case 'startsWith':
                     return fieldValue.toString().toLowerCase().startsWith(filterValue.toLowerCase());
                 case 'endsWith':
