@@ -31,6 +31,7 @@
             --color-completed: #77DD77;  /* Verde para "Finalizada" */
             --color-excel: #28a745;      /* Verde para botones Excel */
             --color-excel-light: #17a2b8; /* Azul para botones Excel secundarios */
+            --color-certification: #9C27B0; /* Púrpura para certificaciones finales */
         }
 
         /* Estilos Generales (Diseño Pastel) */
@@ -452,6 +453,140 @@
             background-color: #138496;
         }
 
+        /* NUEVOS ESTILOS PARA CERTIFICACIÓN FINAL */
+        .certification-section {
+            border: 2px solid var(--color-certification);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #faf4ff;
+        }
+        
+        .certification-section h4 {
+            color: var(--color-certification);
+            border-bottom: 1px solid var(--color-certification);
+            margin-top: 0;
+        }
+        
+        .certification-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .certification-button {
+            background-color: var(--color-certification);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .certification-button:hover {
+            background-color: #7b1fa2;
+        }
+        
+        .certification-total-section {
+            background-color: #e1bee7;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border: 1px solid var(--color-certification);
+        }
+        
+        .certification-total-display {
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: center;
+            color: var(--color-certification);
+        }
+        
+        /* Estilos para la lista de certificaciones finales */
+        .certification-list {
+            margin-top: 20px;
+        }
+        
+        .certification-item {
+            border: 2px solid var(--color-certification);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f3e5f5;
+        }
+        
+        .certification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .certification-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--color-certification);
+        }
+        
+        .orders-list {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #e1bee7;
+        }
+        
+        .order-item:last-child {
+            border-bottom: none;
+        }
+        
+        .order-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .order-pdf-button {
+            background-color: #87CEFA;
+            color: white;
+            padding: 5px 10px;
+            font-size: 0.8em;
+        }
+        
+        .certification-pdf-button {
+            background-color: var(--color-certification);
+            color: white;
+        }
+
+        /* Estilos para checkboxes de órdenes */
+        .orders-checkbox-group {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--color-secondary);
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .order-checkbox-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .order-checkbox-item:last-child {
+            border-bottom: none;
+        }
+        
+        .order-amount {
+            font-weight: bold;
+            color: var(--color-certification);
+        }
+
     </style>
 </head>
 <body>
@@ -472,6 +607,8 @@
             <button class="tablinks" id="new-order-tab-button" onclick="openTab(event, 'new-order')">📋 Nueva Orden de Trabajo</button>
             <button class="tablinks" onclick="openTab(event, 'view-orders')">📂 Órdenes en Curso</button>
             <button class="tablinks" onclick="openTab(event, 'completed-orders')">✅ Órdenes Finalizadas</button>
+            <button class="tablinks" onclick="openTab(event, 'final-certification')">📜 Certificación Final</button>
+            <button class="tablinks" onclick="openTab(event, 'view-certifications')">📋 Certificaciones Finales</button>
             <button class="tablinks" id="edit-tab-button" onclick="openTab(event, 'edit-form')" style="display: none;">⚙️ Edición de Formulario</button>
             <button onclick="logout()" style="float: right;">🚪 Cerrar Sesión</button>
         </div>
@@ -651,7 +788,136 @@
             </div>
         </div>
 
-        <!-- Pestaña 4: Edición de Formulario (Solo Administrador) -->
+        <!-- Pestaña 4: Certificación Final -->
+        <div id="final-certification" class="tabcontent">
+            <h3>Certificación Final</h3>
+            
+            <div class="certification-section">
+                <h4>📋 Formulario de Certificación Final</h4>
+                <form id="final-certification-form">
+                    <div class="form-section">
+                        <h4>I. Información de la Certificación</h4>
+                        <p>
+                            <label for="certification-title">Título del Formulario:</label>
+                            <input type="text" id="certification-title" value="Certificación Final" disabled>
+                        </p>
+                        <p>
+                            <label for="certification-number">Número de Certificación Final:</label>
+                            <input type="text" id="certification-number" disabled>
+                        </p>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h4>II. Información de la Empresa</h4>
+                        <p>
+                            <label for="certification-company">Empresa:</label>
+                            <select id="certification-company" onchange="updateOrdersForCertification()" required>
+                                <option value="">Seleccionar empresa...</option>
+                            </select>
+                        </p>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h4>III. Órdenes Realizadas</h4>
+                        <p>
+                            <label for="certification-orders">Órdenes Realizadas:</label>
+                            <div id="certification-orders-container" class="orders-checkbox-group" style="display: none;">
+                                <!-- Las órdenes se cargarán dinámicamente aquí -->
+                            </div>
+                            <div id="no-orders-message" style="display: none; color: var(--color-error); text-align: center; padding: 10px;">
+                                No hay órdenes finalizadas para esta empresa.
+                            </div>
+                        </p>
+                    </div>
+                    
+                    <div class="certification-total-section">
+                        <h4>Total Certificación</h4>
+                        <div class="certification-total-display" id="certification-total">0.00</div>
+                        <input type="hidden" id="certification-total-hidden" value="0.00">
+                    </div>
+                </form>
+                
+                <div class="certification-buttons">
+                    <button class="certification-button" onclick="generateFinalCertification()">
+                        ✅ Aceptar Certificación Final
+                    </button>
+                    <button onclick="clearCertificationForm()" style="background-color: var(--color-error); color: white;">
+                        🗑️ Limpiar Formulario
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestaña 5: Certificaciones Finales -->
+        <div id="view-certifications" class="tabcontent">
+            <h3>Certificaciones Finales</h3>
+            
+            <!-- SECCIÓN: Exportación a Excel -->
+            <div class="export-section">
+                <h4>📊 Exportación a Excel</h4>
+                <p>Exporte los datos de las certificaciones finales a formato Excel.</p>
+                <div class="export-buttons">
+                    <button class="excel-button" onclick="exportCertificationsToExcel()">
+                        📋 Exportar Todas las Certificaciones
+                    </button>
+                </div>
+            </div>
+            
+            <!-- SECCIÓN: Filtros para Certificaciones Finales -->
+            <div class="filters-section">
+                <h4>🔍 Filtros de Búsqueda</h4>
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label for="certification-filter-field">Campo a filtrar:</label>
+                        <select id="certification-filter-field" onchange="updateCertificationFilterInput()">
+                            <option value="">Seleccionar campo...</option>
+                            <option value="Número de Certificación Final">Número de Certificación</option>
+                            <option value="Empresa">Empresa</option>
+                            <option value="Total">Total</option>
+                            <option value="Fecha de Creación">Fecha de Creación</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="certification-filter-operator">Tipo de filtro:</label>
+                        <select id="certification-filter-operator" onchange="updateCertificationFilterInput()">
+                            <option value="contains">Contiene texto</option>
+                            <option value="equals">Es igual a</option>
+                            <option value="startsWith">Comienza con</option>
+                            <option value="endsWith">Termina con</option>
+                            <option value="range">Rango</option>
+                            <option value="greater">Mayor que</option>
+                            <option value="less">Menor que</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group" id="certification-filter-value-container">
+                        <label for="certification-filter-value">Valor:</label>
+                        <input type="text" id="certification-filter-value" placeholder="Texto a buscar...">
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button class="filter-button" onclick="addCertificationFilter()">➕ Agregar Filtro</button>
+                        <button class="filter-button" onclick="clearAllCertificationFilters()" style="background-color: var(--color-error);">🗑️ Limpiar Filtros</button>
+                    </div>
+                </div>
+                
+                <div id="certification-active-filters" class="active-filters" style="display: none;">
+                    <strong>Filtros activos:</strong>
+                    <div id="certification-active-filters-list"></div>
+                </div>
+            </div>
+            
+            <div id="certifications-list" class="certification-list">
+                <!-- Las certificaciones se cargarán dinámicamente aquí -->
+            </div>
+            
+            <div id="no-certifications-results" style="display: none; text-align: center; padding: 20px; color: var(--color-error);">
+                <p>No se encontraron certificaciones finales.</p>
+            </div>
+        </div>
+
+        <!-- Pestaña 6: Edición de Formulario (Solo Administrador) -->
         <div id="edit-form" class="tabcontent">
             <h3>Edición de Formulario</h3>
             <div id="form-editor"></div>
@@ -786,15 +1052,19 @@
         const ORDERS_COLLECTION = db.collection("workOrders");
         const COMPLETED_ORDERS_COLLECTION = db.collection("completedWorkOrders");
         const CONFIG_COLLECTION = db.collection("config"); 
+        const FINAL_CERTIFICATIONS_COLLECTION = db.collection("finalCertifications"); // NUEVA COLECCIÓN
         
         // Variables de estado
         let formStructure = null; 
         let workOrders = []; 
         let completedOrders = [];
+        let finalCertifications = []; // NUEVA VARIABLE
         let otCounter = 1; 
+        let finalCertificationCounter = 1; // NUEVO CONTADOR
         let currentRole = null; 
         let activeFilters = []; // Almacena los filtros activos
         let completedActiveFilters = []; // Almacena los filtros activos para órdenes finalizadas
+        let certificationActiveFilters = []; // NUEVO: Filtros para certificaciones finales
         let currentOrderForCertification = null; // Almacena la orden actual para certificación
 
         // ----------------------------------------------------------------------------------
@@ -997,6 +1267,7 @@
                     const data = configDoc.data();
                     formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
                     otCounter = data.otCounter || 1;
+                    finalCertificationCounter = data.finalCertificationCounter || 1; // NUEVO: Cargar contador de certificaciones
                 } else {
                     console.log("⚠️ Configuración no encontrada, usando valores por defecto");
                     formStructure = DEFAULT_FORM_STRUCTURE;
@@ -1014,6 +1285,12 @@
                 const completedSnapshot = await COMPLETED_ORDERS_COLLECTION.orderBy('Fecha Actual', 'desc').get();
                 completedOrders = completedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 console.log(`✅ ${completedOrders.length} órdenes finalizadas cargadas`);
+
+                // NUEVO: Cargar Certificaciones Finales
+                console.log("📜 Cargando certificaciones finales...");
+                const certificationsSnapshot = await FINAL_CERTIFICATIONS_COLLECTION.orderBy('Número de Certificación Final', 'desc').get();
+                finalCertifications = certificationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log(`✅ ${finalCertifications.length} certificaciones finales cargadas`);
 
                 // Asegurar que el contador esté correcto al inicio
                 recalculateOtCounter();
@@ -1047,7 +1324,8 @@
             try {
                 await CONFIG_COLLECTION.doc("systemConfig").set({
                     formStructure: formStructure,
-                    otCounter: otCounter
+                    otCounter: otCounter,
+                    finalCertificationCounter: finalCertificationCounter // NUEVO: Guardar contador de certificaciones
                 }, { merge: true });
 
                 if (!initial) {
@@ -1149,6 +1427,8 @@
                 renderWorkOrderForm();
                 renderOrdersTable();
                 renderCompletedOrdersTable();
+                renderFinalCertificationForm(); // NUEVO: Renderizar formulario de certificación final
+                renderFinalCertificationsList(); // NUEVO: Renderizar lista de certificaciones finales
                 
                 console.log("✅ App inicializada correctamente");
                 
@@ -1199,6 +1479,13 @@
             else if (tabName === 'completed-orders') {
                 renderCompletedOrdersTable();
                 initializeCompletedFilters(); // NUEVO: Inicializar filtros de órdenes finalizadas
+            }
+            else if (tabName === 'final-certification') {
+                renderFinalCertificationForm(); // NUEVO: Renderizar formulario de certificación final
+            }
+            else if (tabName === 'view-certifications') {
+                renderFinalCertificationsList(); // NUEVO: Renderizar lista de certificaciones finales
+                initializeCertificationFilters(); // NUEVO: Inicializar filtros de certificaciones
             }
             else if (tabName === 'edit-form' && currentRole === 'admin' && formStructure) renderFormEditor();
         }
@@ -1310,7 +1597,6 @@
                 renderFormEditor();
             }
         }
-
 
         // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO ***
         
@@ -2910,7 +3196,773 @@
             });
         }
 
-        // *** 9. FUNCIÓN PARA LIMPIAR DUPLICADOS ***
+        // *** 9. NUEVAS FUNCIONES PARA CERTIFICACIÓN FINAL ***
+
+        /**
+         * Renderiza el formulario de Certificación Final
+         */
+        function renderFinalCertificationForm() {
+            const certificationNumber = document.getElementById('certification-number');
+            if (certificationNumber) {
+                certificationNumber.value = finalCertificationCounter;
+            }
+            
+            // Llenar el select de empresas
+            const companySelect = document.getElementById('certification-company');
+            if (companySelect) {
+                companySelect.innerHTML = '<option value="">Seleccionar empresa...</option>';
+                
+                // Obtener empresas únicas de CONTRATISTAS_DATA
+                const empresasUnicas = Object.keys(CONTRATISTAS_DATA).filter(empresa => empresa !== "Seleccione una Empresa");
+                
+                empresasUnicas.forEach(empresa => {
+                    const option = document.createElement('option');
+                    option.value = empresa;
+                    option.textContent = empresa;
+                    companySelect.appendChild(option);
+                });
+            }
+        }
+
+        /**
+         * Actualiza las órdenes disponibles cuando se selecciona una empresa
+         */
+        function updateOrdersForCertification() {
+            const companySelect = document.getElementById('certification-company');
+            const ordersContainer = document.getElementById('certification-orders-container');
+            const noOrdersMessage = document.getElementById('no-orders-message');
+            const selectedCompany = companySelect.value;
+            
+            if (!selectedCompany) {
+                ordersContainer.style.display = 'none';
+                noOrdersMessage.style.display = 'none';
+                updateCertificationTotal();
+                return;
+            }
+            
+            // Filtrar órdenes finalizadas para la empresa seleccionada
+            const ordersForCompany = completedOrders.filter(order => {
+                // Buscar en todos los campos que puedan contener el nombre de la empresa
+                for (const key in order) {
+                    if (order[key] === selectedCompany) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+            
+            if (ordersForCompany.length === 0) {
+                ordersContainer.style.display = 'none';
+                noOrdersMessage.style.display = 'block';
+                updateCertificationTotal();
+                return;
+            }
+            
+            ordersContainer.style.display = 'block';
+            noOrdersMessage.style.display = 'none';
+            
+            // Limpiar contenedor
+            ordersContainer.innerHTML = '';
+            
+            // Agregar órdenes como checkboxes
+            ordersForCompany.forEach(order => {
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'order-checkbox-item';
+                
+                const orderNumber = order['Orden de Trabajo'];
+                const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
+                
+                orderDiv.innerHTML = `
+                    <div>
+                        <input type="checkbox" id="order-${order.id}" value="${order.id}" data-amount="${importeTotal}" onchange="updateCertificationTotal()">
+                        <label for="order-${order.id}">Orden de Trabajo ${orderNumber}</label>
+                    </div>
+                    <div class="order-amount">${parseFloat(importeTotal).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                `;
+                
+                ordersContainer.appendChild(orderDiv);
+            });
+            
+            updateCertificationTotal();
+        }
+
+        /**
+         * Actualiza el total de la certificación final
+         */
+        function updateCertificationTotal() {
+            const checkboxes = document.querySelectorAll('#certification-orders-container input[type="checkbox"]');
+            let total = 0;
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    const amount = parseFloat(checkbox.getAttribute('data-amount')) || 0;
+                    total += amount;
+                }
+            });
+            
+            const totalDisplay = document.getElementById('certification-total');
+            const totalHidden = document.getElementById('certification-total-hidden');
+            
+            if (totalDisplay) {
+                totalDisplay.textContent = total.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+            
+            if (totalHidden) {
+                totalHidden.value = total.toFixed(2);
+            }
+        }
+
+        /**
+         * Genera una Certificación Final
+         */
+        async function generateFinalCertification() {
+            const companySelect = document.getElementById('certification-company');
+            const selectedCompany = companySelect.value;
+            
+            if (!selectedCompany) {
+                alert('Por favor, seleccione una empresa.');
+                return;
+            }
+            
+            const checkboxes = document.querySelectorAll('#certification-orders-container input[type="checkbox"]:checked');
+            
+            if (checkboxes.length === 0) {
+                alert('Por favor, seleccione al menos una orden finalizada.');
+                return;
+            }
+            
+            const selectedOrders = [];
+            let totalAmount = 0;
+            
+            checkboxes.forEach(checkbox => {
+                const orderId = checkbox.value;
+                const order = completedOrders.find(o => o.id === orderId);
+                
+                if (order) {
+                    selectedOrders.push({
+                        id: order.id,
+                        numero: order['Orden de Trabajo'],
+                        importe: order['Certificación']?.['Importe Total de la Obra'] || '0.00'
+                    });
+                    
+                    totalAmount += parseFloat(order['Certificación']?.['Importe Total de la Obra'] || '0.00');
+                }
+            });
+            
+            try {
+                const certificationData = {
+                    'Título del Formulario': 'Certificación Final',
+                    'Número de Certificación Final': finalCertificationCounter,
+                    'Empresa': selectedCompany,
+                    'Órdenes Realizadas': selectedOrders,
+                    'Total': totalAmount.toFixed(2),
+                    'Fecha de Creación': getCurrentCaracasDate(),
+                    'Creado por': firebase.auth().currentUser.email
+                };
+                
+                // Guardar en Firebase
+                const docRef = await FINAL_CERTIFICATIONS_COLLECTION.add(certificationData);
+                
+                // Actualizar array local
+                certificationData.id = docRef.id;
+                finalCertifications.push(certificationData);
+                
+                // Incrementar contador
+                finalCertificationCounter++;
+                await saveFormStructure(true);
+                
+                // Generar PDF
+                await generateFinalCertificationPDF(certificationData);
+                
+                // Limpiar formulario
+                clearCertificationForm();
+                
+                // Actualizar lista de certificaciones
+                renderFinalCertificationsList();
+                
+                alert('✅ Certificación Final creada exitosamente y PDF generado.');
+                
+            } catch (error) {
+                console.error('Error al crear certificación final:', error);
+                alert('Error al crear la certificación final: ' + error.message);
+            }
+        }
+
+        /**
+         * Limpia el formulario de Certificación Final
+         */
+        function clearCertificationForm() {
+            document.getElementById('certification-company').value = '';
+            document.getElementById('certification-orders-container').style.display = 'none';
+            document.getElementById('no-orders-message').style.display = 'none';
+            document.getElementById('certification-total').textContent = '0.00';
+            document.getElementById('certification-total-hidden').value = '0.00';
+        }
+
+        /**
+         * Genera el PDF de Certificación Final
+         */
+        function generateFinalCertificationPDF(data) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const certificationNumber = data['Número de Certificación Final'];
+                    const fileName = `Certificacion_Final_${certificationNumber}.pdf`;
+                    
+                    console.log('Generando PDF de certificación final:', certificationNumber);
+
+                    // Crear contenido HTML para la certificación final
+                    const certificationContent = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <style>
+                                body { 
+                                    font-family: Arial, sans-serif; 
+                                    margin: 10mm; /* 1cm de margen en todos los lados */
+                                    color: #36454F; 
+                                    line-height: 1.4;
+                                    background: white;
+                                }
+                                h1 { 
+                                    color: #9C27B0; 
+                                    text-align: center; 
+                                    border-bottom: 2px solid #9C27B0; 
+                                    padding-bottom: 10px; 
+                                    margin-bottom: 20px; 
+                                    font-size: 20px;
+                                }
+                                .section { 
+                                    margin-bottom: 20px; 
+                                    page-break-inside: avoid;
+                                }
+                                .section h3 { 
+                                    color: #9C27B0; 
+                                    border-left: 4px solid #9C27B0; 
+                                    padding-left: 8px; 
+                                    margin-top: 0;
+                                    font-size: 16px;
+                                }
+                                table { 
+                                    width: 100%; 
+                                    border-collapse: collapse; 
+                                    margin-top: 10px;
+                                    font-size: 12px;
+                                }
+                                td { 
+                                    padding: 8px; 
+                                    border: 1px solid #B0C4DE; 
+                                    vertical-align: top;
+                                }
+                                .label { 
+                                    font-weight: bold; 
+                                    background-color: #F3E5F5; 
+                                    width: 35%; 
+                                }
+                                .orders-table {
+                                    margin-top: 15px;
+                                }
+                                .orders-table th {
+                                    background-color: #E1BEE7;
+                                    font-weight: bold;
+                                    text-align: left;
+                                }
+                                .total-section {
+                                    margin-top: 20px;
+                                    padding: 15px;
+                                    background-color: #F3E5F5;
+                                    border: 1px solid #9C27B0;
+                                    border-radius: 5px;
+                                    text-align: center;
+                                    font-weight: bold;
+                                    font-size: 14px;
+                                }
+                                .footer-text {
+                                    margin-top: 40px;
+                                    padding-top: 20px;
+                                    border-top: 2px dashed #9C27B0;
+                                    font-style: italic;
+                                    text-align: center;
+                                    font-size: 12px;
+                                }
+                                @media print {
+                                    body { margin: 10mm; }
+                                    .section { page-break-inside: avoid; }
+                                    .page-break { page-break-before: always; }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>Certificación Final N° ${certificationNumber}</h1>
+                            
+                            <div class="section">
+                                <h3>I. Información de la Empresa</h3>
+                                <table>
+                                    <tr>
+                                        <td class="label">Empresa:</td>
+                                        <td>${data['Empresa']}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            
+                            <div class="section">
+                                <h3>II. Órdenes Realizadas</h3>
+                                <table class="orders-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Número de Orden</th>
+                                            <th>Importe Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data['Órdenes Realizadas'].map(order => `
+                                            <tr>
+                                                <td>${order.numero}</td>
+                                                <td>${parseFloat(order.importe).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="total-section">
+                                <h3>Total Certificación Final</h3>
+                                <div style="font-size: 16px; color: #9C27B0;">
+                                    ${parseFloat(data['Total']).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                </div>
+                            </div>
+                            
+                            <div class="footer-text">
+                                Quedan archivadas cada una de las Ordenes de Trabajo finalizadas indicadas en la presente Certificación Final.
+                            </div>
+                        </body>
+                        </html>
+                    `;
+
+                    const printContainer = document.createElement('div');
+                    printContainer.innerHTML = certificationContent;
+                    document.body.appendChild(printContainer);
+
+                    const opt = {
+                        margin: 10, // 1cm de margen
+                        filename: fileName,
+                        image: { 
+                            type: 'jpeg', 
+                            quality: 0.98 
+                        },
+                        html2canvas: { 
+                            scale: 2,
+                            useCORS: true,
+                            logging: false,
+                            backgroundColor: '#FFFFFF'
+                        },
+                        jsPDF: { 
+                            unit: 'mm', 
+                            format: 'a4', 
+                            orientation: 'portrait',
+                            compress: true
+                        }
+                    };
+
+                    setTimeout(() => {
+                        html2pdf()
+                            .set(opt)
+                            .from(printContainer)
+                            .save()
+                            .then(() => {
+                                console.log('PDF de certificación final generado exitosamente:', fileName);
+                                if (document.body.contains(printContainer)) {
+                                    document.body.removeChild(printContainer);
+                                }
+                                resolve();
+                            })
+                            .catch(error => {
+                                console.error('Error al generar PDF de certificación final:', error);
+                                if (document.body.contains(printContainer)) {
+                                    document.body.removeChild(printContainer);
+                                }
+                                reject(error);
+                            });
+                    }, 1000);
+
+                } catch (error) {
+                    console.error('Error en generateFinalCertificationPDF:', error);
+                    reject(error);
+                }
+            });
+        }
+
+        /**
+         * Renderiza la lista de Certificaciones Finales
+         */
+        function renderFinalCertificationsList() {
+            const certificationsList = document.getElementById('certifications-list');
+            const noResultsDiv = document.getElementById('no-certifications-results');
+            
+            if (!certificationsList) return;
+            
+            certificationsList.innerHTML = '';
+            
+            // Aplicar filtros si existen
+            let filteredCertifications = finalCertifications;
+            if (certificationActiveFilters.length > 0) {
+                filteredCertifications = finalCertifications.filter(certification => {
+                    return certificationActiveFilters.every(filter => {
+                        const fieldValue = certification[filter.field] || '';
+                        const filterValue = filter.value;
+                        
+                        switch (filter.operator) {
+                            case 'contains':
+                                return fieldValue.toString().toLowerCase().includes(filterValue.toLowerCase());
+                            case 'equals':
+                                return fieldValue.toString().toLowerCase() === filterValue.toLowerCase();
+                            case 'startsWith':
+                                return fieldValue.toString().toLowerCase().startsWith(filterValue.toLowerCase());
+                            case 'endsWith':
+                                return fieldValue.toString().toLowerCase().endsWith(filterValue.toLowerCase());
+                            case 'range':
+                                const [min, max] = filterValue.split('-').map(v => parseFloat(v.trim()));
+                                const numValue = parseFloat(fieldValue);
+                                return !isNaN(numValue) && numValue >= min && numValue <= max;
+                            case 'greater':
+                                const greaterValue = parseFloat(fieldValue);
+                                const greaterFilter = parseFloat(filterValue);
+                                return !isNaN(greaterValue) && greaterValue > greaterFilter;
+                            case 'less':
+                                const lessValue = parseFloat(fieldValue);
+                                const lessFilter = parseFloat(filterValue);
+                                return !isNaN(lessValue) && lessValue < lessFilter;
+                            default:
+                                return true;
+                        }
+                    });
+                });
+            }
+            
+            if (filteredCertifications.length === 0) {
+                noResultsDiv.style.display = 'block';
+                certificationsList.style.display = 'none';
+                return;
+            }
+            
+            noResultsDiv.style.display = 'none';
+            certificationsList.style.display = 'block';
+            
+            // Ordenar por número de certificación (descendente)
+            const sortedCertifications = [...filteredCertifications].sort((a, b) => {
+                return b['Número de Certificación Final'] - a['Número de Certificación Final'];
+            });
+            
+            sortedCertifications.forEach(certification => {
+                const certificationItem = document.createElement('div');
+                certificationItem.className = 'certification-item';
+                
+                const certificationHeader = document.createElement('div');
+                certificationHeader.className = 'certification-header';
+                
+                const certificationTitle = document.createElement('div');
+                certificationTitle.className = 'certification-title';
+                certificationTitle.textContent = `Certificación Final N° ${certification['Número de Certificación Final']}`;
+                
+                const certificationActions = document.createElement('div');
+                certificationActions.className = 'certification-actions';
+                
+                const pdfButton = document.createElement('button');
+                pdfButton.textContent = '📄 Descargar PDF';
+                pdfButton.className = 'certification-pdf-button';
+                pdfButton.onclick = () => generateFinalCertificationPDF(certification);
+                
+                certificationActions.appendChild(pdfButton);
+                certificationHeader.appendChild(certificationTitle);
+                certificationHeader.appendChild(certificationActions);
+                
+                certificationItem.appendChild(certificationHeader);
+                
+                // Agregar lista de órdenes
+                const ordersList = document.createElement('div');
+                ordersList.className = 'orders-list';
+                
+                certification['Órdenes Realizadas'].forEach(order => {
+                    const orderItem = document.createElement('div');
+                    orderItem.className = 'order-item';
+                    
+                    const orderInfo = document.createElement('div');
+                    orderInfo.textContent = `Orden Finalizada ${order.numero}`;
+                    
+                    const orderActions = document.createElement('div');
+                    orderActions.className = 'order-actions';
+                    
+                    // Buscar la orden completa para obtener los PDFs
+                    const completeOrder = completedOrders.find(o => o.id === order.id);
+                    
+                    if (completeOrder) {
+                        const certificationPdfButton = document.createElement('button');
+                        certificationPdfButton.textContent = '📄 Certificación';
+                        certificationPdfButton.className = 'order-pdf-button';
+                        certificationPdfButton.onclick = () => generateCertificationPDF(completeOrder);
+                        
+                        const orderPdfButton = document.createElement('button');
+                        orderPdfButton.textContent = '📋 Orden';
+                        orderPdfButton.className = 'order-pdf-button';
+                        orderPdfButton.onclick = () => generatePDF(completeOrder);
+                        
+                        orderActions.appendChild(certificationPdfButton);
+                        orderActions.appendChild(orderPdfButton);
+                    }
+                    
+                    orderItem.appendChild(orderInfo);
+                    orderItem.appendChild(orderActions);
+                    ordersList.appendChild(orderItem);
+                });
+                
+                certificationItem.appendChild(ordersList);
+                certificationsList.appendChild(certificationItem);
+            });
+        }
+
+        // *** 10. FUNCIONES DE FILTRADO PARA CERTIFICACIONES FINALES ***
+
+        /**
+         * Inicializa los filtros para certificaciones finales
+         */
+        function initializeCertificationFilters() {
+            // Los campos ya están predefinidos en el HTML
+            updateCertificationFilterInput();
+        }
+
+        /**
+         * Actualiza la interfaz de filtro para certificaciones finales
+         */
+        function updateCertificationFilterInput() {
+            const fieldSelect = document.getElementById('certification-filter-field');
+            const operatorSelect = document.getElementById('certification-filter-operator');
+            const valueContainer = document.getElementById('certification-filter-value-container');
+            
+            const selectedField = fieldSelect.value;
+            const selectedOperator = operatorSelect.value;
+            
+            // Limpiar contenedor
+            valueContainer.innerHTML = '';
+            
+            if (!selectedField) {
+                valueContainer.innerHTML = '<label for="certification-filter-value">Valor:</label><input type="text" id="certification-filter-value" placeholder="Seleccione un campo primero...">';
+                return;
+            }
+            
+            const label = document.createElement('label');
+            label.htmlFor = 'certification-filter-value';
+            label.textContent = 'Valor:';
+            valueContainer.appendChild(label);
+            
+            // Determinar el tipo de campo
+            let fieldType = 'text';
+            if (selectedField === 'Total') fieldType = 'number';
+            if (selectedField === 'Fecha de Creación') fieldType = 'date';
+            
+            if (selectedOperator === 'range' && (fieldType === 'number' || fieldType === 'date')) {
+                // Input de rango para números y fechas
+                const rangeDiv = document.createElement('div');
+                rangeDiv.className = 'range-inputs';
+                rangeDiv.innerHTML = `
+                    <input type="${fieldType === 'date' ? 'date' : 'number'}" id="certification-filter-value-min" placeholder="Mínimo">
+                    <span style="align-self: center;">a</span>
+                    <input type="${fieldType === 'date' ? 'date' : 'number'}" id="certification-filter-value-max" placeholder="Máximo">
+                `;
+                valueContainer.appendChild(rangeDiv);
+            } else {
+                // Input simple para otros casos
+                let inputType = 'text';
+                if (fieldType === 'number') inputType = 'number';
+                if (fieldType === 'date') inputType = 'date';
+                
+                const input = document.createElement('input');
+                input.type = inputType;
+                input.id = 'certification-filter-value';
+                
+                if (inputType === 'text') {
+                    input.placeholder = 'Texto a buscar...';
+                } else if (inputType === 'number') {
+                    input.placeholder = '0';
+                    input.step = '0.01';
+                }
+                
+                valueContainer.appendChild(input);
+            }
+        }
+
+        /**
+         * Agrega un nuevo filtro para certificaciones finales
+         */
+        function addCertificationFilter() {
+            const fieldSelect = document.getElementById('certification-filter-field');
+            const operatorSelect = document.getElementById('certification-filter-operator');
+            const selectedField = fieldSelect.value;
+            const selectedOperator = operatorSelect.value;
+            
+            if (!selectedField) {
+                alert('Por favor, seleccione un campo para filtrar.');
+                return;
+            }
+            
+            let filterValue = '';
+            
+            if (selectedOperator === 'range') {
+                const minValue = document.getElementById('certification-filter-value-min').value;
+                const maxValue = document.getElementById('certification-filter-value-max').value;
+                
+                if (!minValue || !maxValue) {
+                    alert('Por favor, complete ambos valores para el rango.');
+                    return;
+                }
+                
+                filterValue = `${minValue}-${maxValue}`;
+            } else {
+                const valueInput = document.getElementById('certification-filter-value');
+                filterValue = valueInput.value.trim();
+                
+                if (!filterValue) {
+                    alert('Por favor, ingrese un valor para el filtro.');
+                    return;
+                }
+            }
+            
+            // Verificar si el filtro ya existe
+            const existingFilter = certificationActiveFilters.find(f => 
+                f.field === selectedField && f.operator === selectedOperator && f.value === filterValue
+            );
+            
+            if (existingFilter) {
+                alert('Este filtro ya está activo.');
+                return;
+            }
+            
+            // Agregar el filtro
+            certificationActiveFilters.push({
+                field: selectedField,
+                operator: selectedOperator,
+                value: filterValue
+            });
+            
+            // Actualizar la interfaz
+            updateCertificationActiveFiltersDisplay();
+            renderFinalCertificationsList();
+            
+            // Limpiar los inputs
+            fieldSelect.value = '';
+            operatorSelect.value = 'contains';
+            updateCertificationFilterInput();
+        }
+
+        /**
+         * Elimina un filtro específico de certificaciones finales
+         */
+        function removeCertificationFilter(index) {
+            certificationActiveFilters.splice(index, 1);
+            updateCertificationActiveFiltersDisplay();
+            renderFinalCertificationsList();
+        }
+
+        /**
+         * Limpia todos los filtros de certificaciones finales
+         */
+        function clearAllCertificationFilters() {
+            certificationActiveFilters = [];
+            updateCertificationActiveFiltersDisplay();
+            renderFinalCertificationsList();
+        }
+
+        /**
+         * Actualiza la visualización de filtros activos para certificaciones finales
+         */
+        function updateCertificationActiveFiltersDisplay() {
+            const activeFiltersDiv = document.getElementById('certification-active-filters');
+            const activeFiltersList = document.getElementById('certification-active-filters-list');
+            
+            if (certificationActiveFilters.length === 0) {
+                activeFiltersDiv.style.display = 'none';
+                return;
+            }
+            
+            activeFiltersDiv.style.display = 'block';
+            activeFiltersList.innerHTML = '';
+            
+            certificationActiveFilters.forEach((filter, index) => {
+                const filterTag = document.createElement('span');
+                filterTag.className = 'active-filter-tag';
+                
+                let operatorText = '';
+                switch (filter.operator) {
+                    case 'contains': operatorText = 'contiene'; break;
+                    case 'equals': operatorText = 'es igual a'; break;
+                    case 'startsWith': operatorText = 'comienza con'; break;
+                    case 'endsWith': operatorText = 'termina con'; break;
+                    case 'range': operatorText = 'está entre'; break;
+                    case 'greater': operatorText = 'es mayor que'; break;
+                    case 'less': operatorText = 'es menor que'; break;
+                }
+                
+                filterTag.innerHTML = `
+                    <strong>${filter.field}</strong> ${operatorText} "${filter.value}"
+                    <span class="remove-filter" onclick="removeCertificationFilter(${index})">×</span>
+                `;
+                
+                activeFiltersList.appendChild(filterTag);
+            });
+        }
+
+        // *** 11. FUNCIÓN PARA EXPORTAR CERTIFICACIONES A EXCEL ***
+
+        /**
+         * Exporta todas las certificaciones finales a Excel
+         */
+        function exportCertificationsToExcel() {
+            try {
+                if (finalCertifications.length === 0) {
+                    alert('No hay certificaciones finales para exportar.');
+                    return;
+                }
+
+                // Preparar datos para Excel
+                const excelData = finalCertifications.map(certification => {
+                    // Crear un objeto plano con todos los campos
+                    const row = {
+                        'Número de Certificación Final': certification['Número de Certificación Final'],
+                        'Empresa': certification['Empresa'],
+                        'Total': parseFloat(certification['Total']).toFixed(2),
+                        'Fecha de Creación': certification['Fecha de Creación'],
+                        'Creado por': certification['Creado por']
+                    };
+                    
+                    // Agregar las órdenes como una cadena separada por comas
+                    const ordenes = certification['Órdenes Realizadas'].map(order => 
+                        `Orden ${order.numero} (${parseFloat(order.importe).toFixed(2)})`
+                    ).join('; ');
+                    
+                    row['Órdenes Realizadas'] = ordenes;
+                    
+                    return row;
+                });
+
+                // Crear libro de trabajo y hoja
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                
+                // Agregar hoja al libro
+                XLSX.utils.book_append_sheet(wb, ws, 'Certificaciones Finales');
+                
+                // Generar y descargar archivo
+                const currentDate = new Date().toISOString().split('T')[0];
+                XLSX.writeFile(wb, `Certificaciones_Finales_${currentDate}.xlsx`);
+                
+                alert(`✅ ${finalCertifications.length} certificaciones finales exportadas exitosamente a Excel.`);
+                
+            } catch (error) {
+                console.error('Error al exportar certificaciones a Excel:', error);
+                alert('Error al exportar certificaciones a Excel: ' + error.message);
+            }
+        }
+
+        // *** 12. FUNCIÓN PARA LIMPIAR DUPLICADOS ***
         async function cleanDuplicateOrders() {
             if (currentRole !== 'admin') {
                 alert('Solo administradores pueden ejecutar esta función');
@@ -2975,7 +4027,7 @@
             }
         }
 
-        // *** 10. FUNCIONES DE EXPORTACIÓN E IMPORTACIÓN ***
+        // *** 13. FUNCIONES DE EXPORTACIÓN E IMPORTACIÓN ***
 
         /**
          * Exporta toda la base de datos a un archivo JSON
@@ -2995,6 +4047,10 @@
                 const completedSnapshot = await COMPLETED_ORDERS_COLLECTION.get();
                 const completedData = completedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+                // Obtener todas las certificaciones finales
+                const certificationsSnapshot = await FINAL_CERTIFICATIONS_COLLECTION.get();
+                const certificationsData = certificationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
                 // Obtener la configuración del sistema
                 const configDoc = await CONFIG_COLLECTION.doc("systemConfig").get();
                 const configData = configDoc.exists ? configDoc.data() : {};
@@ -3005,6 +4061,7 @@
                     exportedBy: firebase.auth().currentUser.email,
                     orders: ordersData,
                     completedOrders: completedData,
+                    finalCertifications: certificationsData, // NUEVO: Incluir certificaciones finales
                     config: configData
                 };
 
@@ -3023,7 +4080,7 @@
                 // Liberar el objeto URL
                 setTimeout(() => URL.revokeObjectURL(url), 100);
                 
-                alert(`✅ Base de datos exportada exitosamente. Se descargaron ${ordersData.length} órdenes en curso y ${completedData.length} órdenes finalizadas.`);
+                alert(`✅ Base de datos exportada exitosamente. Se descargaron ${ordersData.length} órdenes en curso, ${completedData.length} órdenes finalizadas y ${certificationsData.length} certificaciones finales.`);
                 
             } catch (error) {
                 console.error('Error al exportar la base de datos:', error);
@@ -3059,7 +4116,7 @@
                 }
 
                 // Mostrar confirmación final
-                if (!confirm(`Se importarán ${importData.orders.length} órdenes en curso, ${importData.completedOrders?.length || 0} órdenes finalizadas y la configuración del sistema. ¿Continuar?`)) {
+                if (!confirm(`Se importarán ${importData.orders.length} órdenes en curso, ${importData.completedOrders?.length || 0} órdenes finalizadas, ${importData.finalCertifications?.length || 0} certificaciones finales y la configuración del sistema. ¿Continuar?`)) {
                     return;
                 }
 
@@ -3087,13 +4144,24 @@
                     }
                 }
 
+                // NUEVO: Importar certificaciones finales
+                let importedCertificationCount = 0;
+                if (importData.finalCertifications) {
+                    for (const certification of importData.finalCertifications) {
+                        const { id, ...certificationData } = certification;
+                        await FINAL_CERTIFICATIONS_COLLECTION.add(certificationData);
+                        importedCertificationCount++;
+                    }
+                }
+
                 // Recargar la aplicación
                 await loadInitialData();
                 renderOrdersTable();
                 renderCompletedOrdersTable();
+                renderFinalCertificationsList();
                 renderWorkOrderForm();
 
-                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso y ${importedCompletedCount} órdenes finalizadas.`);
+                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso, ${importedCompletedCount} órdenes finalizadas y ${importedCertificationCount} certificaciones finales.`);
 
             } catch (error) {
                 console.error('Error al importar la base de datos:', error);
@@ -3128,6 +4196,11 @@
                 const completedDeletePromises = completedSnapshot.docs.map(doc => COMPLETED_ORDERS_COLLECTION.doc(doc.id).delete());
                 await Promise.all(completedDeletePromises);
 
+                // NUEVO: Eliminar todas las certificaciones finales
+                const certificationsSnapshot = await FINAL_CERTIFICATIONS_COLLECTION.get();
+                const certificationsDeletePromises = certificationsSnapshot.docs.map(doc => FINAL_CERTIFICATIONS_COLLECTION.doc(doc.id).delete());
+                await Promise.all(certificationsDeletePromises);
+
                 // Eliminar configuración
                 await CONFIG_COLLECTION.doc("systemConfig").delete();
 
@@ -3138,7 +4211,7 @@
             }
         }
 
-        // *** 11. FUNCIONES DE FILTRADO DINÁMICO ***
+        // *** 14. FUNCIONES DE FILTRADO DINÁMICO ***
 
         /**
          * Inicializa los filtros dinámicos
@@ -3389,7 +4462,7 @@
             });
         }
 
-        // *** 12. FUNCIONES DE FILTRADO PARA ÓRDENES FINALIZADAS ***
+        // *** 15. FUNCIONES DE FILTRADO PARA ÓRDENES FINALIZADAS ***
 
         /**
          * Inicializa los filtros para órdenes finalizadas
@@ -3631,7 +4704,7 @@
             });
         }
 
-        // *** 13. NUEVAS FUNCIONES DE EXPORTACIÓN A EXCEL ***
+        // *** 16. NUEVAS FUNCIONES DE EXPORTACIÓN A EXCEL ***
 
         /**
          * Exporta todas las órdenes (en curso o finalizadas) a Excel
