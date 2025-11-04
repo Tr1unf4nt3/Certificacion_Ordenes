@@ -958,7 +958,7 @@
             }
         };
 
-        // Estructura inicial por defecto 
+        // Estructura inicial por defecto CON EL NUEVO CAMPO DE PRESUPUESTO TOTAL
         const DEFAULT_FORM_STRUCTURE = [
             { title: "I. Información General", fields: [
                 { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
@@ -968,7 +968,10 @@
                 { id: "current_date", label: "Fecha Actual", type: "date-auto", required: true }
             ]},
             { title: "II. Información de la Contratista", fields: []},
-            { title: "III. Información del Trabajo/Obra", fields: []}
+            { title: "III. Información del Trabajo/Obra", fields: [
+                // NUEVO CAMPO FIJO: Presupuesto Total de la Obra
+                { id: "presupuesto_total", label: "Presupuesto Total de la Obra", type: "number", required: true }
+            ]}
         ];
         
         // *** 2. LÓGICA DE FIREBASE: CARGA Y GUARDADO ***
@@ -1222,8 +1225,9 @@
 
                 const fieldsContainer = document.getElementById(`fields-container-${secIndex}`);
                 section.fields.forEach((field, fieldIndex) => {
-                    // user-auto-fill al listado de campos fijos
-                    if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill') {
+                    // user-auto-fill y presupuesto_total al listado de campos fijos
+                    if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill' || 
+                        (secIndex === 2 && fieldIndex === 0 && field.label === 'Presupuesto Total de la Obra')) {
                         fieldsContainer.innerHTML += `<p class="required-fixed-field"><strong>${field.label}</strong> (Campo fijo obligatorio)</p>`;
                         return;
                     }
@@ -1289,15 +1293,16 @@
         }
 
         function removeField(secIndex, fieldIndex) {
-            // user-auto-fill al listado de campos fijos
+            // user-auto-fill y presupuesto_total al listado de campos fijos
             const isFixed = formStructure[secIndex].fields[fieldIndex].type === 'static' || 
                             formStructure[secIndex].fields[fieldIndex].type === 'ot_counter' ||
                             formStructure[secIndex].fields[fieldIndex].type === 'date-auto' ||
-                            formStructure[secIndex].fields[fieldIndex].type === 'user-auto-fill';
+                            formStructure[secIndex].fields[fieldIndex].type === 'user-auto-fill' ||
+                            (secIndex === 2 && fieldIndex === 0 && formStructure[secIndex].fields[fieldIndex].label === 'Presupuesto Total de la Obra');
             
-            // La primera sección tiene los 4 campos fijos iniciales
-            if (secIndex === 0 && isFixed) {
-                alert("🚫 No se pueden eliminar los campos fijos y obligatorios de la primera sección.");
+            // La primera sección tiene los 4 campos fijos iniciales, la tercera tiene el campo de presupuesto
+            if ((secIndex === 0 && isFixed) || (secIndex === 2 && isFixed)) {
+                alert("🚫 No se pueden eliminar los campos fijos y obligatorios de las secciones principales.");
                 return;
             }
             if (confirm('¿Estás seguro de que quieres eliminar este campo?')) {
@@ -1544,7 +1549,12 @@
                             break;
                         case 'text':
                         case 'number':
-                            inputHTML = `<input type="${field.type}" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
+                            // CAMPO ESPECIAL: Presupuesto Total de la Obra
+                            if (field.label === 'Presupuesto Total de la Obra') {
+                                inputHTML = `<input type="number" id="${fieldId}" name="${fieldId}" step="0.01" min="0" max="9999999999.99" placeholder="0.00" ${requiredAttribute} ${isDisabled} oninput="validatePresupuestoTotal(this)">`;
+                            } else {
+                                inputHTML = `<input type="${field.type}" id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled}>`;
+                            }
                             break;
                         case 'textarea':
                             inputHTML = `<textarea id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled} style="min-height: 100px;"></textarea>`;
@@ -1593,6 +1603,19 @@
             // Inicializar autollenado con el valor por defecto
             const autofillSelects = document.querySelectorAll('select[onchange="autofillContratistaData(this)"]');
             autofillSelects.forEach(select => autofillContratistaData(select));
+        }
+
+        // FUNCIÓN NUEVA: Validación del campo Presupuesto Total
+        function validatePresupuestoTotal(input) {
+            const value = parseFloat(input.value);
+            const maxValue = 9999999999.99; // 10 dígitos + 2 decimales
+            
+            if (value > maxValue) {
+                input.setCustomValidity(`El valor máximo permitido es ${maxValue.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+                input.reportValidity();
+            } else {
+                input.setCustomValidity('');
+            }
         }
 
         // FUNCIÓN ACTUALIZADA: Ahora incluye títulos separados para CANTV y EDC
@@ -3134,6 +3157,7 @@
             availableFields.add('Usuario que Crea la Orden');
             availableFields.add('Tipo de Construcción Seleccionada');
             availableFields.add('Estado');
+            availableFields.add('Presupuesto Total de la Obra'); // NUEVO CAMPO
             
             // Agregar campos dinámicos del formulario
             formStructure.forEach(section => {
@@ -3201,7 +3225,7 @@
             });
             
             // Campos especiales
-            if (selectedField.includes('Pago x VGT') || selectedField.includes('Costo Proyectado')) {
+            if (selectedField.includes('Pago x VGT') || selectedField.includes('Costo Proyectado') || selectedField === 'Presupuesto Total de la Obra') {
                 fieldType = 'number';
             }
             
@@ -3384,6 +3408,7 @@
             availableFields.add('Fecha de Finalización');
             availableFields.add('Usuario que Crea la Orden');
             availableFields.add('Tipo de Construcción Seleccionada');
+            availableFields.add('Presupuesto Total de la Obra'); // NUEVO CAMPO
             
             // Agregar campos de certificación
             availableFields.add('Certificación | Empresa Contratista');
@@ -3442,7 +3467,7 @@
             });
             
             // Campos especiales
-            if (selectedField.includes('Importe Total') || selectedField.includes('Pago x VGT')) {
+            if (selectedField.includes('Importe Total') || selectedField.includes('Pago x VGT') || selectedField === 'Presupuesto Total de la Obra') {
                 fieldType = 'number';
             }
             
