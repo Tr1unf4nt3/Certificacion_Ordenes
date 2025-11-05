@@ -587,6 +587,21 @@
             color: var(--color-certification);
         }
 
+        /* Estilos para órdenes ya certificadas */
+        .order-certified {
+            opacity: 0.6;
+            background-color: #f5f5f5;
+        }
+        
+        .certified-badge {
+            background-color: var(--color-certification);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            margin-left: 10px;
+        }
+
     </style>
 </head>
 <body>
@@ -777,6 +792,7 @@
                         <th>Título</th>
                         <th>Fecha Creación</th>
                         <th>Fecha Finalización</th>
+                        <th>Estado Certificación</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -826,6 +842,9 @@
                             </div>
                             <div id="no-orders-message" style="display: none; color: var(--color-error); text-align: center; padding: 10px;">
                                 No hay órdenes finalizadas para esta empresa.
+                            </div>
+                            <div id="all-orders-certified-message" style="display: none; color: var(--color-warning); text-align: center; padding: 10px;">
+                                Todas las órdenes de esta empresa ya han sido certificadas en certificaciones finales anteriores.
                             </div>
                         </p>
                     </div>
@@ -1052,20 +1071,20 @@
         const ORDERS_COLLECTION = db.collection("workOrders");
         const COMPLETED_ORDERS_COLLECTION = db.collection("completedWorkOrders");
         const CONFIG_COLLECTION = db.collection("config"); 
-        const FINAL_CERTIFICATIONS_COLLECTION = db.collection("finalCertifications"); // NUEVA COLECCIÓN
+        const FINAL_CERTIFICATIONS_COLLECTION = db.collection("finalCertifications");
         
         // Variables de estado
         let formStructure = null; 
         let workOrders = []; 
         let completedOrders = [];
-        let finalCertifications = []; // NUEVA VARIABLE
+        let finalCertifications = [];
         let otCounter = 1; 
-        let finalCertificationCounter = 1; // NUEVO CONTADOR
+        let finalCertificationCounter = 1;
         let currentRole = null; 
-        let activeFilters = []; // Almacena los filtros activos
-        let completedActiveFilters = []; // Almacena los filtros activos para órdenes finalizadas
-        let certificationActiveFilters = []; // NUEVO: Filtros para certificaciones finales
-        let currentOrderForCertification = null; // Almacena la orden actual para certificación
+        let activeFilters = [];
+        let completedActiveFilters = [];
+        let certificationActiveFilters = [];
+        let currentOrderForCertification = null;
 
         // ----------------------------------------------------------------------------------
         // *** CONFIGURACIÓN DE ROLES CON MÚLTIPLES CORREOS (LISTAS/ARRAYS) ***
@@ -1073,7 +1092,7 @@
 
         // Coloque aquí todos los correos electrónicos con acceso de administrador
         const ADMIN_EMAILS = [
-            'labortradingsg@gmail.com', // El correo que usted configuró
+            'labortradingsg@gmail.com',
             '' // Otro administrador de ejemplo
         ]; 
 
@@ -1081,7 +1100,7 @@
         const VIEWER_EMAILS = [
             'visualizador1@empresa.com',
             'visualizador2@empresa.com',
-            'solo.ver@tudominio.com' // Visualizador de ejemplo
+            'solo.ver@tudominio.com'
         ]; 
 
         // ----------------------------------------------------------------------------------
@@ -1233,13 +1252,11 @@
             { title: "I. Información General", fields: [
                 { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
                 { id: "ot_number", label: "Orden de Trabajo", type: "ot_counter", required: true },
-                // CAMPO NUEVO: Autocompletar con el usuario logueado (user-auto-fill)
                 { id: "user_auto_fill", label: "Usuario que Crea la Orden", type: "user-auto-fill", required: true },
                 { id: "current_date", label: "Fecha Actual", type: "date-auto", required: true }
             ]},
             { title: "II. Información de la Contratista", fields: []},
             { title: "III. Información del Trabajo/Obra", fields: [
-                // NUEVO CAMPO FIJO: Presupuesto Total de la Obra
                 { id: "presupuesto_total", label: "Presupuesto Total de la Obra", type: "number", required: true }
             ]}
         ];
@@ -1267,7 +1284,7 @@
                     const data = configDoc.data();
                     formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
                     otCounter = data.otCounter || 1;
-                    finalCertificationCounter = data.finalCertificationCounter || 1; // NUEVO: Cargar contador de certificaciones
+                    finalCertificationCounter = data.finalCertificationCounter || 1;
                 } else {
                     console.log("⚠️ Configuración no encontrada, usando valores por defecto");
                     formStructure = DEFAULT_FORM_STRUCTURE;
@@ -1286,7 +1303,7 @@
                 completedOrders = completedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 console.log(`✅ ${completedOrders.length} órdenes finalizadas cargadas`);
 
-                // NUEVO: Cargar Certificaciones Finales
+                // Cargar Certificaciones Finales
                 console.log("📜 Cargando certificaciones finales...");
                 const certificationsSnapshot = await FINAL_CERTIFICATIONS_COLLECTION.orderBy('Número de Certificación Final', 'desc').get();
                 finalCertifications = certificationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -1316,7 +1333,7 @@
                 }
                 
                 alert(errorMessage);
-                throw error; // Re-lanzar el error para manejo adicional
+                throw error;
             }
         }
         
@@ -1325,7 +1342,7 @@
                 await CONFIG_COLLECTION.doc("systemConfig").set({
                     formStructure: formStructure,
                     otCounter: otCounter,
-                    finalCertificationCounter: finalCertificationCounter // NUEVO: Guardar contador de certificaciones
+                    finalCertificationCounter: finalCertificationCounter
                 }, { merge: true });
 
                 if (!initial) {
@@ -1351,7 +1368,6 @@
             }
         }
 
-        // SIN CAMBIOS MAYORES
         async function login() {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
@@ -1384,7 +1400,6 @@
             }
         }
 
-        // SIN CAMBIOS
         function logout() {
             firebase.auth().signOut().then(() => {
                 document.getElementById('email').value = '';
@@ -1396,7 +1411,6 @@
             });
         }
 
-        // MODIFICADA: Control de visibilidad de pestañas para los 3 roles
         async function initializeApp(role) {
             try {
                 console.log("🔐 Inicializando app para rol:", role);
@@ -1427,20 +1441,18 @@
                 renderWorkOrderForm();
                 renderOrdersTable();
                 renderCompletedOrdersTable();
-                renderFinalCertificationForm(); // NUEVO: Renderizar formulario de certificación final
-                renderFinalCertificationsList(); // NUEVO: Renderizar lista de certificaciones finales
+                renderFinalCertificationForm();
+                renderFinalCertificationsList();
                 
                 console.log("✅ App inicializada correctamente");
                 
             } catch (error) {
                 console.error("❌ Error en initializeApp:", error);
                 alert("Error al inicializar la aplicación: " + error.message);
-                // Forzar logout en caso de error
                 logout();
             }
         }
 
-        // MODIFICADA: Usa getRoleFromEmail() para los 3 roles
         window.onload = function() {
             firebase.auth().onAuthStateChanged(user => {
                 if (user) {
@@ -1474,18 +1486,18 @@
             if (tabName === 'new-order' && formStructure) renderWorkOrderForm();
             else if (tabName === 'view-orders') {
                 renderOrdersTable();
-                initializeFilters(); // Inicializar filtros cuando se abre la pestaña
+                initializeFilters();
             }
             else if (tabName === 'completed-orders') {
                 renderCompletedOrdersTable();
-                initializeCompletedFilters(); // NUEVO: Inicializar filtros de órdenes finalizadas
+                initializeCompletedFilters();
             }
             else if (tabName === 'final-certification') {
-                renderFinalCertificationForm(); // NUEVO: Renderizar formulario de certificación final
+                renderFinalCertificationForm();
             }
             else if (tabName === 'view-certifications') {
-                renderFinalCertificationsList(); // NUEVO: Renderizar lista de certificaciones finales
-                initializeCertificationFilters(); // NUEVO: Inicializar filtros de certificaciones
+                renderFinalCertificationsList();
+                initializeCertificationFilters();
             }
             else if (tabName === 'edit-form' && currentRole === 'admin' && formStructure) renderFormEditor();
         }
@@ -1512,7 +1524,6 @@
 
                 const fieldsContainer = document.getElementById(`fields-container-${secIndex}`);
                 section.fields.forEach((field, fieldIndex) => {
-                    // user-auto-fill y presupuesto_total al listado de campos fijos
                     if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill' || 
                         (secIndex === 2 && fieldIndex === 0 && field.label === 'Presupuesto Total de la Obra')) {
                         fieldsContainer.innerHTML += `<p class="required-fixed-field"><strong>${field.label}</strong> (Campo fijo obligatorio)</p>`;
@@ -1580,14 +1591,12 @@
         }
 
         function removeField(secIndex, fieldIndex) {
-            // user-auto-fill y presupuesto_total al listado de campos fijos
             const isFixed = formStructure[secIndex].fields[fieldIndex].type === 'static' || 
                             formStructure[secIndex].fields[fieldIndex].type === 'ot_counter' ||
                             formStructure[secIndex].fields[fieldIndex].type === 'date-auto' ||
                             formStructure[secIndex].fields[fieldIndex].type === 'user-auto-fill' ||
                             (secIndex === 2 && fieldIndex === 0 && formStructure[secIndex].fields[fieldIndex].label === 'Presupuesto Total de la Obra');
             
-            // La primera sección tiene los 4 campos fijos iniciales, la tercera tiene el campo de presupuesto
             if ((secIndex === 0 && isFixed) || (secIndex === 2 && isFixed)) {
                 alert("🚫 No se pueden eliminar los campos fijos y obligatorios de las secciones principales.");
                 return;
@@ -1600,34 +1609,25 @@
 
         // *** 5. LÓGICA DE CREACIÓN DE ORDEN DE TRABAJO ***
         
-        // NUEVA FUNCIÓN: Formatea fecha YYYY-MM-DD o DD/MM/YYYY a DD/MM/YYYY
         function formatDateToDDMMYYYY(dateString) {
             if (!dateString) return 'N/A';
             
-            // Si la fecha ya está en formato DD/MM/YYYY, se asume que es la correcta (campos fijos)
             if (dateString.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
                 return dateString;
             }
 
-            // Para fechas YYYY-MM-DD (inputs de tipo date)
             const parts = dateString.split('-');
             if (parts.length === 3) {
                 const [year, month, day] = parts;
                 return `${day}/${month}/${year}`;
             }
 
-            // Si no coincide con ninguno, devuelve el original
             return dateString;
         }
 
-        /**
-         * Obtiene la fecha actual formateada para la zona horaria de Caracas (GMT-4).
-         * @returns {string} Fecha en formato DD/MM/AAAA.
-         */
         function getCurrentCaracasDate() {
             const now = new Date();
-            // Ajustar a zona horaria de Caracas (GMT-4)
-            const caracasOffset = -4 * 60; // minutos
+            const caracasOffset = -4 * 60;
             const localOffset = now.getTimezoneOffset();
             const caracasTime = new Date(now.getTime() + (localOffset - caracasOffset) * 60000);
             
@@ -1638,9 +1638,6 @@
             return `${day}/${month}/${year}`;
         }
         
-        /**
-         * Función que autocompleta los campos de Responsable y Rif al cambiar la empresa.
-         */
         function autofillContratistaData(selectElement) {
             const selectedCompanyName = selectElement.value;
             const data = CONTRATISTAS_DATA[selectedCompanyName];
@@ -1662,10 +1659,8 @@
             }
         }
 
-        // FUNCIÓN CORREGIDA: Ahora calcula correctamente ambos totales por separado
         function calculateNewTotal(prefix) {
             try {
-                // Cálculo para CANTV
                 const precioUnitario = parseFloat(
                     (document.getElementById(`${prefix}_precio_unitario`).value || '0')
                     .replace(',', '.')
@@ -1678,14 +1673,12 @@
                 
                 const total = precioUnitario * puntos;
                 
-                // VERIFICAR QUE LOS ELEMENTOS EXISTAN
                 const totalDisplay = document.getElementById(`${prefix}_total_display`);
                 const totalHidden = document.getElementById(`${prefix}_total_hidden`);
                 
                 if (totalDisplay) totalDisplay.textContent = total.toFixed(2);
                 if (totalHidden) totalHidden.value = total.toFixed(2);
                 
-                // Cálculo para EDC
                 const precioUnitario1 = parseFloat(
                     (document.getElementById(`${prefix}_precio_unitario1`).value || '0')
                     .replace(',', '.')
@@ -1709,7 +1702,6 @@
             }
         }
 
-
         function toggleConditionalSection(type) {
             try {
                 const nodeAccessSection = document.getElementById('conditional_node_acceso_section');
@@ -1717,19 +1709,15 @@
                 const nodeAccessButton = document.getElementById('check_node_acceso');
                 const ispButton = document.getElementById('check_isp');
 
-                // VERIFICAR QUE LOS ELEMENTOS EXISTAN
                 if (!nodeAccessSection || !ispSection || !nodeAccessButton || !ispButton) {
                     console.error('Elementos de sección condicional no encontrados');
                     return;
                 }
 
-                // 1. Limpiar y resetear ambas secciones
                 nodeAccessSection.style.display = 'none';
                 ispSection.style.display = 'none';
                 nodeAccessButton.classList.remove('active');
                 ispButton.classList.remove('active');
-                
-                // 2. Resetear inputs y selecciones
                 
                 const fieldsToReset = ['costo_proyectado', 'precio_unitario', 'puntos', 'precio_unitario1', 'puntos1', 'descripcion', 'abono_mensual'];
                 const selectsToReset = ['pago_por_realizado'];
@@ -1741,10 +1729,9 @@
                     });
                     selectsToReset.forEach(field => {
                         const el = document.getElementById(`${prefix}_${field}`);
-                        if (el) el.value = 'Inter'; // Valor por defecto
+                        if (el) el.value = 'Inter';
                     });
                     
-                    // Verificar que existan antes de intentar acceder
                     const totalDisplay = document.getElementById(`${prefix}_total_display`);
                     const totalDisplay1 = document.getElementById(`${prefix}_total_display1`);
                     const totalHidden = document.getElementById(`${prefix}_total_hidden`);
@@ -1756,8 +1743,6 @@
                     if (totalHidden1) totalHidden1.value = '0.00';
                 });
 
-
-                // 3. Mostrar la sección seleccionada
                 if (type === 'node_acceso') {
                     nodeAccessSection.style.display = 'block';
                     nodeAccessButton.classList.add('active');
@@ -1770,19 +1755,17 @@
             }
         }
 
-
         function renderWorkOrderForm() {
             const formElement = document.getElementById('work-order-form');
             formElement.innerHTML = '';
             const todayCaracas = getCurrentCaracasDate(); 
-            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO'; // Obtener email
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO';
 
             if (!formStructure) {
                  formElement.innerHTML = '<p>Cargando estructura del formulario...</p>';
                  return;
             }
             
-            // Renderizar secciones dinámicas
             formStructure.forEach(section => {
                 const sectionDiv = document.createElement('div');
                 sectionDiv.className = 'form-section';
@@ -1811,7 +1794,6 @@
                     const isFixedField = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
                     const requiredAttribute = field.required && !isFixedField ? 'required' : '';
 
-
                     switch (field.type) {
                         case 'static':
                             value = field.value;
@@ -1821,7 +1803,6 @@
                             value = otCounter;
                             inputHTML = `<input type="text" value="${value}" disabled>`;
                             break;
-                        // TIPO DE CAMPO: user-auto-fill
                         case 'user-auto-fill':
                             value = currentUserEmail;
                             inputHTML = `<input type="text" value="${value}" disabled>`;
@@ -1835,7 +1816,6 @@
                             break;
                         case 'text':
                         case 'number':
-                            // CAMPO ESPECIAL: Presupuesto Total de la Obra
                             if (field.label === 'Presupuesto Total de la Obra') {
                                 inputHTML = `<input type="number" id="${fieldId}" name="${fieldId}" step="0.01" min="0" max="9999999999.99" placeholder="0.00" ${requiredAttribute} ${isDisabled} oninput="validatePresupuestoTotal(this)">`;
                             } else {
@@ -1863,7 +1843,6 @@
                 formElement.appendChild(sectionDiv);
             });
             
-            // AÑADIR BOTONES DE CHECK CONDICIONAL AL FINAL
             formElement.innerHTML += `
                 <h4>Tipo de Construcción (Selección Única)</h4>
                 <button type="button" class="conditional-check" id="check_node_acceso" onclick="toggleConditionalSection('node_acceso')">
@@ -1877,24 +1856,18 @@
                 </button>
             `;
             
-            // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN NODO DE ACCESO ---
             formElement.innerHTML += renderConditionalSection('node_acceso', 'Datos Condicionales: La Construcción es de Nodo de Acceso');
-
-            // --- SECCIÓN CONDICIONAL: CONSTRUCCIÓN ISP ---
             formElement.innerHTML += renderConditionalSection('isp', 'Datos Condicionales: La Construcción es de un ISP');
             
-            // Inicializar las secciones ocultas
             toggleConditionalSection(null);
             
-            // Inicializar autollenado con el valor por defecto
             const autofillSelects = document.querySelectorAll('select[onchange="autofillContratistaData(this)"]');
             autofillSelects.forEach(select => autofillContratistaData(select));
         }
 
-        // FUNCIÓN NUEVA: Validación del campo Presupuesto Total
         function validatePresupuestoTotal(input) {
             const value = parseFloat(input.value);
-            const maxValue = 9999999999.99; // 10 dígitos + 2 decimales
+            const maxValue = 9999999999.99;
             
             if (value > maxValue) {
                 input.setCustomValidity(`El valor máximo permitido es ${maxValue.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
@@ -1904,7 +1877,6 @@
             }
         }
 
-        // FUNCIÓN ACTUALIZADA: Ahora incluye títulos separados para CANTV y EDC
         function renderConditionalSection(prefix, title) {
             const onChangeFunc = `calculateNewTotal('${prefix}')`;
             
@@ -1977,7 +1949,6 @@
             `;
         }
 
-        // SIN CAMBIOS
         function sanitizeInput(str) {
             if (typeof str !== 'string' || !str) return str;
             return str.replace(/&/g, '&amp;')
@@ -1987,16 +1958,13 @@
                       .replace(/'/g, '&#039;');
         }
 
-
         async function generateWorkOrder() {
             const form = document.getElementById('work-order-form');
             const selectedType = document.querySelector('.conditional-check.active');
             let firstInvalidField = null;
 
-            // 1. VALIDACIÓN DE CAMPOS DINÁMICOS Y AUTOLENADOS 
             for (const section of formStructure) {
                 for (const field of section.fields) {
-                    // user-auto-fill al listado de campos fijos
                     const isFixed = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill';
                     
                     if (!field.required || isFixed) continue;
@@ -2015,7 +1983,6 @@
                 if (firstInvalidField) break; 
             }
 
-            // 2. VALIDACIÓN DE SECCIÓN CONDICIONAL
             if (!firstInvalidField && selectedType) {
                 const prefix = selectedType.id.replace('check_', '');
                 const camposCondicionales = [
@@ -2029,7 +1996,6 @@
                     document.getElementById(`${prefix}_abono_mensual`)
                 ];
 
-                // VERIFICAR QUE LOS ELEMENTOS EXISTAN
                 for (const campo of camposCondicionales) {
                     if (!campo) {
                         console.error(`Campo condicional no encontrado: ${prefix}`);
@@ -2053,7 +2019,6 @@
                 }
             }
 
-            // 3. MANEJO DEL ERROR
             if (firstInvalidField) {
                 alert('⚠️ Atención: Debe completar los campos obligatorios faltantes marcados con (*). El sistema lo llevará al primer error.');
                 
@@ -2066,11 +2031,9 @@
             const formData = new FormData(form);
             const orderData = {};
             
-            // Obtener datos fijos
             const caracasDate = getCurrentCaracasDate(); 
-            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR'; // Obtener email
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR';
 
-            // 4. Recopilar datos estáticos y dinámicos del formulario principal - CORREGIDO
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     let value;
@@ -2079,7 +2042,6 @@
                                 : field.id;
 
                     if (field.type === 'ot_counter') value = otCounter.toString();
-                    // TIPO DE CAMPO: user-auto-fill
                     else if (field.type === 'user-auto-fill') value = currentUserEmail; 
                     else if (field.type === 'date-auto') value = caracasDate;
                     else if (field.type === 'static') value = field.value;
@@ -2088,19 +2050,15 @@
                         value = inputElement ? inputElement.value : formData.get(fieldId);
                     }
                     
-                    // Aplicar formato de fecha DD/MM/AAAA para todos los campos de fecha guardados
-                    // CORRECCIÓN: Verificar que value no sea null/undefined/string vacío
                     if (field.type === 'date-input' && value && value.trim() !== '') {
                         orderData[field.label] = formatDateToDDMMYYYY(value);
                     } else {
-                        // CORRECCIÓN: Asegurar que siempre haya un valor válido
                         const sanitizedValue = sanitizeInput(value);
                         orderData[field.label] = (sanitizedValue && sanitizedValue.trim() !== '') ? sanitizedValue : 'N/A';
                     }
                 });
             });
             
-            // 5. Recopilar datos de la sección condicional seleccionada 
             orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim() : 'Ninguno';
 
             if (selectedType) {
@@ -2111,7 +2069,6 @@
                 orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value) || 'N/A';
                 orderData[`${prefix} | Pago realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value) || 'N/A';
                 
-                // Guardar ambos totales calculados
                 orderData[`${prefix} | Pago x VGT CANTV a cargo de Inter`] = formData.get(`${prefix}_total_hidden`) || '0.00';
                 orderData[`${prefix} | Pago x VGT EDC a cargo de Inter`] = formData.get(`${prefix}_total_hidden1`) || '0.00';
 
@@ -2125,30 +2082,24 @@
                 orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value) || 'N/A';
             }
 
-            // 6. AGREGAR ESTADO "EN CURSO" A LA ORDEN
             orderData['Estado'] = 'En curso';
             orderData['Fecha de Creación'] = caracasDate;
 
-            // 7. **GUARDAR EN FIREBASE**
-            console.log("Datos a guardar en Firebase:", orderData); // Para debugging
+            console.log("Datos a guardar en Firebase:", orderData);
             
             try {
                 const docRef = await ORDERS_COLLECTION.add(orderData); 
                 
-                // 8. Actualizar array local y contador
                 orderData.id = docRef.id; 
                 workOrders.push(orderData);
                 otCounter++;
                 
-                // 9. Guardar la nueva estructura/contador
                 await saveFormStructure(true); 
 
-                // 10. Generar PDF - CORREGIDO
                 console.log('Generando PDF para nueva orden...');
                 await generatePDF(orderData);
                 console.log('PDF generado exitosamente');
 
-                // 11. Reiniciar UI
                 form.reset();
                 renderWorkOrderForm(); 
                 renderOrdersTable(); 
@@ -2175,19 +2126,15 @@
 
         // *** 6. GENERACIÓN DE PDF MEJORADA ***
 
-        // *** FUNCIÓN: Formatear texto largo para PDF - MEJORADA ***
         function formatLongTextForPDF(text, maxLineLength = 70) {
             if (!text || text === 'N/A') return 'N/A';
             
-            // Convertir saltos de línea HTML a saltos de línea reales
             let formattedText = text.replace(/<br\s*\/?>/gi, '\n');
             
-            // Si el texto es corto, devolverlo tal cual
             if (formattedText.length <= maxLineLength && !formattedText.includes('\n')) {
                 return formattedText;
             }
             
-            // Dividir el texto en líneas más cortas si es muy largo
             const lines = formattedText.split('\n');
             let resultLines = [];
             
@@ -2195,7 +2142,6 @@
                 if (line.length <= maxLineLength) {
                     resultLines.push(line);
                 } else {
-                    // Dividir línea larga en múltiples líneas
                     const words = line.split(' ');
                     let currentLine = '';
                     
@@ -2224,27 +2170,24 @@
                     
                     console.log('Iniciando generación de PDF para orden:', otNumber);
 
-                    // Crear un contenedor invisible pero en el DOM
                     const printContainer = document.createElement('div');
                     printContainer.id = 'pdf-print-container';
                     printContainer.style.cssText = `
                         position: absolute;
                         left: -9999px;
                         top: 0;
-                        width: 190mm; /* 210mm - 20mm de márgenes (1cm cada lado) */
-                        min-height: 277mm; /* 297mm - 20mm de márgenes */
+                        width: 190mm;
+                        min-height: 277mm;
                         background: white;
-                        padding: 10mm; /* 1cm de margen interno */
+                        padding: 10mm;
                         font-family: Arial, sans-serif;
                         box-sizing: border-box;
                         line-height: 1.4;
                         font-size: 12px;
                     `;
 
-                    // Construir el contenido HTML completo con mejor manejo de páginas
                     let formContentHTML = `
                         <div style="font-family: 'Arial', sans-serif; color: #36454F; line-height: 1.4; width: 100%;">
-                            <!-- Encabezado principal (solo en primera página) -->
                             <div class="pdf-main-header">
                                 <h1 style="color: #4682B4; text-align: center; border-bottom: 2px solid #4682B4; padding-bottom: 10px; margin-bottom: 20px; font-size: 18px;">
                                     ${data['Título del Formulario']} Nro. ${otNumber}
@@ -2255,7 +2198,6 @@
                                 </div>
                             </div>
                             
-                            <!-- Encabezado para páginas secundarias (se mostrará con CSS) -->
                             <div class="pdf-secondary-header" style="display: none;">
                                 <div style="text-align: right; font-weight: bold; color: #555; font-size: 11px; margin-bottom: 15px;">
                                     ${data['Título del Formulario']} Nro. ${otNumber} - Fecha: ${data['Fecha Actual']} - Página <span class="page-number"></span>
@@ -2263,7 +2205,6 @@
                             </div>
                     `;
 
-                    // Contenido del Formulario por Secciones (Dinámicas)
                     formStructure.forEach((section, secIndex) => {
                         
                         formContentHTML += `<div class="pdf-section" style="margin-bottom: 20px; width: 100%; page-break-inside: avoid;">`;
@@ -2274,16 +2215,13 @@
                             const label = field.label;
                             let value = data[label] || 'N/A';
                             
-                            // OMITIR CAMPOS DEL ENCABEZADO
                             if (label === 'Título del Formulario' || label === 'Orden de Trabajo' || label === 'Fecha Actual') return;
                             
-                            // APLICAR FORMATO DE FECHA
                             const fieldDefinition = section.fields.find(f => f.label === label);
                             if (fieldDefinition && fieldDefinition.type === 'date-input' && value !== 'N/A') {
                                 value = formatDateToDDMMYYYY(value);
                             }
                             
-                            // DETECTAR CAMPOS DE TEXTO LARGO
                             const isLongText = field.type === 'textarea' || 
                                               /descripción|descripcion|detallada|detallado|observación|observacion|comentario|notas|detalle/i.test(label);
                             
@@ -2292,7 +2230,7 @@
                             
                             if (isLongText) {
                                 valueCellStyle += " word-wrap: break-word; word-break: break-word; white-space: pre-wrap; line-height: 1.4; min-height: 40px; page-break-inside: avoid;";
-                                value = formatLongTextForPDF(value, 70); // Menos caracteres por línea
+                                value = formatLongTextForPDF(value, 70);
                             } else {
                                 valueCellStyle += " page-break-inside: avoid;";
                             }
@@ -2308,7 +2246,6 @@
                         formContentHTML += '</table></div>';
                     });
                     
-                    // Contenido de las Secciones Condicionales (Fijas)
                     const type = data['Tipo de Construcción Seleccionada'];
                     if (type && type !== 'Ninguno') {
                         const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
@@ -2356,7 +2293,6 @@
                         formContentHTML += '</table></div>';
                     }
 
-                    // SECCIÓN DE FIRMAS con manejo de página
                     formContentHTML += `
                         <div style="margin-top: 40px; padding-top: 20px; border-top: 2px dashed #B0C4DE; width: 100%; page-break-inside: avoid;">
                             <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; width: 100%;">
@@ -2374,22 +2310,18 @@
 
                     formContentHTML += '</div>';
 
-                    // Agregar CSS para control de páginas
                     const pageBreakCSS = `
                         <style>
                             @media print {
-                                /* Márgenes para todas las páginas */
                                 @page {
-                                    margin: 10mm; /* 1cm de margen en todos los lados */
+                                    margin: 10mm;
                                     size: A4;
                                 }
                                 
-                                /* Encabezado principal solo en primera página */
                                 .pdf-main-header {
                                     display: block;
                                 }
                                 
-                                /* Encabezado secundario en páginas siguientes */
                                 .pdf-secondary-header {
                                     display: block !important;
                                     margin-bottom: 15px;
@@ -2397,13 +2329,11 @@
                                     border-bottom: 1px solid #B0C4DE;
                                 }
                                 
-                                /* Evitar que las secciones se corten entre páginas */
                                 .pdf-section {
                                     page-break-inside: avoid;
                                     break-inside: avoid;
                                 }
                                 
-                                /* Control para tablas largas */
                                 table {
                                     page-break-inside: auto;
                                 }
@@ -2413,24 +2343,20 @@
                                     page-break-after: auto;
                                 }
                                 
-                                /* Para elementos que deben mantenerse juntos */
                                 .keep-together {
                                     page-break-inside: avoid;
                                 }
                                 
-                                /* Saltos de página controlados */
                                 .page-break {
                                     page-break-before: always;
                                 }
                                 
-                                /* Asegurar que las firmas estén en la última página */
                                 .signature-section {
                                     page-break-before: avoid;
                                     page-break-inside: avoid;
                                 }
                             }
                             
-                            /* Estilos generales para mejor legibilidad */
                             body {
                                 margin: 0;
                                 padding: 0;
@@ -2440,16 +2366,13 @@
                         </style>
                     `;
 
-                    // Asignar el contenido al contenedor
                     printContainer.innerHTML = pageBreakCSS + formContentHTML;
-                    
-                    // Agregar al DOM para que se renderice
                     document.body.appendChild(printContainer);
 
                     console.log('Contenedor PDF creado y agregado al DOM');
 
                     const opt = {
-                        margin:       10, // 10mm = 1cm de margen
+                        margin:       10,
                         filename:     fileName,
                         image:        { 
                             type: 'jpeg', 
@@ -2461,7 +2384,6 @@
                             logging: false,
                             scrollX: 0,
                             scrollY: 0,
-                            // Configuración mejorada para html2canvas
                             onclone: function(clonedDoc) {
                                 const clonedContainer = clonedDoc.getElementById('pdf-print-container');
                                 if (clonedContainer) {
@@ -2469,10 +2391,9 @@
                                     clonedContainer.style.left = '0';
                                     clonedContainer.style.top = '0';
                                     
-                                    // Agregar números de página dinámicamente
                                     const pageNumbers = clonedDoc.querySelectorAll('.page-number');
                                     pageNumbers.forEach((span, index) => {
-                                        span.textContent = (index + 2); // +2 porque la primera página es 1 y empieza desde página 2
+                                        span.textContent = (index + 2);
                                     });
                                 }
                             }
@@ -2482,16 +2403,13 @@
                             format: 'a4', 
                             orientation: 'portrait',
                             compress: true,
-                            // Configuración de márgenes internos
                             hotfixes: ["px_scaling"]
                         }
                     };
 
-                    // Usar setTimeout para asegurar que el DOM se haya actualizado completamente
                     setTimeout(() => {
                         console.log('Generando PDF desde elemento...');
                         
-                        // Asegurar que el contenedor sea visible para html2canvas
                         const tempContainer = document.getElementById('pdf-print-container');
                         if (tempContainer) {
                             tempContainer.style.position = 'relative';
@@ -2505,7 +2423,6 @@
                             .save()
                             .then(() => {
                                 console.log('PDF generado y descargado exitosamente:', fileName);
-                                // Limpiar el contenedor temporal
                                 if (document.body.contains(printContainer)) {
                                     document.body.removeChild(printContainer);
                                 }
@@ -2513,7 +2430,6 @@
                             })
                             .catch(error => {
                                 console.error('Error al generar PDF:', error);
-                                // Limpiar el contenedor temporal incluso en error
                                 if (document.body.contains(printContainer)) {
                                     document.body.removeChild(printContainer);
                                 }
@@ -2523,7 +2439,6 @@
 
                 } catch (error) {
                     console.error('Error en generatePDF:', error);
-                    // Limpiar el contenedor temporal en caso de error
                     const printContainer = document.getElementById('pdf-print-container');
                     if (printContainer && document.body.contains(printContainer)) {
                         document.body.removeChild(printContainer);
@@ -2533,7 +2448,6 @@
             });
         }
         
-        // *** FUNCIÓN downloadOrder CORREGIDA ***
         function downloadOrder(orderId) {
             console.log('Intentando descargar orden ID:', orderId);
             
@@ -2560,26 +2474,21 @@
                 return;
             }
 
-            // Extraer todos los números de orden y convertirlos a números
             const allOtNumbers = workOrders.map(order => {
                 const otNumber = order['Orden de Trabajo'];
                 return typeof otNumber === 'string' ? parseInt(otNumber, 10) : otNumber;
-            }).filter(ot => !isNaN(ot)); // Filtrar valores no numéricos
+            }).filter(ot => !isNaN(ot));
 
             if (allOtNumbers.length === 0) {
                 otCounter = 1;
                 return;
             }
 
-            // Encontrar el máximo número de orden
             const maxOt = Math.max(...allOtNumbers);
-            
-            // Verificar si hay duplicados
             const uniqueOtNumbers = [...new Set(allOtNumbers)];
             if (uniqueOtNumbers.length !== allOtNumbers.length) {
                 console.warn('⚠️ Se detectaron números de orden duplicados en la base de datos');
                 
-                // Encontrar el siguiente número disponible (sin duplicados)
                 let nextAvailable = maxOt + 1;
                 while (allOtNumbers.includes(nextAvailable)) {
                     nextAvailable++;
@@ -2593,7 +2502,6 @@
         }
 
         async function deleteWorkOrder(orderId, otNumber) {
-            // Solo Administrador puede eliminar
             if (currentRole !== 'admin') {
                 alert('🚫 Permiso denegado. Solo un administrador puede eliminar órdenes. Refuerce las reglas de seguridad de Firestore.');
                 return;
@@ -2607,7 +2515,7 @@
                 await ORDERS_COLLECTION.doc(orderId).delete();
                 workOrders = workOrders.filter(order => order.id !== orderId);
                 recalculateOtCounter();
-                await saveFormStructure(true); // Se usa true porque no debe mostrar mensaje de éxito al guardar el contador
+                await saveFormStructure(true);
                 renderOrdersTable();
                 renderWorkOrderForm(); 
 
@@ -2619,9 +2527,7 @@
             }
         }
 
-        // *** FUNCIÓN PARA ELIMINAR ÓRDENES FINALIZADAS ***
         async function deleteCompletedOrder(orderId, otNumber) {
-            // Solo Administrador puede eliminar
             if (currentRole !== 'admin') {
                 alert('🚫 Permiso denegado. Solo un administrador puede eliminar órdenes finalizadas.');
                 return;
@@ -2649,7 +2555,6 @@
             const noResultsDiv = document.getElementById('no-results');
             tbody.innerHTML = '';
 
-            // Aplicar filtros si existen
             let filteredOrders = workOrders;
             if (activeFilters.length > 0) {
                 filteredOrders = workOrders.filter(order => {
@@ -2685,14 +2590,12 @@
                 });
             }
 
-            // MODIFICACIÓN: Ordenar las órdenes por número de OT de forma ASCENDENTE (menor a mayor)
             const sortedOrders = [...filteredOrders].sort((a, b) => {
                 const otA = parseInt(a['Orden de Trabajo'], 10) || 0;
                 const otB = parseInt(b['Orden de Trabajo'], 10) || 0;
-                return otA - otB; // Cambiado a orden ascendente (menor a mayor)
+                return otA - otB;
             });
 
-            // Mostrar mensaje si no hay resultados
             if (sortedOrders.length === 0) {
                 noResultsDiv.style.display = 'block';
             } else {
@@ -2706,7 +2609,6 @@
                 const creationDate = order['Fecha Actual'] || 'N/A';
                 row.insertCell().textContent = creationDate;
                 
-                // Celda de Estado
                 const statusCell = row.insertCell();
                 const statusBadge = document.createElement('span');
                 statusBadge.className = 'status-badge status-in-progress';
@@ -2715,7 +2617,6 @@
                 
                 const actionCell = row.insertCell();
                 
-                // Botón de Descarga PDF
                 const downloadBtn = document.createElement('button');
                 downloadBtn.textContent = '⬇️ PDF';
                 downloadBtn.style.backgroundColor = '#77DD77'; 
@@ -2726,7 +2627,6 @@
                 };
                 actionCell.appendChild(downloadBtn);
                 
-                // Botón de Finalizar
                 const completeBtn = document.createElement('button');
                 completeBtn.textContent = '✅ Finalizar';
                 completeBtn.className = 'complete-button';
@@ -2734,7 +2634,6 @@
                 completeBtn.onclick = () => openCertificationModal(order);
                 actionCell.appendChild(completeBtn);
                 
-                // Botón de Eliminar (Solo para Admin)
                 if (currentRole === 'admin') {
                     const deleteBtn = document.createElement('button');
                     deleteBtn.textContent = '🗑️ Eliminar';
@@ -2749,24 +2648,18 @@
 
         // *** 8. NUEVAS FUNCIONES PARA CERTIFICACIÓN Y FINALIZACIÓN ***
 
-        /**
-         * Abre el modal de certificación para finalizar una orden
-         */
         function openCertificationModal(order) {
             currentOrderForCertification = order;
             
-            // Configurar los campos del modal
             document.getElementById('certification-title').textContent = 
                 `Certificación de Obras Nro. ${order['Orden de Trabajo']}`;
             document.getElementById('certification-number').value = order['Orden de Trabajo'];
             document.getElementById('certification-date').value = getCurrentCaracasDate();
             document.getElementById('work-order-reference').value = order['Orden de Trabajo'];
             
-            // Buscar información de la empresa contratista
             let companyName = '';
             let companyRif = '';
             
-            // Buscar en los campos de la orden
             for (const key in order) {
                 if (key.includes('Empresa') && order[key] && order[key] !== 'N/A' && order[key] !== 'Seleccione una Empresa') {
                     companyName = order[key];
@@ -2774,7 +2667,6 @@
                 }
             }
             
-            // Buscar RIF
             for (const key in order) {
                 if (key.includes('Rif') && order[key] && order[key] !== 'N/A') {
                     companyRif = order[key];
@@ -2785,35 +2677,26 @@
             document.getElementById('contractor-company').value = companyName || 'No especificada';
             document.getElementById('contractor-rif').value = companyRif || 'No especificado';
             
-            // Limpiar campos de fecha
             document.getElementById('start-date').value = '';
             document.getElementById('end-date').value = '';
             document.getElementById('work-details').value = '';
             document.getElementById('total-amount').value = '';
             document.getElementById('deviations').value = '';
             
-            // Mostrar el modal
             document.getElementById('certification-modal').style.display = 'flex';
         }
 
-        /**
-         * Cierra el modal de certificación
-         */
         function closeCertificationModal() {
             document.getElementById('certification-modal').style.display = 'none';
             currentOrderForCertification = null;
         }
 
-        /**
-         * Completa la orden de trabajo y genera la certificación
-         */
         async function completeWorkOrder() {
             if (!currentOrderForCertification) {
                 alert('Error: No hay orden seleccionada para finalizar.');
                 return;
             }
 
-            // Validar campos obligatorios
             const startDate = document.getElementById('start-date').value;
             const endDate = document.getElementById('end-date').value;
             const workDetails = document.getElementById('work-details').value;
@@ -2825,7 +2708,6 @@
             }
 
             try {
-                // Crear objeto con datos de certificación
                 const certificationData = {
                     ...currentOrderForCertification,
                     'Estado': 'Finalizada',
@@ -2843,20 +2725,14 @@
                     }
                 };
 
-                // Mover la orden a la colección de órdenes finalizadas
                 await COMPLETED_ORDERS_COLLECTION.add(certificationData);
-                
-                // Eliminar la orden de la colección de órdenes en curso
                 await ORDERS_COLLECTION.doc(currentOrderForCertification.id).delete();
                 
-                // Actualizar arrays locales
                 workOrders = workOrders.filter(order => order.id !== currentOrderForCertification.id);
                 completedOrders.push(certificationData);
                 
-                // Generar PDF de certificación
                 await generateCertificationPDF(certificationData);
                 
-                // Cerrar modal y actualizar interfaces
                 closeCertificationModal();
                 renderOrdersTable();
                 renderCompletedOrdersTable();
@@ -2869,9 +2745,6 @@
             }
         }
 
-        /**
-         * SOLUCIÓN ROBUSTA: Genera el PDF de certificación de obras CON FIRMAS A LOS LADOS
-         */
         function generateCertificationPDF(data) {
             return new Promise((resolve, reject) => {
                 try {
@@ -2879,9 +2752,7 @@
                     const fileName = `Certificacion_Obra_${certificationNumber}.pdf`;
                     
                     console.log('Generando PDF de certificación para orden:', certificationNumber);
-                    console.log('Datos completos:', data);
 
-                    // Crear contenido HTML completo y autónomo CON FIRMAS A LOS LADOS
                     const certificationContent = `
                         <!DOCTYPE html>
                         <html>
@@ -3100,15 +2971,54 @@
             });
         }
 
+        // *** MEJORA: Funciones para prevenir reutilización de órdenes en certificaciones finales ***
+
         /**
-         * Renderiza la tabla de órdenes finalizadas CON FILTROS Y BOTÓN DE ELIMINAR
+         * Obtiene las órdenes que ya han sido certificadas (incluidas en certificaciones finales)
+         */
+        function getCertifiedOrderIds() {
+            const certifiedOrderIds = new Set();
+            
+            finalCertifications.forEach(certification => {
+                if (certification['Órdenes Realizadas'] && Array.isArray(certification['Órdenes Realizadas'])) {
+                    certification['Órdenes Realizadas'].forEach(order => {
+                        if (order.id) {
+                            certifiedOrderIds.add(order.id);
+                        }
+                    });
+                }
+            });
+            
+            return certifiedOrderIds;
+        }
+
+        /**
+         * Verifica si una orden específica ya está incluida en alguna certificación final
+         */
+        function getOrderCertificationStatus(orderId) {
+            for (const certification of finalCertifications) {
+                if (certification['Órdenes Realizadas'] && Array.isArray(certification['Órdenes Realizadas'])) {
+                    const foundOrder = certification['Órdenes Realizadas'].find(order => order.id === orderId);
+                    if (foundOrder) {
+                        return {
+                            certificationNumber: certification['Número de Certificación Final'],
+                            certificationDate: certification['Fecha de Creación'],
+                            empresa: certification['Empresa']
+                        };
+                    }
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Renderiza la tabla de órdenes finalizadas CON INFORMACIÓN DE CERTIFICACIÓN
          */
         function renderCompletedOrdersTable() {
             const tbody = document.getElementById('completed-orders-table').querySelector('tbody');
             const noResultsDiv = document.getElementById('no-completed-results');
             tbody.innerHTML = '';
 
-            // Aplicar filtros si existen
             let filteredOrders = completedOrders;
             if (completedActiveFilters.length > 0) {
                 filteredOrders = completedOrders.filter(order => {
@@ -3144,11 +3054,10 @@
                 });
             }
 
-            // Ordenar las órdenes finalizadas por número de OT de forma ascendente
             const sortedOrders = [...filteredOrders].sort((a, b) => {
                 const otA = parseInt(a['Orden de Trabajo'], 10) || 0;
                 const otB = parseInt(b['Orden de Trabajo'], 10) || 0;
-                return otA - otB; // Orden ascendente
+                return otA - otB;
             });
 
             if (sortedOrders.length === 0) {
@@ -3164,9 +3073,21 @@
                 row.insertCell().textContent = order['Fecha Actual'] || 'N/A';
                 row.insertCell().textContent = order['Fecha de Finalización'] || 'N/A';
                 
+                // MEJORA: Celda para estado de certificación
+                const certificationCell = row.insertCell();
+                const certificationStatus = getOrderCertificationStatus(order.id);
+                if (certificationStatus) {
+                    certificationCell.innerHTML = `
+                        <span class="certified-badge" title="Certificada en CF N° ${certificationStatus.certificationNumber} (${certificationStatus.certificationDate})">
+                            ✅ Certificada
+                        </span>
+                    `;
+                } else {
+                    certificationCell.innerHTML = '<span style="color: #666;">No certificada</span>';
+                }
+                
                 const actionCell = row.insertCell();
                 
-                // Botón para descargar Orden de Trabajo
                 const orderPdfBtn = document.createElement('button');
                 orderPdfBtn.textContent = '📋 Orden';
                 orderPdfBtn.style.backgroundColor = '#87CEFA';
@@ -3174,7 +3095,6 @@
                 orderPdfBtn.onclick = () => generatePDF(order);
                 actionCell.appendChild(orderPdfBtn);
                 
-                // Botón para descargar Certificación
                 const certPdfBtn = document.createElement('button');
                 certPdfBtn.textContent = '📄 Certificación';
                 certPdfBtn.style.backgroundColor = '#77DD77';
@@ -3183,7 +3103,6 @@
                 certPdfBtn.onclick = () => generateCertificationPDF(order);
                 actionCell.appendChild(certPdfBtn);
                 
-                // NUEVO: Botón de Eliminar (Solo para Admin)
                 if (currentRole === 'admin') {
                     const deleteBtn = document.createElement('button');
                     deleteBtn.textContent = '🗑️ Eliminar';
@@ -3207,12 +3126,10 @@
                 certificationNumber.value = finalCertificationCounter;
             }
             
-            // Llenar el select de empresas
             const companySelect = document.getElementById('certification-company');
             if (companySelect) {
                 companySelect.innerHTML = '<option value="">Seleccionar empresa...</option>';
                 
-                // Obtener empresas únicas de CONTRATISTAS_DATA
                 const empresasUnicas = Object.keys(CONTRATISTAS_DATA).filter(empresa => empresa !== "Seleccione una Empresa");
                 
                 empresasUnicas.forEach(empresa => {
@@ -3231,17 +3148,27 @@
             const companySelect = document.getElementById('certification-company');
             const ordersContainer = document.getElementById('certification-orders-container');
             const noOrdersMessage = document.getElementById('no-orders-message');
+            const allOrdersCertifiedMessage = document.getElementById('all-orders-certified-message');
             const selectedCompany = companySelect.value;
             
             if (!selectedCompany) {
                 ordersContainer.style.display = 'none';
                 noOrdersMessage.style.display = 'none';
+                allOrdersCertifiedMessage.style.display = 'none';
                 updateCertificationTotal();
                 return;
             }
             
+            // Obtener IDs de órdenes ya certificadas
+            const certifiedOrderIds = getCertifiedOrderIds();
+            
             // Filtrar órdenes finalizadas para la empresa seleccionada
             const ordersForCompany = completedOrders.filter(order => {
+                // Verificar si la orden ya está en una certificación final
+                if (certifiedOrderIds.has(order.id)) {
+                    return false;
+                }
+                
                 // Buscar en todos los campos que puedan contener el nombre de la empresa
                 for (const key in order) {
                     if (order[key] === selectedCompany) {
@@ -3253,13 +3180,15 @@
             
             if (ordersForCompany.length === 0) {
                 ordersContainer.style.display = 'none';
-                noOrdersMessage.style.display = 'block';
+                noOrdersMessage.style.display = 'none';
+                allOrdersCertifiedMessage.style.display = 'block';
                 updateCertificationTotal();
                 return;
             }
             
             ordersContainer.style.display = 'block';
             noOrdersMessage.style.display = 'none';
+            allOrdersCertifiedMessage.style.display = 'none';
             
             // Limpiar contenedor
             ordersContainer.innerHTML = '';
@@ -3331,23 +3260,49 @@
                 return;
             }
             
+            // Verificar que ninguna orden ya esté certificada (protección adicional)
+            const certifiedOrderIds = getCertifiedOrderIds();
             const selectedOrders = [];
             let totalAmount = 0;
+            let hasAlreadyCertified = false;
             
             checkboxes.forEach(checkbox => {
                 const orderId = checkbox.value;
+                
+                // Verificación adicional de seguridad
+                if (certifiedOrderIds.has(orderId)) {
+                    hasAlreadyCertified = true;
+                    const order = completedOrders.find(o => o.id === orderId);
+                    if (order) {
+                        alert(`⚠️ La Orden de Trabajo ${order['Orden de Trabajo']} ya está incluida en otra certificación final y no puede ser seleccionada nuevamente.`);
+                    }
+                    return;
+                }
+                
                 const order = completedOrders.find(o => o.id === orderId);
                 
                 if (order) {
                     selectedOrders.push({
                         id: order.id,
                         numero: order['Orden de Trabajo'],
-                        importe: order['Certificación']?.['Importe Total de la Obra'] || '0.00'
+                        importe: order['Certificación']?.['Importe Total de la Obra'] || '0.00',
+                        fechaFinalizacion: order['Fecha de Finalización'] || 'N/A'
                     });
                     
                     totalAmount += parseFloat(order['Certificación']?.['Importe Total de la Obra'] || '0.00');
                 }
             });
+            
+            // Si se detectaron órdenes ya certificadas, detener el proceso
+            if (hasAlreadyCertified) {
+                alert('No se puede crear la certificación final porque algunas órdenes seleccionadas ya están certificadas.');
+                return;
+            }
+            
+            if (selectedOrders.length === 0) {
+                alert('No hay órdenes válidas para certificar.');
+                return;
+            }
             
             try {
                 const certificationData = {
@@ -3395,6 +3350,7 @@
             document.getElementById('certification-company').value = '';
             document.getElementById('certification-orders-container').style.display = 'none';
             document.getElementById('no-orders-message').style.display = 'none';
+            document.getElementById('all-orders-certified-message').style.display = 'none';
             document.getElementById('certification-total').textContent = '0.00';
             document.getElementById('certification-total-hidden').value = '0.00';
         }
@@ -3410,7 +3366,6 @@
                     
                     console.log('Generando PDF de certificación final:', certificationNumber);
 
-                    // Crear contenido HTML para la certificación final
                     const certificationContent = `
                         <!DOCTYPE html>
                         <html>
@@ -3419,7 +3374,7 @@
                             <style>
                                 body { 
                                     font-family: Arial, sans-serif; 
-                                    margin: 10mm; /* 1cm de margen en todos los lados */
+                                    margin: 10mm;
                                     color: #36454F; 
                                     line-height: 1.4;
                                     background: white;
@@ -3512,6 +3467,7 @@
                                         <tr>
                                             <th>Número de Orden</th>
                                             <th>Importe Total</th>
+                                            <th>Fecha Finalización</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -3519,6 +3475,7 @@
                                             <tr>
                                                 <td>${order.numero}</td>
                                                 <td>${parseFloat(order.importe).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                <td>${order.fechaFinalizacion}</td>
                                             </tr>
                                         `).join('')}
                                     </tbody>
@@ -3544,7 +3501,7 @@
                     document.body.appendChild(printContainer);
 
                     const opt = {
-                        margin: 10, // 1cm de margen
+                        margin: 10,
                         filename: fileName,
                         image: { 
                             type: 'jpeg', 
@@ -3603,7 +3560,6 @@
             
             certificationsList.innerHTML = '';
             
-            // Aplicar filtros si existen
             let filteredCertifications = finalCertifications;
             if (certificationActiveFilters.length > 0) {
                 filteredCertifications = finalCertifications.filter(certification => {
@@ -3648,7 +3604,6 @@
             noResultsDiv.style.display = 'none';
             certificationsList.style.display = 'block';
             
-            // Ordenar por número de certificación (descendente)
             const sortedCertifications = [...filteredCertifications].sort((a, b) => {
                 return b['Número de Certificación Final'] - a['Número de Certificación Final'];
             });
@@ -3662,7 +3617,17 @@
                 
                 const certificationTitle = document.createElement('div');
                 certificationTitle.className = 'certification-title';
-                certificationTitle.textContent = `Certificación Final N° ${certification['Número de Certificación Final']}`;
+                certificationTitle.textContent = `Certificación Final N° ${certification['Número de Certificación Final']} - ${certification['Empresa']}`;
+                
+                const certificationInfo = document.createElement('div');
+                certificationInfo.className = 'certification-info';
+                certificationInfo.innerHTML = `
+                    <div style="font-size: 0.9em; color: #666;">
+                        <strong>Total:</strong> ${parseFloat(certification['Total']).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} | 
+                        <strong>Fecha:</strong> ${certification['Fecha de Creación']} | 
+                        <strong>Órdenes:</strong> ${certification['Órdenes Realizadas'].length}
+                    </div>
+                `;
                 
                 const certificationActions = document.createElement('div');
                 certificationActions.className = 'certification-actions';
@@ -3674,11 +3639,11 @@
                 
                 certificationActions.appendChild(pdfButton);
                 certificationHeader.appendChild(certificationTitle);
+                certificationHeader.appendChild(certificationInfo);
                 certificationHeader.appendChild(certificationActions);
                 
                 certificationItem.appendChild(certificationHeader);
                 
-                // Agregar lista de órdenes
                 const ordersList = document.createElement('div');
                 ordersList.className = 'orders-list';
                 
@@ -3687,12 +3652,17 @@
                     orderItem.className = 'order-item';
                     
                     const orderInfo = document.createElement('div');
-                    orderInfo.textContent = `Orden Finalizada ${order.numero}`;
+                    orderInfo.innerHTML = `
+                        <strong>Orden Finalizada ${order.numero}</strong>
+                        <div style="font-size: 0.85em; color: #666;">
+                            Importe: ${parseFloat(order.importe).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} | 
+                            Fecha Finalización: ${order.fechaFinalizacion}
+                        </div>
+                    `;
                     
                     const orderActions = document.createElement('div');
                     orderActions.className = 'order-actions';
                     
-                    // Buscar la orden completa para obtener los PDFs
                     const completeOrder = completedOrders.find(o => o.id === order.id);
                     
                     if (completeOrder) {
@@ -3722,17 +3692,10 @@
 
         // *** 10. FUNCIONES DE FILTRADO PARA CERTIFICACIONES FINALES ***
 
-        /**
-         * Inicializa los filtros para certificaciones finales
-         */
         function initializeCertificationFilters() {
-            // Los campos ya están predefinidos en el HTML
             updateCertificationFilterInput();
         }
 
-        /**
-         * Actualiza la interfaz de filtro para certificaciones finales
-         */
         function updateCertificationFilterInput() {
             const fieldSelect = document.getElementById('certification-filter-field');
             const operatorSelect = document.getElementById('certification-filter-operator');
@@ -3741,7 +3704,6 @@
             const selectedField = fieldSelect.value;
             const selectedOperator = operatorSelect.value;
             
-            // Limpiar contenedor
             valueContainer.innerHTML = '';
             
             if (!selectedField) {
@@ -3754,13 +3716,11 @@
             label.textContent = 'Valor:';
             valueContainer.appendChild(label);
             
-            // Determinar el tipo de campo
             let fieldType = 'text';
             if (selectedField === 'Total') fieldType = 'number';
             if (selectedField === 'Fecha de Creación') fieldType = 'date';
             
             if (selectedOperator === 'range' && (fieldType === 'number' || fieldType === 'date')) {
-                // Input de rango para números y fechas
                 const rangeDiv = document.createElement('div');
                 rangeDiv.className = 'range-inputs';
                 rangeDiv.innerHTML = `
@@ -3770,7 +3730,6 @@
                 `;
                 valueContainer.appendChild(rangeDiv);
             } else {
-                // Input simple para otros casos
                 let inputType = 'text';
                 if (fieldType === 'number') inputType = 'number';
                 if (fieldType === 'date') inputType = 'date';
@@ -3790,9 +3749,6 @@
             }
         }
 
-        /**
-         * Agrega un nuevo filtro para certificaciones finales
-         */
         function addCertificationFilter() {
             const fieldSelect = document.getElementById('certification-filter-field');
             const operatorSelect = document.getElementById('certification-filter-operator');
@@ -3826,7 +3782,6 @@
                 }
             }
             
-            // Verificar si el filtro ya existe
             const existingFilter = certificationActiveFilters.find(f => 
                 f.field === selectedField && f.operator === selectedOperator && f.value === filterValue
             );
@@ -3836,44 +3791,32 @@
                 return;
             }
             
-            // Agregar el filtro
             certificationActiveFilters.push({
                 field: selectedField,
                 operator: selectedOperator,
                 value: filterValue
             });
             
-            // Actualizar la interfaz
             updateCertificationActiveFiltersDisplay();
             renderFinalCertificationsList();
             
-            // Limpiar los inputs
             fieldSelect.value = '';
             operatorSelect.value = 'contains';
             updateCertificationFilterInput();
         }
 
-        /**
-         * Elimina un filtro específico de certificaciones finales
-         */
         function removeCertificationFilter(index) {
             certificationActiveFilters.splice(index, 1);
             updateCertificationActiveFiltersDisplay();
             renderFinalCertificationsList();
         }
 
-        /**
-         * Limpia todos los filtros de certificaciones finales
-         */
         function clearAllCertificationFilters() {
             certificationActiveFilters = [];
             updateCertificationActiveFiltersDisplay();
             renderFinalCertificationsList();
         }
 
-        /**
-         * Actualiza la visualización de filtros activos para certificaciones finales
-         */
         function updateCertificationActiveFiltersDisplay() {
             const activeFiltersDiv = document.getElementById('certification-active-filters');
             const activeFiltersList = document.getElementById('certification-active-filters-list');
@@ -3912,9 +3855,6 @@
 
         // *** 11. FUNCIÓN PARA EXPORTAR CERTIFICACIONES A EXCEL ***
 
-        /**
-         * Exporta todas las certificaciones finales a Excel
-         */
         function exportCertificationsToExcel() {
             try {
                 if (finalCertifications.length === 0) {
@@ -3922,9 +3862,7 @@
                     return;
                 }
 
-                // Preparar datos para Excel
                 const excelData = finalCertifications.map(certification => {
-                    // Crear un objeto plano con todos los campos
                     const row = {
                         'Número de Certificación Final': certification['Número de Certificación Final'],
                         'Empresa': certification['Empresa'],
@@ -3933,7 +3871,6 @@
                         'Creado por': certification['Creado por']
                     };
                     
-                    // Agregar las órdenes como una cadena separada por comas
                     const ordenes = certification['Órdenes Realizadas'].map(order => 
                         `Orden ${order.numero} (${parseFloat(order.importe).toFixed(2)})`
                     ).join('; ');
@@ -3943,14 +3880,10 @@
                     return row;
                 });
 
-                // Crear libro de trabajo y hoja
                 const wb = XLSX.utils.book_new();
                 const ws = XLSX.utils.json_to_sheet(excelData);
-                
-                // Agregar hoja al libro
                 XLSX.utils.book_append_sheet(wb, ws, 'Certificaciones Finales');
                 
-                // Generar y descargar archivo
                 const currentDate = new Date().toISOString().split('T')[0];
                 XLSX.writeFile(wb, `Certificaciones_Finales_${currentDate}.xlsx`);
                 
@@ -3977,7 +3910,6 @@
                 const ordersSnapshot = await ORDERS_COLLECTION.get();
                 const allOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 
-                // Encontrar duplicados por número de OT
                 const otCounts = {};
                 allOrders.forEach(order => {
                     const otNumber = order['Orden de Trabajo'];
@@ -3996,17 +3928,14 @@
                 
                 console.log('Duplicados encontrados:', duplicates);
                 
-                // Eliminar duplicados (mantener el más reciente por fecha de creación)
                 let deletedCount = 0;
                 for (const [otNumber, orders] of duplicates) {
-                    // Ordenar por fecha (mantener el más reciente)
                     const sorted = orders.sort((a, b) => {
                         const dateA = new Date(a['Fecha Actual'] || 0);
                         const dateB = new Date(b['Fecha Actual'] || 0);
                         return dateB - dateA;
                     });
                     
-                    // Eliminar todos excepto el primero (más reciente)
                     for (let i = 1; i < sorted.length; i++) {
                         await ORDERS_COLLECTION.doc(sorted[i].id).delete();
                         deletedCount++;
@@ -4016,7 +3945,6 @@
                 
                 alert(`Se eliminaron ${deletedCount} órdenes duplicadas. Recargue la página para ver los cambios.`);
                 
-                // Recargar datos
                 await loadInitialData();
                 renderOrdersTable();
                 renderWorkOrderForm();
@@ -4029,9 +3957,6 @@
 
         // *** 13. FUNCIONES DE EXPORTACIÓN E IMPORTACIÓN ***
 
-        /**
-         * Exporta toda la base de datos a un archivo JSON
-         */
         async function exportDatabase() {
             if (currentRole !== 'admin') {
                 alert('🚫 Permiso denegado. Solo un administrador puede exportar la base de datos.');
@@ -4039,33 +3964,27 @@
             }
 
             try {
-                // Obtener todas las órdenes en curso
                 const ordersSnapshot = await ORDERS_COLLECTION.get();
                 const ordersData = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // Obtener todas las órdenes finalizadas
                 const completedSnapshot = await COMPLETED_ORDERS_COLLECTION.get();
                 const completedData = completedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // Obtener todas las certificaciones finales
                 const certificationsSnapshot = await FINAL_CERTIFICATIONS_COLLECTION.get();
                 const certificationsData = certificationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // Obtener la configuración del sistema
                 const configDoc = await CONFIG_COLLECTION.doc("systemConfig").get();
                 const configData = configDoc.exists ? configDoc.data() : {};
 
-                // Crear objeto con todos los datos
                 const exportData = {
                     timestamp: new Date().toISOString(),
                     exportedBy: firebase.auth().currentUser.email,
                     orders: ordersData,
                     completedOrders: completedData,
-                    finalCertifications: certificationsData, // NUEVO: Incluir certificaciones finales
+                    finalCertifications: certificationsData,
                     config: configData
                 };
 
-                // Crear y descargar archivo JSON
                 const dataStr = JSON.stringify(exportData, null, 2);
                 const dataBlob = new Blob([dataStr], { type: 'application/json' });
                 const url = URL.createObjectURL(dataBlob);
@@ -4077,7 +3996,6 @@
                 link.click();
                 document.body.removeChild(link);
                 
-                // Liberar el objeto URL
                 setTimeout(() => URL.revokeObjectURL(url), 100);
                 
                 alert(`✅ Base de datos exportada exitosamente. Se descargaron ${ordersData.length} órdenes en curso, ${completedData.length} órdenes finalizadas y ${certificationsData.length} certificaciones finales.`);
@@ -4088,9 +4006,6 @@
             }
         }
 
-        /**
-         * Importa datos desde un archivo JSON
-         */
         async function importDatabase(file) {
             if (currentRole !== 'admin') {
                 alert('🚫 Permiso denegado. Solo un administrador puede importar la base de datos.');
@@ -4109,24 +4024,19 @@
                 const fileText = await readFileAsText(file);
                 const importData = JSON.parse(fileText);
 
-                // Validar estructura básica del archivo
                 if (!importData.orders || !importData.config) {
                     alert('El archivo seleccionado no tiene el formato correcto para importar.');
                     return;
                 }
 
-                // Mostrar confirmación final
                 if (!confirm(`Se importarán ${importData.orders.length} órdenes en curso, ${importData.completedOrders?.length || 0} órdenes finalizadas, ${importData.finalCertifications?.length || 0} certificaciones finales y la configuración del sistema. ¿Continuar?`)) {
                     return;
                 }
 
-                // Limpiar la base de datos actual
                 await clearDatabase();
 
-                // Importar configuración
                 await CONFIG_COLLECTION.doc("systemConfig").set(importData.config);
 
-                // Importar órdenes en curso
                 let importedCount = 0;
                 for (const order of importData.orders) {
                     const { id, ...orderData } = order;
@@ -4134,7 +4044,6 @@
                     importedCount++;
                 }
 
-                // Importar órdenes finalizadas
                 let importedCompletedCount = 0;
                 if (importData.completedOrders) {
                     for (const order of importData.completedOrders) {
@@ -4144,7 +4053,6 @@
                     }
                 }
 
-                // NUEVO: Importar certificaciones finales
                 let importedCertificationCount = 0;
                 if (importData.finalCertifications) {
                     for (const certification of importData.finalCertifications) {
@@ -4154,7 +4062,6 @@
                     }
                 }
 
-                // Recargar la aplicación
                 await loadInitialData();
                 renderOrdersTable();
                 renderCompletedOrdersTable();
@@ -4169,9 +4076,6 @@
             }
         }
 
-        /**
-         * Lee un archivo como texto
-         */
         function readFileAsText(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -4181,27 +4085,20 @@
             });
         }
 
-        /**
-         * Limpia toda la base de datos
-         */
         async function clearDatabase() {
             try {
-                // Eliminar todas las órdenes en curso
                 const ordersSnapshot = await ORDERS_COLLECTION.get();
                 const deletePromises = ordersSnapshot.docs.map(doc => ORDERS_COLLECTION.doc(doc.id).delete());
                 await Promise.all(deletePromises);
 
-                // Eliminar todas las órdenes finalizadas
                 const completedSnapshot = await COMPLETED_ORDERS_COLLECTION.get();
                 const completedDeletePromises = completedSnapshot.docs.map(doc => COMPLETED_ORDERS_COLLECTION.doc(doc.id).delete());
                 await Promise.all(completedDeletePromises);
 
-                // NUEVO: Eliminar todas las certificaciones finales
                 const certificationsSnapshot = await FINAL_CERTIFICATIONS_COLLECTION.get();
                 const certificationsDeletePromises = certificationsSnapshot.docs.map(doc => FINAL_CERTIFICATIONS_COLLECTION.doc(doc.id).delete());
                 await Promise.all(certificationsDeletePromises);
 
-                // Eliminar configuración
                 await CONFIG_COLLECTION.doc("systemConfig").delete();
 
                 console.log('Base de datos limpiada exitosamente');
@@ -4213,26 +4110,20 @@
 
         // *** 14. FUNCIONES DE FILTRADO DINÁMICO ***
 
-        /**
-         * Inicializa los filtros dinámicos
-         */
         function initializeFilters() {
             const filterFieldSelect = document.getElementById('filter-field');
             filterFieldSelect.innerHTML = '<option value="">Seleccionar campo...</option>';
             
-            // Obtener todos los campos disponibles de las órdenes
             const availableFields = new Set();
             
-            // Agregar campos básicos
             availableFields.add('Orden de Trabajo');
             availableFields.add('Título del Formulario');
             availableFields.add('Fecha Actual');
             availableFields.add('Usuario que Crea la Orden');
             availableFields.add('Tipo de Construcción Seleccionada');
             availableFields.add('Estado');
-            availableFields.add('Presupuesto Total de la Obra'); // NUEVO CAMPO
+            availableFields.add('Presupuesto Total de la Obra');
             
-            // Agregar campos dinámicos del formulario
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     if (field.type !== 'static' && field.type !== 'ot_counter' && field.type !== 'date-auto' && field.type !== 'user-auto-fill') {
@@ -4241,7 +4132,6 @@
                 });
             });
             
-            // Agregar campos condicionales
             availableFields.add('node_acceso | Costo Proyectado de la Obra');
             availableFields.add('node_acceso | Pago realizado por');
             availableFields.add('node_acceso | Pago x VGT CANTV a cargo de Inter');
@@ -4255,7 +4145,6 @@
             availableFields.add('isp | Descripción');
             availableFields.add('isp | Abono Mensual a Recibir por el cliente');
             
-            // Ordenar campos alfabéticamente y agregar al select
             Array.from(availableFields).sort().forEach(field => {
                 const option = document.createElement('option');
                 option.value = field;
@@ -4266,9 +4155,6 @@
             updateActiveFiltersDisplay();
         }
 
-        /**
-         * Actualiza la interfaz de filtro según el tipo de campo seleccionado
-         */
         function updateFilterInput() {
             const fieldSelect = document.getElementById('filter-field');
             const operatorSelect = document.getElementById('filter-operator');
@@ -4277,7 +4163,6 @@
             const selectedField = fieldSelect.value;
             const selectedOperator = operatorSelect.value;
             
-            // Limpiar contenedor
             valueContainer.innerHTML = '';
             
             if (!selectedField) {
@@ -4285,10 +4170,8 @@
                 return;
             }
             
-            // Determinar el tipo de campo basado en la estructura del formulario
             let fieldType = 'text';
             
-            // Buscar en campos dinámicos
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     if (field.label === selectedField) {
@@ -4297,7 +4180,6 @@
                 });
             });
             
-            // Campos especiales
             if (selectedField.includes('Pago x VGT') || selectedField.includes('Costo Proyectado') || selectedField === 'Presupuesto Total de la Obra') {
                 fieldType = 'number';
             }
@@ -4312,7 +4194,6 @@
             valueContainer.appendChild(label);
             
             if (selectedOperator === 'range' && (fieldType === 'number' || fieldType === 'date')) {
-                // Input de rango para números y fechas
                 const rangeDiv = document.createElement('div');
                 rangeDiv.className = 'range-inputs';
                 rangeDiv.innerHTML = `
@@ -4322,7 +4203,6 @@
                 `;
                 valueContainer.appendChild(rangeDiv);
             } else {
-                // Input simple para otros casos
                 let inputType = 'text';
                 if (fieldType === 'number') inputType = 'number';
                 if (fieldType === 'date') inputType = 'date';
@@ -4342,9 +4222,6 @@
             }
         }
 
-        /**
-         * Agrega un nuevo filtro
-         */
         function addFilter() {
             const fieldSelect = document.getElementById('filter-field');
             const operatorSelect = document.getElementById('filter-operator');
@@ -4378,7 +4255,6 @@
                 }
             }
             
-            // Verificar si el filtro ya existe
             const existingFilter = activeFilters.find(f => 
                 f.field === selectedField && f.operator === selectedOperator && f.value === filterValue
             );
@@ -4388,44 +4264,32 @@
                 return;
             }
             
-            // Agregar el filtro
             activeFilters.push({
                 field: selectedField,
                 operator: selectedOperator,
                 value: filterValue
             });
             
-            // Actualizar la interfaz
             updateActiveFiltersDisplay();
             renderOrdersTable();
             
-            // Limpiar los inputs
             fieldSelect.value = '';
             operatorSelect.value = 'contains';
             updateFilterInput();
         }
 
-        /**
-         * Elimina un filtro específico
-         */
         function removeFilter(index) {
             activeFilters.splice(index, 1);
             updateActiveFiltersDisplay();
             renderOrdersTable();
         }
 
-        /**
-         * Limpia todos los filtros
-         */
         function clearAllFilters() {
             activeFilters = [];
             updateActiveFiltersDisplay();
             renderOrdersTable();
         }
 
-        /**
-         * Actualiza la visualización de filtros activos
-         */
         function updateActiveFiltersDisplay() {
             const activeFiltersDiv = document.getElementById('active-filters');
             const activeFiltersList = document.getElementById('active-filters-list');
@@ -4464,31 +4328,25 @@
 
         // *** 15. FUNCIONES DE FILTRADO PARA ÓRDENES FINALIZADAS ***
 
-        /**
-         * Inicializa los filtros para órdenes finalizadas
-         */
         function initializeCompletedFilters() {
             const filterFieldSelect = document.getElementById('completed-filter-field');
             filterFieldSelect.innerHTML = '<option value="">Seleccionar campo...</option>';
             
-            // Obtener todos los campos disponibles de las órdenes finalizadas
             const availableFields = new Set();
             
-            // Agregar campos básicos
             availableFields.add('Orden de Trabajo');
             availableFields.add('Título del Formulario');
             availableFields.add('Fecha Actual');
             availableFields.add('Fecha de Finalización');
             availableFields.add('Usuario que Crea la Orden');
             availableFields.add('Tipo de Construcción Seleccionada');
-            availableFields.add('Presupuesto Total de la Obra'); // NUEVO CAMPO
+            availableFields.add('Presupuesto Total de la Obra');
+            availableFields.add('Estado de Certificación Final');
             
-            // Agregar campos de certificación
             availableFields.add('Certificación | Empresa Contratista');
             availableFields.add('Certificación | Identificación Fiscal RIF');
             availableFields.add('Certificación | Importe Total de la Obra');
             
-            // Agregar campos dinámicos del formulario
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     if (field.type !== 'static' && field.type !== 'ot_counter' && field.type !== 'date-auto' && field.type !== 'user-auto-fill') {
@@ -4497,7 +4355,6 @@
                 });
             });
             
-            // Ordenar campos alfabéticamente y agregar al select
             Array.from(availableFields).sort().forEach(field => {
                 const option = document.createElement('option');
                 option.value = field;
@@ -4508,9 +4365,6 @@
             updateCompletedActiveFiltersDisplay();
         }
 
-        /**
-         * Actualiza la interfaz de filtro para órdenes finalizadas
-         */
         function updateCompletedFilterInput() {
             const fieldSelect = document.getElementById('completed-filter-field');
             const operatorSelect = document.getElementById('completed-filter-operator');
@@ -4519,7 +4373,6 @@
             const selectedField = fieldSelect.value;
             const selectedOperator = operatorSelect.value;
             
-            // Limpiar contenedor
             valueContainer.innerHTML = '';
             
             if (!selectedField) {
@@ -4527,10 +4380,8 @@
                 return;
             }
             
-            // Determinar el tipo de campo
             let fieldType = 'text';
             
-            // Buscar en campos dinámicos
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     if (field.label === selectedField) {
@@ -4539,7 +4390,6 @@
                 });
             });
             
-            // Campos especiales
             if (selectedField.includes('Importe Total') || selectedField.includes('Pago x VGT') || selectedField === 'Presupuesto Total de la Obra') {
                 fieldType = 'number';
             }
@@ -4554,7 +4404,6 @@
             valueContainer.appendChild(label);
             
             if (selectedOperator === 'range' && (fieldType === 'number' || fieldType === 'date')) {
-                // Input de rango para números y fechas
                 const rangeDiv = document.createElement('div');
                 rangeDiv.className = 'range-inputs';
                 rangeDiv.innerHTML = `
@@ -4564,7 +4413,6 @@
                 `;
                 valueContainer.appendChild(rangeDiv);
             } else {
-                // Input simple para otros casos
                 let inputType = 'text';
                 if (fieldType === 'number') inputType = 'number';
                 if (fieldType === 'date') inputType = 'date';
@@ -4584,9 +4432,6 @@
             }
         }
 
-        /**
-         * Agrega un nuevo filtro para órdenes finalizadas
-         */
         function addCompletedFilter() {
             const fieldSelect = document.getElementById('completed-filter-field');
             const operatorSelect = document.getElementById('completed-filter-operator');
@@ -4620,7 +4465,6 @@
                 }
             }
             
-            // Verificar si el filtro ya existe
             const existingFilter = completedActiveFilters.find(f => 
                 f.field === selectedField && f.operator === selectedOperator && f.value === filterValue
             );
@@ -4630,44 +4474,32 @@
                 return;
             }
             
-            // Agregar el filtro
             completedActiveFilters.push({
                 field: selectedField,
                 operator: selectedOperator,
                 value: filterValue
             });
             
-            // Actualizar la interfaz
             updateCompletedActiveFiltersDisplay();
             renderCompletedOrdersTable();
             
-            // Limpiar los inputs
             fieldSelect.value = '';
             operatorSelect.value = 'contains';
             updateCompletedFilterInput();
         }
 
-        /**
-         * Elimina un filtro específico de órdenes finalizadas
-         */
         function removeCompletedFilter(index) {
             completedActiveFilters.splice(index, 1);
             updateCompletedActiveFiltersDisplay();
             renderCompletedOrdersTable();
         }
 
-        /**
-         * Limpia todos los filtros de órdenes finalizadas
-         */
         function clearAllCompletedFilters() {
             completedActiveFilters = [];
             updateCompletedActiveFiltersDisplay();
             renderCompletedOrdersTable();
         }
 
-        /**
-         * Actualiza la visualización de filtros activos para órdenes finalizadas
-         */
         function updateCompletedActiveFiltersDisplay() {
             const activeFiltersDiv = document.getElementById('completed-active-filters');
             const activeFiltersList = document.getElementById('completed-active-filters-list');
@@ -4706,10 +4538,6 @@
 
         // *** 16. NUEVAS FUNCIONES DE EXPORTACIÓN A EXCEL ***
 
-        /**
-         * Exporta todas las órdenes (en curso o finalizadas) a Excel
-         * @param {string} type - 'current' para órdenes en curso, 'completed' para finalizadas
-         */
         function exportToExcel(type) {
             try {
                 const orders = type === 'current' ? workOrders : completedOrders;
@@ -4720,17 +4548,12 @@
                     return;
                 }
 
-                // Preparar datos para Excel
                 const excelData = prepareExcelData(orders, type);
                 
-                // Crear libro de trabajo y hoja
                 const wb = XLSX.utils.book_new();
                 const ws = XLSX.utils.json_to_sheet(excelData);
-                
-                // Agregar hoja al libro
                 XLSX.utils.book_append_sheet(wb, ws, 'Órdenes de Trabajo');
                 
-                // Generar y descargar archivo
                 const currentDate = new Date().toISOString().split('T')[0];
                 XLSX.writeFile(wb, `${fileName}_${currentDate}.xlsx`);
                 
@@ -4742,17 +4565,12 @@
             }
         }
 
-        /**
-         * Exporta solo las órdenes filtradas actualmente visibles
-         * @param {string} type - 'current' para órdenes en curso, 'completed' para finalizadas
-         */
         function exportFilteredToExcel(type) {
             try {
                 let filteredOrders = [];
                 const fileName = type === 'current' ? 'Ordenes_Filtradas_En_Curso' : 'Ordenes_Filtradas_Finalizadas';
                 
                 if (type === 'current') {
-                    // Obtener órdenes filtradas (usando la misma lógica que renderOrdersTable)
                     filteredOrders = workOrders;
                     if (activeFilters.length > 0) {
                         filteredOrders = workOrders.filter(order => {
@@ -4760,7 +4578,6 @@
                         });
                     }
                 } else {
-                    // Órdenes finalizadas filtradas
                     filteredOrders = completedOrders;
                     if (completedActiveFilters.length > 0) {
                         filteredOrders = completedOrders.filter(order => {
@@ -4774,15 +4591,12 @@
                     return;
                 }
 
-                // Preparar datos para Excel
                 const excelData = prepareExcelData(filteredOrders, type);
                 
-                // Crear libro de trabajo
                 const wb = XLSX.utils.book_new();
                 const ws = XLSX.utils.json_to_sheet(excelData);
                 XLSX.utils.book_append_sheet(wb, ws, 'Órdenes Filtradas');
                 
-                // Descargar archivo
                 const currentDate = new Date().toISOString().split('T')[0];
                 XLSX.writeFile(wb, `${fileName}_${currentDate}.xlsx`);
                 
@@ -4794,10 +4608,6 @@
             }
         }
 
-        /**
-         * Exporta exactamente lo que se ve en la tabla actual
-         * @param {string} type - 'current' para órdenes en curso, 'completed' para finalizadas
-         */
         function exportCurrentViewToExcel(type) {
             try {
                 const tableId = type === 'current' ? 'orders-table' : 'completed-orders-table';
@@ -4812,22 +4622,19 @@
                 const excelData = [];
                 const headers = [];
                 
-                // Obtener headers de la tabla
                 const headerCells = table.querySelectorAll('thead th');
                 headerCells.forEach(header => {
-                    // Excluir la columna de acciones
                     if (!header.textContent.includes('Acciones')) {
                         headers.push(header.textContent.trim());
                     }
                 });
 
-                // Obtener datos de las filas visibles
                 rows.forEach(row => {
                     const rowData = {};
                     const cells = row.querySelectorAll('td');
                     
                     cells.forEach((cell, index) => {
-                        if (index < headers.length) { // Solo incluir columnas con headers
+                        if (index < headers.length) {
                             rowData[headers[index]] = cell.textContent.trim();
                         }
                     });
@@ -4837,7 +4644,6 @@
                     }
                 });
 
-                // Crear y descargar Excel
                 const wb = XLSX.utils.book_new();
                 const ws = XLSX.utils.json_to_sheet(excelData);
                 XLSX.utils.book_append_sheet(wb, ws, 'Vista Actual');
@@ -4854,53 +4660,52 @@
             }
         }
 
-        /**
-         * Prepara los datos para exportación a Excel
-         * @param {Array} orders - Array de órdenes
-         * @param {string} type - Tipo de órdenes
-         * @returns {Array} Datos formateados para Excel
-         */
         function prepareExcelData(orders, type) {
-            // Obtener todos los campos únicos de todas las órdenes
             const allFields = new Set();
             
             orders.forEach(order => {
                 Object.keys(order).forEach(key => {
-                    // Excluir campos internos que no son relevantes
                     if (key !== 'id' && !key.startsWith('_')) {
                         allFields.add(key);
                     }
                 });
             });
 
-            // Convertir Set a Array y ordenar
+            // MEJORA: Agregar campo de estado de certificación para órdenes finalizadas
+            if (type === 'completed') {
+                allFields.add('Estado de Certificación Final');
+            }
+            
             const fieldNames = Array.from(allFields).sort();
             
-            // Crear array de datos para Excel
             const excelData = orders.map(order => {
                 const row = {};
                 
                 fieldNames.forEach(field => {
                     let value = order[field];
                     
-                    // Formatear valores específicos
-                    if (value === null || value === undefined) {
+                    // MEJORA: Campo especial para estado de certificación
+                    if (field === 'Estado de Certificación Final') {
+                        const certificationStatus = getOrderCertificationStatus(order.id);
+                        if (certificationStatus) {
+                            value = `Certificada en CF N° ${certificationStatus.certificationNumber} (${certificationStatus.certificationDate})`;
+                        } else {
+                            value = 'No certificada';
+                        }
+                    }
+                    else if (value === null || value === undefined) {
                         value = '';
                     } else if (typeof value === 'object') {
-                        // Para objetos como la certificación, convertirlos a string legible
                         if (field === 'Certificación') {
                             value = Object.entries(value).map(([k, v]) => `${k}: ${v}`).join('; ');
                         } else {
                             value = JSON.stringify(value);
                         }
                     } else if (field.includes('Fecha')) {
-                        // Mantener formato de fecha consistente
                         value = String(value);
                     } else if (typeof value === 'number') {
-                        // Mantener números como están
                         value = value;
                     } else {
-                        // Para strings, limpiar y mantener como están
                         value = String(value).trim();
                     }
                     
@@ -4913,9 +4718,6 @@
             return excelData;
         }
 
-        /**
-         * Lógica de filtrado (reutilizada de renderOrdersTable)
-         */
         function applyFilterLogic(order, filter) {
             const fieldValue = order[filter.field] || '';
             const filterValue = filter.value;
