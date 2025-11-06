@@ -3475,7 +3475,7 @@
                                             <tr>
                                                 <td>${order.numero}</td>
                                                 <td>${parseFloat(order.importe).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                                                <td>${order.fechaFinalizacion}</td>
+                                                <td>${getCurrentCaracasDate()}</td>
                                             </tr>
                                         `).join('')}
                                     </tbody>
