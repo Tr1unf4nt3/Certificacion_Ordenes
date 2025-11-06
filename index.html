@@ -1270,6 +1270,55 @@
                 { id: "presupuesto_total", label: "Presupuesto Total de la Obra", type: "number", required: true }
             ]}
         ];
+
+        // *** FUNCIÓN AUXILIAR MEJORADA PARA EXTRAER AÑO DE FECHA ***
+        function extractYearFromDate(dateString) {
+            if (!dateString) return getCurrentCaracasYear();
+            
+            // Formato DD/MM/YYYY
+            if (dateString.includes('/')) {
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    const year = parseInt(parts[2]);
+                    if (!isNaN(year) && year > 2000 && year < 2100) {
+                        return year;
+                    }
+                }
+            }
+            
+            // Formato YYYY-MM-DD
+            if (dateString.includes('-')) {
+                const parts = dateString.split('-');
+                if (parts.length === 3) {
+                    const year = parseInt(parts[0]);
+                    if (!isNaN(year) && year > 2000 && year < 2100) {
+                        return year;
+                    }
+                }
+            }
+            
+            // Por defecto, año actual
+            return getCurrentCaracasYear();
+        }
+
+        // *** FUNCIÓN DE VERIFICACIÓN DE ESTRUCTURA ***
+        function verifyFormStructurePreservation() {
+            const yearFieldExists = formStructure.some(section => 
+                section.fields.some(field => 
+                    field.type === 'year-auto' || field.label === 'Año'
+                )
+            );
+            
+            if (!yearFieldExists) {
+                console.warn('⚠️ El campo "Año" no se encontró en la estructura del formulario');
+                // Restaurar la estructura por defecto si es necesario
+                formStructure = DEFAULT_FORM_STRUCTURE;
+                saveFormStructure(true);
+                console.log('✅ Estructura del formulario restaurada a la versión por defecto');
+            } else {
+                console.log('✅ Estructura del formulario verificada correctamente - Campo "Año" presente');
+            }
+        }
         
         // *** 2. LÓGICA DE FIREBASE: CARGA Y GUARDADO ***
 
@@ -1322,6 +1371,9 @@
                 // Asegurar que el contador esté correcto al inicio
                 recalculateOtCounter();
                 console.log("🎯 Contador actualizado:", otCounter);
+
+                // Verificar la preservación de la estructura
+                verifyFormStructurePreservation();
 
                 console.log("🚀 Carga de datos completada exitosamente");
 
@@ -4064,6 +4116,7 @@
             }
         }
 
+        // *** FUNCIÓN IMPORTDATABASE MEJORADA - PRESERVA ESTRUCTURA ACTUAL ***
         async function importDatabase(file) {
             if (currentRole !== 'admin') {
                 alert('🚫 Permiso denegado. Solo un administrador puede importar la base de datos.');
@@ -4091,13 +4144,37 @@
                     return;
                 }
 
+                // 🔄 PRESERVAR LA ESTRUCTURA ACTUAL DEL FORMULARIO
+                const currentFormStructure = formStructure; // Guardar estructura actual
+                const currentOtCounter = otCounter; // Guardar contador actual
+                const currentFinalCertificationCounter = finalCertificationCounter; // Guardar contador de certificaciones
+
                 await clearDatabase();
 
-                await CONFIG_COLLECTION.doc("systemConfig").set(importData.config);
+                // 🎯 IMPORTAR DATOS PERO PRESERVAR ESTRUCTURA ACTUAL
+                const updatedConfig = {
+                    ...importData.config,
+                    formStructure: currentFormStructure, // Mantener estructura actual
+                    otCounter: currentOtCounter, // Mantener contador actual
+                    finalCertificationCounter: currentFinalCertificationCounter // Mantener contador de certificaciones
+                };
 
+                await CONFIG_COLLECTION.doc("systemConfig").set(updatedConfig);
+
+                // 🔄 ACTUALIZAR ÓRDENES CON EL CAMPO "AÑO" SI NO EXISTE
                 let importedCount = 0;
                 for (const order of importData.orders) {
                     const { id, ...orderData } = order;
+                    
+                    // Agregar campo "Año" si no existe en la orden importada
+                    if (!orderData.hasOwnProperty('Año')) {
+                        // Intentar extraer el año de la fecha de creación
+                        const creationDate = orderData['Fecha Actual'];
+                        let year = extractYearFromDate(creationDate);
+                        
+                        orderData['Año'] = year.toString();
+                    }
+                    
                     await ORDERS_COLLECTION.add(orderData);
                     importedCount++;
                 }
@@ -4106,6 +4183,20 @@
                 if (importData.completedOrders) {
                     for (const order of importData.completedOrders) {
                         const { id, ...orderData } = order;
+                        
+                        // Agregar campo "Año" si no existe en la orden finalizada importada
+                        if (!orderData.hasOwnProperty('Año')) {
+                            const creationDate = orderData['Fecha Actual'];
+                            let year = extractYearFromDate(creationDate);
+                            
+                            orderData['Año'] = year.toString();
+                        }
+                        
+                        // También actualizar el año en la certificación si existe
+                        if (orderData.Certificación && !orderData.Certificación.hasOwnProperty('Año')) {
+                            orderData.Certificación['Año'] = getCurrentCaracasYear().toString();
+                        }
+                        
                         await COMPLETED_ORDERS_COLLECTION.add(orderData);
                         importedCompletedCount++;
                     }
@@ -4115,18 +4206,25 @@
                 if (importData.finalCertifications) {
                     for (const certification of importData.finalCertifications) {
                         const { id, ...certificationData } = certification;
+                        
+                        // Agregar campo "Año" si no existe en la certificación final importada
+                        if (!certificationData.hasOwnProperty('Año')) {
+                            certificationData['Año'] = getCurrentCaracasYear().toString();
+                        }
+                        
                         await FINAL_CERTIFICATIONS_COLLECTION.add(certificationData);
                         importedCertificationCount++;
                     }
                 }
 
+                // 🎉 RECARGAR DATOS CON LA ESTRUCTURA PRESERVADA
                 await loadInitialData();
                 renderOrdersTable();
                 renderCompletedOrdersTable();
                 renderFinalCertificationsList();
                 renderWorkOrderForm();
 
-                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso, ${importedCompletedCount} órdenes finalizadas y ${importedCertificationCount} certificaciones finales.`);
+                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso, ${importedCompletedCount} órdenes finalizadas y ${importedCertificationCount} certificaciones finales.\n\n📝 Se preservó la estructura actual del formulario incluyendo el campo "Año".`);
 
             } catch (error) {
                 console.error('Error al importar la base de datos:', error);
