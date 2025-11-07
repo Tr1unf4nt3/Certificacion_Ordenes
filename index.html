@@ -4116,7 +4116,7 @@
             }
         }
 
-        // *** FUNCIÓN IMPORTDATABASE MEJORADA - PRESERVA ESTRUCTURA ACTUAL ***
+        // *** FUNCIÓN IMPORTDATABASE MEJORADA - PRESERVA ESTRUCTURA COMPLETA ***
         async function importDatabase(file) {
             if (currentRole !== 'admin') {
                 alert('🚫 Permiso denegado. Solo un administrador puede importar la base de datos.');
@@ -4144,22 +4144,31 @@
                     return;
                 }
 
-                // 🔄 PRESERVAR LA ESTRUCTURA ACTUAL DEL FORMULARIO
-                const currentFormStructure = formStructure; // Guardar estructura actual
-                const currentOtCounter = otCounter; // Guardar contador actual
-                const currentFinalCertificationCounter = finalCertificationCounter; // Guardar contador de certificaciones
+                // 🔄 PRESERVAR LA ESTRUCTURA COMPLETA DEL FORMULARIO DEL ARCHIVO DE IMPORTACIÓN
+                const importedFormStructure = importData.config.formStructure;
+                
+                if (!importedFormStructure || !Array.isArray(importedFormStructure)) {
+                    alert('El archivo de importación no contiene una estructura de formulario válida. Se usará la estructura actual.');
+                } else {
+                    console.log('✅ Importando estructura completa del formulario desde el archivo de respaldo');
+                }
 
                 await clearDatabase();
 
-                // 🎯 IMPORTAR DATOS PERO PRESERVAR ESTRUCTURA ACTUAL
+                // 🎯 IMPORTAR DATOS COMPLETOS INCLUYENDO LA ESTRUCTURA DEL FORMULARIO
                 const updatedConfig = {
                     ...importData.config,
-                    formStructure: currentFormStructure, // Mantener estructura actual
-                    otCounter: currentOtCounter, // Mantener contador actual
-                    finalCertificationCounter: currentFinalCertificationCounter // Mantener contador de certificaciones
+                    formStructure: importedFormStructure || formStructure, // Usar estructura importada o mantener la actual
+                    otCounter: importData.config.otCounter || otCounter,
+                    finalCertificationCounter: importData.config.finalCertificationCounter || finalCertificationCounter
                 };
 
                 await CONFIG_COLLECTION.doc("systemConfig").set(updatedConfig);
+
+                // 🔄 ACTUALIZAR ESTRUCTURA LOCAL CON LA IMPORTADA
+                if (importedFormStructure) {
+                    formStructure = importedFormStructure;
+                }
 
                 // 🔄 ACTUALIZAR ÓRDENES CON EL CAMPO "AÑO" SI NO EXISTE
                 let importedCount = 0;
@@ -4217,14 +4226,19 @@
                     }
                 }
 
-                // 🎉 RECARGAR DATOS CON LA ESTRUCTURA PRESERVADA
+                // 🎉 RECARGAR DATOS CON LA ESTRUCTURA COMPLETA IMPORTADA
                 await loadInitialData();
                 renderOrdersTable();
                 renderCompletedOrdersTable();
                 renderFinalCertificationsList();
                 renderWorkOrderForm();
+                
+                // Si el usuario es admin, actualizar también el editor de formularios
+                if (currentRole === 'admin') {
+                    renderFormEditor();
+                }
 
-                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso, ${importedCompletedCount} órdenes finalizadas y ${importedCertificationCount} certificaciones finales.\n\n📝 Se preservó la estructura actual del formulario incluyendo el campo "Año".`);
+                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso, ${importedCompletedCount} órdenes finalizadas y ${importedCertificationCount} certificaciones finales.\n\n📝 Se importó la estructura completa del formulario desde el archivo de respaldo.`);
 
             } catch (error) {
                 console.error('Error al importar la base de datos:', error);
