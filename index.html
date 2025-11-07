@@ -1320,6 +1320,16 @@
             }
         }
         
+        // *** NUEVA FUNCIÓN: Obtener el mes actual en zona horaria de Caracas ***
+        function getCurrentCaracasMonth() {
+            const now = new Date();
+            const caracasOffset = -4 * 60;
+            const localOffset = now.getTimezoneOffset();
+            const caracasTime = new Date(now.getTime() + (localOffset - caracasOffset) * 60000);
+            
+            return String(caracasTime.getMonth() + 1).padStart(2, '0'); // Mes en formato 01-12
+        }
+        
         // *** 2. LÓGICA DE FIREBASE: CARGA Y GUARDADO ***
 
         async function loadInitialData() {
@@ -1368,9 +1378,11 @@
                 finalCertifications = certificationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 console.log(`✅ ${finalCertifications.length} certificaciones finales cargadas`);
 
-                // Asegurar que el contador esté correcto al inicio
+                // Asegurar que los contadores estén correctos al inicio
                 recalculateOtCounter();
+                recalculateFinalCertificationCounter(); // NUEVO: Recalcular certificaciones finales
                 console.log("🎯 Contador actualizado:", otCounter);
+                console.log("🎯 Contador certificaciones finales:", finalCertificationCounter);
 
                 // Verificar la preservación de la estructura
                 verifyFormStructurePreservation();
@@ -1833,7 +1845,8 @@
             const formElement = document.getElementById('work-order-form');
             formElement.innerHTML = '';
             const todayCaracas = getCurrentCaracasDate(); 
-            const currentYear = getCurrentCaracasYear(); // NUEVO: Obtener año actual
+            const currentYear = getCurrentCaracasYear();
+            const currentMonth = getCurrentCaracasMonth(); // NUEVO: Obtener mes actual
             const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO';
 
             if (!formStructure) {
@@ -1875,7 +1888,8 @@
                             inputHTML = `<input type="text" value="${value}" disabled>`;
                             break;
                         case 'ot_counter':
-                            value = otCounter;
+                            // NUEVO FORMATO: (mes-número)
+                            value = `(${currentMonth}-${otCounter})`;
                             inputHTML = `<input type="text" value="${value}" disabled>`;
                             break;
                         case 'user-auto-fill':
@@ -1886,7 +1900,7 @@
                             value = todayCaracas;
                             inputHTML = `<input type="text" value="${value}" disabled>`; 
                             break;
-                        case 'year-auto': // NUEVO: Campo de año automático
+                        case 'year-auto':
                             value = currentYear;
                             inputHTML = `<input type="text" value="${value}" disabled>`;
                             break;
@@ -2111,7 +2125,8 @@
             const orderData = {};
             
             const caracasDate = getCurrentCaracasDate(); 
-            const currentYear = getCurrentCaracasYear(); // NUEVO: Obtener año actual
+            const currentYear = getCurrentCaracasYear();
+            const currentMonth = getCurrentCaracasMonth(); // NUEVO: Obtener mes actual
             const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR';
 
             formStructure.forEach(section => {
@@ -2121,10 +2136,13 @@
                                 ? field.label 
                                 : field.id;
 
-                    if (field.type === 'ot_counter') value = otCounter.toString();
+                    if (field.type === 'ot_counter') {
+                        // NUEVO FORMATO: (mes-número)
+                        value = `(${currentMonth}-${otCounter})`;
+                    }
                     else if (field.type === 'user-auto-fill') value = currentUserEmail; 
                     else if (field.type === 'date-auto') value = caracasDate;
-                    else if (field.type === 'year-auto') value = currentYear.toString(); // NUEVO: Año actual
+                    else if (field.type === 'year-auto') value = currentYear.toString();
                     else if (field.type === 'static') value = field.value;
                     else {
                         const inputElement = document.getElementById(fieldId);
@@ -2555,10 +2573,28 @@
                 return;
             }
 
-            const allOtNumbers = workOrders.map(order => {
+            const currentMonth = getCurrentCaracasMonth(); // NUEVO: Obtener mes actual
+            
+            // Filtrar órdenes del mes actual y extraer números
+            const currentMonthOrders = workOrders.filter(order => {
                 const otNumber = order['Orden de Trabajo'];
-                return typeof otNumber === 'string' ? parseInt(otNumber, 10) : otNumber;
-            }).filter(ot => !isNaN(ot));
+                if (typeof otNumber === 'string' && otNumber.startsWith(`(${currentMonth}-`)) {
+                    return true;
+                }
+                return false;
+            });
+
+            const allOtNumbers = currentMonthOrders.map(order => {
+                const otNumber = order['Orden de Trabajo'];
+                if (typeof otNumber === 'string' && otNumber.startsWith(`(${currentMonth}-`)) {
+                    // Extraer el número después del guión: (11-15) -> 15
+                    const match = otNumber.match(/\((\d+)-(\d+)\)/);
+                    if (match && match[2]) {
+                        return parseInt(match[2], 10);
+                    }
+                }
+                return 0;
+            }).filter(ot => !isNaN(ot) && ot > 0);
 
             if (allOtNumbers.length === 0) {
                 otCounter = 1;
@@ -2567,8 +2603,9 @@
 
             const maxOt = Math.max(...allOtNumbers);
             const uniqueOtNumbers = [...new Set(allOtNumbers)];
+            
             if (uniqueOtNumbers.length !== allOtNumbers.length) {
-                console.warn('⚠️ Se detectaron números de orden duplicados en la base de datos');
+                console.warn('⚠️ Se detectaron números de orden duplicados en el mes actual');
                 
                 let nextAvailable = maxOt + 1;
                 while (allOtNumbers.includes(nextAvailable)) {
@@ -2579,7 +2616,47 @@
                 otCounter = maxOt + 1;
             }
             
-            console.log(`Contador recalculado: ${otCounter} (Máximo encontrado: ${maxOt})`);
+            console.log(`Contador recalculado para mes ${currentMonth}: ${otCounter} (Máximo encontrado: ${maxOt})`);
+        }
+
+        // *** FUNCIÓN NUEVA: Recalcular contador de certificaciones finales ***
+        function recalculateFinalCertificationCounter() {
+            if (finalCertifications.length === 0) {
+                finalCertificationCounter = 1;
+                return;
+            }
+
+            const currentMonth = getCurrentCaracasMonth();
+            
+            // Filtrar certificaciones del mes actual
+            const currentMonthCertifications = finalCertifications.filter(cert => {
+                const certNumber = cert['Número de Certificación Final'];
+                if (typeof certNumber === 'string' && certNumber.startsWith(`(${currentMonth}-`)) {
+                    return true;
+                }
+                return false;
+            });
+
+            const allCertNumbers = currentMonthCertifications.map(cert => {
+                const certNumber = cert['Número de Certificación Final'];
+                if (typeof certNumber === 'string' && certNumber.startsWith(`(${currentMonth}-`)) {
+                    const match = certNumber.match(/\((\d+)-(\d+)\)/);
+                    if (match && match[2]) {
+                        return parseInt(match[2], 10);
+                    }
+                }
+                return 0;
+            }).filter(cert => !isNaN(cert) && cert > 0);
+
+            if (allCertNumbers.length === 0) {
+                finalCertificationCounter = 1;
+                return;
+            }
+
+            const maxCert = Math.max(...allCertNumbers);
+            finalCertificationCounter = maxCert + 1;
+            
+            console.log(`Contador de certificaciones finales recalculado para mes ${currentMonth}: ${finalCertificationCounter}`);
         }
 
         async function deleteWorkOrder(orderId, otNumber) {
@@ -2732,11 +2809,12 @@
         function openCertificationModal(order) {
             currentOrderForCertification = order;
             
+            // NUEVO: Usar el mismo formato en la certificación
             document.getElementById('certification-title').textContent = 
                 `Certificación de Obras Nro. ${order['Orden de Trabajo']}`;
             document.getElementById('certification-number').value = order['Orden de Trabajo'];
             document.getElementById('certification-date').value = getCurrentCaracasDate();
-            document.getElementById('certification-year').value = getCurrentCaracasYear(); // NUEVO: Año actual
+            document.getElementById('certification-year').value = getCurrentCaracasYear();
             document.getElementById('work-order-reference').value = order['Orden de Trabajo'];
             
             let companyName = '';
@@ -2797,7 +2875,7 @@
                     'Certificación': {
                         'Número de Certificación': currentOrderForCertification['Orden de Trabajo'],
                         'Fecha de Certificación': getCurrentCaracasDate(),
-                        'Año': getCurrentCaracasYear(), // NUEVO: Año actual
+                        'Año': getCurrentCaracasYear(),
                         'Empresa Contratista': document.getElementById('contractor-company').value,
                         'Identificación Fiscal RIF': document.getElementById('contractor-rif').value,
                         'Fecha de Inicio': formatDateToDDMMYYYY(startDate),
@@ -3210,12 +3288,14 @@
         function renderFinalCertificationForm() {
             const certificationNumber = document.getElementById('certification-number');
             if (certificationNumber) {
-                certificationNumber.value = finalCertificationCounter;
+                // NUEVO FORMATO: (mes-número) para certificaciones finales
+                const currentMonth = getCurrentCaracasMonth();
+                certificationNumber.value = `(${currentMonth}-${finalCertificationCounter})`;
             }
             
             const certificationYear = document.getElementById('certification-year');
             if (certificationYear) {
-                certificationYear.value = getCurrentCaracasYear(); // NUEVO: Año actual
+                certificationYear.value = getCurrentCaracasYear();
             }
             
             const companySelect = document.getElementById('certification-company');
@@ -3397,10 +3477,13 @@
             }
             
             try {
+                const currentMonth = getCurrentCaracasMonth(); // NUEVO: Obtener mes actual
+                
                 const certificationData = {
                     'Título del Formulario': 'Certificación Final',
-                    'Número de Certificación Final': finalCertificationCounter,
-                    'Año': getCurrentCaracasYear(), // NUEVO: Año actual
+                    // NUEVO FORMATO: (mes-número)
+                    'Número de Certificación Final': `(${currentMonth}-${finalCertificationCounter})`,
+                    'Año': getCurrentCaracasYear(),
                     'Empresa': selectedCompany,
                     'Órdenes Realizadas': selectedOrders,
                     'Total': totalAmount.toFixed(2),
@@ -4020,13 +4103,18 @@
                 const ordersSnapshot = await ORDERS_COLLECTION.get();
                 const allOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 
+                const currentMonth = getCurrentCaracasMonth();
                 const otCounts = {};
+                
                 allOrders.forEach(order => {
                     const otNumber = order['Orden de Trabajo'];
-                    if (!otCounts[otNumber]) {
-                        otCounts[otNumber] = [];
+                    // Solo considerar órdenes del mes actual para limpieza
+                    if (typeof otNumber === 'string' && otNumber.startsWith(`(${currentMonth}-`)) {
+                        if (!otCounts[otNumber]) {
+                            otCounts[otNumber] = [];
+                        }
+                        otCounts[otNumber].push(order);
                     }
-                    otCounts[otNumber].push(order);
                 });
                 
                 const duplicates = Object.entries(otCounts).filter(([ot, orders]) => orders.length > 1);
