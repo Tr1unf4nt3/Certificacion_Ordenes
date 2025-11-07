@@ -3502,6 +3502,9 @@
                 finalCertificationCounter++;
                 await saveFormStructure(true);
                 
+                // CORRECCIÓN: Actualizar visualmente el número de certificación en el formulario
+                updateCertificationNumberDisplay();
+                
                 // Generar PDF
                 await generateFinalCertificationPDF(certificationData);
                 
@@ -3520,6 +3523,17 @@
         }
 
         /**
+         * CORRECCIÓN: Actualiza visualmente el número de certificación en el formulario
+         */
+        function updateCertificationNumberDisplay() {
+            const certificationNumber = document.getElementById('certification-number');
+            if (certificationNumber) {
+                const currentMonth = getCurrentCaracasMonth();
+                certificationNumber.value = `(${currentMonth}-${finalCertificationCounter})`;
+            }
+        }
+
+        /**
          * Limpia el formulario de Certificación Final
          */
         function clearCertificationForm() {
@@ -3529,6 +3543,9 @@
             document.getElementById('all-orders-certified-message').style.display = 'none';
             document.getElementById('certification-total').textContent = '0.00';
             document.getElementById('certification-total-hidden').value = '0.00';
+            
+            // CORRECCIÓN: Actualizar visualmente el número de certificación después de limpiar
+            updateCertificationNumberDisplay();
         }
 
         /**
