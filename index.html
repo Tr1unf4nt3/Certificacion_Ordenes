@@ -32,6 +32,8 @@
             --color-excel: #28a745;      /* Verde para botones Excel */
             --color-excel-light: #17a2b8; /* Azul para botones Excel secundarios */
             --color-certification: #9C27B0; /* Púrpura para certificaciones finales */
+            --color-certified: #4CAF50;  /* Verde para certificadas */
+            --color-not-certified: #FF9800; /* Naranja para no certificadas */
         }
 
         /* Estilos Generales (Diseño Pastel) */
@@ -602,6 +604,46 @@
             margin-left: 10px;
         }
 
+        /* NUEVOS ESTILOS PARA FILTRO DE CERTIFICACIÓN */
+        .certification-filter-section {
+            border: 2px solid var(--color-certified);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            background-color: #f1f8e9;
+        }
+        
+        .certification-filter-section h5 {
+            color: var(--color-certified);
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        
+        .certification-filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .certification-filter-button {
+            background-color: var(--color-certified);
+            color: white;
+            font-weight: bold;
+            padding: 8px 15px;
+        }
+        
+        .certification-filter-button.not-certified {
+            background-color: var(--color-not-certified);
+        }
+        
+        .certification-filter-button.active {
+            box-shadow: 0 0 0 2px var(--color-text);
+        }
+        
+        .certification-filter-button:hover {
+            opacity: 0.9;
+        }
+
     </style>
 </head>
 <body>
@@ -742,6 +784,22 @@
                 <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #666;">
                     <strong>Tip:</strong> Los archivos incluyen todos los campos de las órdenes.
                 </p>
+            </div>
+            
+            <!-- NUEVA SECCIÓN: Filtro por Estado de Certificación -->
+            <div class="certification-filter-section">
+                <h5>🔍 Filtro por Estado de Certificación</h5>
+                <div class="certification-filter-buttons">
+                    <button class="certification-filter-button active" onclick="setCertificationFilter('all')">
+                        📋 Todas las Órdenes
+                    </button>
+                    <button class="certification-filter-button" onclick="setCertificationFilter('certified')">
+                        ✅ Solo Certificadas
+                    </button>
+                    <button class="certification-filter-button not-certified" onclick="setCertificationFilter('not-certified')">
+                        ⏳ No Certificadas
+                    </button>
+                </div>
             </div>
             
             <!-- SECCIÓN: Filtros para Órdenes Finalizadas -->
@@ -1094,6 +1152,7 @@
         let completedActiveFilters = [];
         let certificationActiveFilters = [];
         let currentOrderForCertification = null;
+        let certificationFilter = 'all'; // NUEVO: Filtro de certificación
 
         // ----------------------------------------------------------------------------------
         // *** CONFIGURACIÓN DE ROLES CON MÚLTIPLES CORREOS (LISTAS/ARRAYS) ***
@@ -1360,13 +1419,13 @@
                     await saveFormStructure(true); 
                 }
                 
-                // Cargar Órdenes de Trabajo EN CURSO
+                // Cargar Órdenes de Trabajo EN CURSO - ORDENADAS POR FECHA DESCENDENTE
                 console.log("📂 Cargando órdenes en curso...");
                 const ordersSnapshot = await ORDERS_COLLECTION.orderBy('Fecha Actual', 'desc').get();
                 workOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 console.log(`✅ ${workOrders.length} órdenes en curso cargadas`);
 
-                // Cargar Órdenes de Trabajo FINALIZADAS
+                // Cargar Órdenes de Trabajo FINALIZADAS - ORDENADAS POR FECHA DESCENDENTE
                 console.log("✅ Cargando órdenes finalizadas...");
                 const completedSnapshot = await COMPLETED_ORDERS_COLLECTION.orderBy('Fecha Actual', 'desc').get();
                 completedOrders = completedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -2708,6 +2767,37 @@
             }
         }
 
+        // *** NUEVA FUNCIÓN: Ordenar órdenes por fecha de creación descendente ***
+        function sortOrdersByCreationDate(orders) {
+            return orders.sort((a, b) => {
+                const dateA = parseDateForSorting(a['Fecha Actual']);
+                const dateB = parseDateForSorting(b['Fecha Actual']);
+                return dateB - dateA; // Orden descendente (más reciente primero)
+            });
+        }
+
+        function parseDateForSorting(dateString) {
+            if (!dateString) return new Date(0);
+            
+            // Formato DD/MM/YYYY
+            if (dateString.includes('/')) {
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10) - 1; // Meses en JS son 0-indexed
+                    const year = parseInt(parts[2], 10);
+                    return new Date(year, month, day);
+                }
+            }
+            
+            // Formato YYYY-MM-DD
+            if (dateString.includes('-')) {
+                return new Date(dateString);
+            }
+            
+            return new Date(0); // Fecha por defecto si no se puede parsear
+        }
+
         function renderOrdersTable() {
             const tbody = document.getElementById('orders-table').querySelector('tbody');
             const noResultsDiv = document.getElementById('no-results');
@@ -2748,11 +2838,8 @@
                 });
             }
 
-            const sortedOrders = [...filteredOrders].sort((a, b) => {
-                const otA = parseInt(a['Orden de Trabajo'], 10) || 0;
-                const otB = parseInt(b['Orden de Trabajo'], 10) || 0;
-                return otA - otB;
-            });
+            // NUEVO: Ordenar por fecha de creación descendente
+            const sortedOrders = sortOrdersByCreationDate([...filteredOrders]);
 
             if (sortedOrders.length === 0) {
                 noResultsDiv.style.display = 'block';
@@ -3176,8 +3263,26 @@
             return null;
         }
 
+        // *** NUEVA FUNCIÓN: Filtro por estado de certificación ***
+        function setCertificationFilter(filterType) {
+            certificationFilter = filterType;
+            
+            // Actualizar estado visual de los botones
+            const buttons = document.querySelectorAll('.certification-filter-button');
+            buttons.forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            const activeButton = document.querySelector(`.certification-filter-button${filterType === 'all' ? '' : (filterType === 'certified' ? '' : '.not-certified')}`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+            
+            renderCompletedOrdersTable();
+        }
+
         /**
-         * Renderiza la tabla de órdenes finalizadas CON INFORMACIÓN DE CERTIFICACIÓN
+         * Renderiza la tabla de órdenes finalizadas CON INFORMACIÓN DE CERTIFICACIÓN Y FILTRO
          */
         function renderCompletedOrdersTable() {
             const tbody = document.getElementById('completed-orders-table').querySelector('tbody');
@@ -3185,8 +3290,18 @@
             tbody.innerHTML = '';
 
             let filteredOrders = completedOrders;
-            if (completedActiveFilters.length > 0) {
+            
+            // NUEVO: Aplicar filtro de certificación
+            if (certificationFilter !== 'all') {
                 filteredOrders = completedOrders.filter(order => {
+                    const isCertified = getOrderCertificationStatus(order.id) !== null;
+                    return certificationFilter === 'certified' ? isCertified : !isCertified;
+                });
+            }
+            
+            // Aplicar filtros de búsqueda adicionales
+            if (completedActiveFilters.length > 0) {
+                filteredOrders = filteredOrders.filter(order => {
                     return completedActiveFilters.every(filter => {
                         const fieldValue = order[filter.field] || '';
                         const filterValue = filter.value;
@@ -3219,11 +3334,8 @@
                 });
             }
 
-            const sortedOrders = [...filteredOrders].sort((a, b) => {
-                const otA = parseInt(a['Orden de Trabajo'], 10) || 0;
-                const otB = parseInt(b['Orden de Trabajo'], 10) || 0;
-                return otA - otB;
-            });
+            // NUEVO: Ordenar por fecha de creación descendente
+            const sortedOrders = sortOrdersByCreationDate([...filteredOrders]);
 
             if (sortedOrders.length === 0) {
                 noResultsDiv.style.display = 'block';
