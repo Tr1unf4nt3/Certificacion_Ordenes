@@ -148,7 +148,7 @@
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            transition: background-color 0.3s, transform: 0.1s;
+            transition: background-color 0.3s, transform 0.1s;
         }
 
         button:hover {
@@ -1118,15 +1118,15 @@
         // *** 1. CONFIGURACIÓN FIREBASE Y VARIABLES GLOBALES ***
         
         // ** CONFIGURACIÓN DE FIREBASE ACTUALIZADA **
-        const firebaseConfig = {
-          apiKey: "AIzaSyD8kNT9Fx_nTWh6PPu5zol5K8uzjrSQ0HY",
-          authDomain: "certificacionordenes.firebaseapp.com",
-          databaseURL: "https://certificacionordenes-default-rtdb.firebaseio.com",
-          projectId: "certificacionordenes",
-          storageBucket: "certificacionordenes.firebasestorage.app",
-          messagingSenderId: "1031284418081",
-          appId: "1:1031284418081:web:7e921d43798a305756a560"
-        };
+		const firebaseConfig = {
+			apiKey: "AIzaSyD8kNT9Fx_nTWh6PPu5zol5K8uzjrSQ0HY",
+			authDomain: "certificacionordenes.firebaseapp.com",
+			databaseURL: "https://certificacionordenes-default-rtdb.firebaseio.com",
+			projectId: "certificacionordenes",
+			storageBucket: "certificacionordenes.firebasestorage.app",
+			messagingSenderId: "1031284418081",
+			appId: "1:1031284418081:web:7e921d43798a305756a560"
+		};
         
         // Verificar si Firebase ya está inicializado
         if (!firebase.apps.length) {
@@ -1419,21 +1419,25 @@
                     await saveFormStructure(true); 
                 }
                 
-                // Cargar Órdenes de Trabajo EN CURSO - ORDENADAS POR FECHA DESCENDENTE
+                // Cargar Órdenes de Trabajo EN CURSO - ORDENADAS POR NÚMERO DESCENDENTE (MENOR A MAYOR)
                 console.log("📂 Cargando órdenes en curso...");
-                const ordersSnapshot = await ORDERS_COLLECTION.orderBy('Fecha Actual', 'desc').get();
+                const ordersSnapshot = await ORDERS_COLLECTION.get();
                 workOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                console.log(`✅ ${workOrders.length} órdenes en curso cargadas`);
+                // 🔄 MODIFICACIÓN: Ordenar por número de forma descendente (menor a mayor)
+                workOrders = sortOrdersByNumberDescending(workOrders);
+                console.log(`✅ ${workOrders.length} órdenes en curso cargadas y ordenadas`);
 
-                // Cargar Órdenes de Trabajo FINALIZADAS - ORDENADAS POR FECHA DESCENDENTE
+                // Cargar Órdenes de Trabajo FINALIZADAS - ORDENADAS POR NÚMERO DESCENDENTE (MENOR A MAYOR)
                 console.log("✅ Cargando órdenes finalizadas...");
-                const completedSnapshot = await COMPLETED_ORDERS_COLLECTION.orderBy('Fecha Actual', 'desc').get();
+                const completedSnapshot = await COMPLETED_ORDERS_COLLECTION.get();
                 completedOrders = completedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                console.log(`✅ ${completedOrders.length} órdenes finalizadas cargadas`);
+                // 🔄 MODIFICACIÓN: Ordenar por número de forma descendente (menor a mayor)
+                completedOrders = sortOrdersByNumberDescending(completedOrders);
+                console.log(`✅ ${completedOrders.length} órdenes finalizadas cargadas y ordenadas`);
 
                 // Cargar Certificaciones Finales
                 console.log("📜 Cargando certificaciones finales...");
-                const certificationsSnapshot = await FINAL_CERTIFICATIONS_COLLECTION.orderBy('Número de Certificación Final', 'desc').get();
+                const certificationsSnapshot = await FINAL_CERTIFICATIONS_COLLECTION.get();
                 finalCertifications = certificationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 console.log(`✅ ${finalCertifications.length} certificaciones finales cargadas`);
 
@@ -2626,6 +2630,28 @@
         
         // *** 7. LÓGICA DE ELIMINACIÓN Y CONTADOR ***
 
+        // *** NUEVA FUNCIÓN: Ordenar órdenes por número de forma descendente (menor a mayor) ***
+        function sortOrdersByNumberDescending(orders) {
+            return orders.sort((a, b) => {
+                const numA = extractOrderNumber(a['Orden de Trabajo']);
+                const numB = extractOrderNumber(b['Orden de Trabajo']);
+                return numA - numB; // Orden ascendente (menor a mayor)
+            });
+        }
+
+        // *** NUEVA FUNCIÓN: Extraer el número de orden del formato (mes-número) ***
+        function extractOrderNumber(otString) {
+            if (!otString || typeof otString !== 'string') return 0;
+            
+            // Formato: (11-1), (11-2), etc.
+            const match = otString.match(/\((\d+)-(\d+)\)/);
+            if (match && match[2]) {
+                return parseInt(match[2], 10);
+            }
+            
+            return 0;
+        }
+
         function recalculateOtCounter() {
             if (workOrders.length === 0) {
                 otCounter = 1;
@@ -2767,37 +2793,6 @@
             }
         }
 
-        // *** NUEVA FUNCIÓN: Ordenar órdenes por fecha de creación descendente ***
-        function sortOrdersByCreationDate(orders) {
-            return orders.sort((a, b) => {
-                const dateA = parseDateForSorting(a['Fecha Actual']);
-                const dateB = parseDateForSorting(b['Fecha Actual']);
-                return dateB - dateA; // Orden descendente (más reciente primero)
-            });
-        }
-
-        function parseDateForSorting(dateString) {
-            if (!dateString) return new Date(0);
-            
-            // Formato DD/MM/YYYY
-            if (dateString.includes('/')) {
-                const parts = dateString.split('/');
-                if (parts.length === 3) {
-                    const day = parseInt(parts[0], 10);
-                    const month = parseInt(parts[1], 10) - 1; // Meses en JS son 0-indexed
-                    const year = parseInt(parts[2], 10);
-                    return new Date(year, month, day);
-                }
-            }
-            
-            // Formato YYYY-MM-DD
-            if (dateString.includes('-')) {
-                return new Date(dateString);
-            }
-            
-            return new Date(0); // Fecha por defecto si no se puede parsear
-        }
-
         function renderOrdersTable() {
             const tbody = document.getElementById('orders-table').querySelector('tbody');
             const noResultsDiv = document.getElementById('no-results');
@@ -2838,8 +2833,8 @@
                 });
             }
 
-            // NUEVO: Ordenar por fecha de creación descendente
-            const sortedOrders = sortOrdersByCreationDate([...filteredOrders]);
+            // 🔄 MODIFICACIÓN: Ordenar por número de orden de forma descendente (menor a mayor)
+            const sortedOrders = sortOrdersByNumberDescending([...filteredOrders]);
 
             if (sortedOrders.length === 0) {
                 noResultsDiv.style.display = 'block';
@@ -3334,8 +3329,8 @@
                 });
             }
 
-            // NUEVO: Ordenar por fecha de creación descendente
-            const sortedOrders = sortOrdersByCreationDate([...filteredOrders]);
+            // 🔄 MODIFICACIÓN: Ordenar por número de orden de forma descendente (menor a mayor)
+            const sortedOrders = sortOrdersByNumberDescending([...filteredOrders]);
 
             if (sortedOrders.length === 0) {
                 noResultsDiv.style.display = 'block';
@@ -4333,7 +4328,7 @@
             }
         }
 
-        // *** FUNCIÓN IMPORTDATABASE MEJORADA - PRESERVA ESTRUCTURA COMPLETA ***
+        // *** FUNCIÓN IMPORTDATABASE MEJORADA - PRESERVA ESTRUCTURA COMPLETA Y ORDEN CORRECTO ***
         async function importDatabase(file) {
             if (currentRole !== 'admin') {
                 alert('🚫 Permiso denegado. Solo un administrador puede importar la base de datos.');
@@ -4387,9 +4382,16 @@
                     formStructure = importedFormStructure;
                 }
 
+                // 🔄 NUEVO: ORDENAR ÓRDENES POR NÚMERO DE FORMA DESCENDENTE (MENOR A MAYOR)
+                console.log('🔄 Ordenando órdenes por número de forma descendente...');
+                const sortedOrders = sortOrdersByNumberDescending(importData.orders);
+                const sortedCompletedOrders = importData.completedOrders ? sortOrdersByNumberDescending(importData.completedOrders) : [];
+                
+                console.log('✅ Órdenes ordenadas:', sortedOrders.map(order => order['Orden de Trabajo']));
+
                 // 🔄 ACTUALIZAR ÓRDENES CON EL CAMPO "AÑO" SI NO EXISTE
                 let importedCount = 0;
-                for (const order of importData.orders) {
+                for (const order of sortedOrders) {
                     const { id, ...orderData } = order;
                     
                     // Agregar campo "Año" si no existe en la orden importada
@@ -4406,8 +4408,8 @@
                 }
 
                 let importedCompletedCount = 0;
-                if (importData.completedOrders) {
-                    for (const order of importData.completedOrders) {
+                if (sortedCompletedOrders.length > 0) {
+                    for (const order of sortedCompletedOrders) {
                         const { id, ...orderData } = order;
                         
                         // Agregar campo "Año" si no existe en la orden finalizada importada
@@ -4430,7 +4432,14 @@
 
                 let importedCertificationCount = 0;
                 if (importData.finalCertifications) {
-                    for (const certification of importData.finalCertifications) {
+                    // 🔄 NUEVO: También ordenar certificaciones finales por número
+                    const sortedCertifications = importData.finalCertifications.sort((a, b) => {
+                        const numA = extractOrderNumber(a['Número de Certificación Final']);
+                        const numB = extractOrderNumber(b['Número de Certificación Final']);
+                        return numA - numB;
+                    });
+                    
+                    for (const certification of sortedCertifications) {
                         const { id, ...certificationData } = certification;
                         
                         // Agregar campo "Año" si no existe en la certificación final importada
@@ -4443,7 +4452,7 @@
                     }
                 }
 
-                // 🎉 RECARGAR DATOS CON LA ESTRUCTURA COMPLETA IMPORTADA
+                // 🎉 RECARGAR DATOS CON LA ESTRUCTURA COMPLETA IMPORTADA Y ORDEN CORRECTO
                 await loadInitialData();
                 renderOrdersTable();
                 renderCompletedOrdersTable();
@@ -4455,7 +4464,7 @@
                     renderFormEditor();
                 }
 
-                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso, ${importedCompletedCount} órdenes finalizadas y ${importedCertificationCount} certificaciones finales.\n\n📝 Se importó la estructura completa del formulario desde el archivo de respaldo.`);
+                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso, ${importedCompletedCount} órdenes finalizadas y ${importedCertificationCount} certificaciones finales.\n\n📝 Se importó la estructura completa del formulario desde el archivo de respaldo.\n🔢 Las órdenes se ordenaron correctamente por número (menor a mayor).`);
 
             } catch (error) {
                 console.error('Error al importar la base de datos:', error);
