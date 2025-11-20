@@ -3619,7 +3619,7 @@
         }
 
         /**
-         * NUEVA FUNCIÓN: Subir contrato PDF
+         * NUEVA FUNCIÓN: Subir contrato PDF (VERSIÓN CORREGIDA)
          */
         async function uploadContract(file) {
             if (!file) {
@@ -3641,7 +3641,7 @@
                 currentContractFile = file;
                 document.getElementById('contract-status').className = 'contract-status contract-uploaded';
                 document.getElementById('contract-status').textContent = `Contrato listo: ${file.name}`;
-                document.getElementById('download-contract-button').disabled = false;
+                document.getElementById('download-contract-button').disabled = true; // Mantener deshabilitado hasta que se cree la certificación
                 alert('✅ Contrato cargado correctamente. Puede proceder con la certificación final.');
             } catch (error) {
                 console.error('Error al cargar contrato:', error);
@@ -3746,11 +3746,10 @@
             }
             
             try {
-                const currentMonth = getCurrentCaracasMonth(); // NUEVO: Obtener mes actual
+                const currentMonth = getCurrentCaracasMonth();
                 
                 const certificationData = {
                     'Título del Formulario': 'Certificación Final',
-                    // NUEVO FORMATO: (mes-número)
                     'Número de Certificación Final': `(${currentMonth}-${finalCertificationCounter})`,
                     'Año': getCurrentCaracasYear(),
                     'Empresa': selectedCompany,
@@ -3758,29 +3757,29 @@
                     'Total': totalAmount.toFixed(2),
                     'Fecha de Creación': getCurrentCaracasDate(),
                     'Creado por': firebase.auth().currentUser.email,
-                    'TieneContrato': true // NUEVO: Siempre true porque el contrato es obligatorio
+                    'TieneContrato': true
                 };
                 
-                // Guardar en Firebase
+                // Guardar en Firebase PRIMERO para obtener el ID
                 const docRef = await FINAL_CERTIFICATIONS_COLLECTION.add(certificationData);
-                currentCertificationId = docRef.id;
+                const newCertificationId = docRef.id; // Usar variable local en lugar de global
                 
-                // CORRECCIÓN: Subir contrato (ahora es obligatorio)
+                // CORRECCIÓN: Subir contrato usando el nuevo ID
                 try {
                     const storageRef = storage.ref();
-                    const contractRef = storageRef.child(`contracts/${currentCertificationId}.pdf`);
+                    const contractRef = storageRef.child(`contracts/${newCertificationId}.pdf`);
                     await contractRef.put(currentContractFile);
                     console.log('Contrato subido exitosamente');
                 } catch (uploadError) {
                     console.error('Error al subir contrato:', uploadError);
-                    // Si falla la subida del contrato, no continuar con la certificación
-                    await FINAL_CERTIFICATIONS_COLLECTION.doc(currentCertificationId).delete();
+                    // Si falla la subida del contrato, eliminar la certificación recién creada
+                    await FINAL_CERTIFICATIONS_COLLECTION.doc(newCertificationId).delete();
                     alert('❌ Error al subir el contrato. La certificación no se ha creado. Por favor, intente nuevamente.');
                     return;
                 }
                 
                 // Actualizar array local
-                certificationData.id = currentCertificationId;
+                certificationData.id = newCertificationId;
                 finalCertifications.push(certificationData);
                 
                 // Incrementar contador
@@ -3819,7 +3818,7 @@
         }
 
         /**
-         * Limpia el formulario de Certificación Final
+         * Limpia el formulario de Certificación Final (VERSIÓN CORREGIDA)
          */
         function clearCertificationForm() {
             document.getElementById('certification-company').value = '';
@@ -3831,7 +3830,7 @@
             
             // Limpiar estado del contrato
             currentContractFile = null;
-            currentCertificationId = null;
+            currentCertificationId = null; // Resetear a null
             document.getElementById('download-contract-button').disabled = true;
             document.getElementById('contract-status').className = 'contract-status contract-not-uploaded';
             document.getElementById('contract-status').textContent = 'No se ha adjuntado ningún contrato. <span class="contract-required">*Campo obligatorio</span>';
