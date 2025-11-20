@@ -10,6 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.9.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.9.0/firebase-storage-compat.js"></script>
     
     <!-- NUEVA LIBRERÍA: Exportación a Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -644,6 +645,45 @@
             opacity: 0.9;
         }
 
+        /* NUEVOS ESTILOS PARA ADJUNTAR CONTRATO */
+        .contract-section {
+            border: 2px solid var(--color-warning);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #fffaf0;
+        }
+        
+        .contract-section h4 {
+            color: var(--color-warning);
+            border-bottom: 1px solid var(--color-warning);
+            margin-top: 0;
+        }
+        
+        .contract-upload {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .contract-file-info {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: var(--color-bg);
+            border-radius: 6px;
+            border-left: 4px solid var(--color-warning);
+        }
+        
+        .contract-download-button {
+            background-color: var(--color-warning);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .contract-download-button:hover {
+            background-color: #ffa726;
+        }
+
     </style>
 </head>
 <body>
@@ -911,6 +951,25 @@
                         </p>
                     </div>
                     
+                    <!-- NUEVA SECCIÓN: Adjuntar Contrato -->
+                    <div class="contract-section">
+                        <h4>📎 Adjuntar Contrato</h4>
+                        <div class="contract-upload">
+                            <input type="file" id="contract-file" accept=".pdf" style="display: none;" onchange="handleContractFileSelect(this.files[0])">
+                            <button type="button" onclick="document.getElementById('contract-file').click()">
+                                📁 Seleccionar Archivo PDF
+                            </button>
+                            <div id="contract-file-info" class="contract-file-info" style="display: none;">
+                                <strong>Archivo seleccionado:</strong>
+                                <span id="contract-file-name"></span>
+                                <span id="contract-file-size"></span>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.9em; margin-top: 10px; color: #666;">
+                            <strong>Nota:</strong> Solo se permiten archivos PDF. Tamaño máximo: 10MB.
+                        </p>
+                    </div>
+                    
                     <div class="certification-total-section">
                         <h4>Total Certificación</h4>
                         <div class="certification-total-display" id="certification-total">0.00</div>
@@ -1133,6 +1192,7 @@
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.firestore();
+        const storage = firebase.storage();
         
         // Referencias a las "colecciones" de la base de datos
         const ORDERS_COLLECTION = db.collection("workOrders");
@@ -1153,6 +1213,7 @@
         let certificationActiveFilters = [];
         let currentOrderForCertification = null;
         let certificationFilter = 'all'; // NUEVO: Filtro de certificación
+        let currentContractFile = null; // NUEVO: Archivo de contrato actual
 
         // ----------------------------------------------------------------------------------
         // *** CONFIGURACIÓN DE ROLES CON MÚLTIPLES CORREOS (LISTAS/ARRAYS) ***
@@ -2455,6 +2516,7 @@
                         formContentHTML += '</table></div>';
                     }
 
+                    // *** MODIFICACIÓN: Agregar firma de Supervisor Técnico ***
                     formContentHTML += `
                         <div style="margin-top: 40px; padding-top: 20px; border-top: 2px dashed #B0C4DE; width: 100%; page-break-inside: avoid;">
                             <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; width: 100%;">
@@ -2463,7 +2525,7 @@
                                     <div style="border-top: 1px solid #36454F; margin-top: 5px; padding-top: 40px;"></div>
                                 </div>
                                 <div style="width: 45%;">
-                                    Firma Responsable:
+                                    Firma Supervisor Técnico:
                                     <div style="border-top: 1px solid #36454F; margin-top: 5px; padding-top: 40px;"></div>
                                 </div>
                             </div>
@@ -3146,10 +3208,11 @@
                                 </table>
                             </div>
                             
+                            <!-- *** MODIFICACIÓN: Agregar firma de Contratista *** -->
                             <div class="signature-section">
                                 <div class="signatures-container">
                                     <div class="signature-box">
-                                        <strong>Firma Jefe Técnico (Firma/Sello)</strong>
+                                        <strong>Firma Contratista (Firma/Sello)</strong>
                                         <div class="signature-line"></div>
                                     </div>
                                     <div class="signature-box">
@@ -3418,6 +3481,10 @@
                     companySelect.appendChild(option);
                 });
             }
+            
+            // Limpiar archivo de contrato actual
+            currentContractFile = null;
+            document.getElementById('contract-file-info').style.display = 'none';
         }
 
         /**
@@ -3521,6 +3588,92 @@
         }
 
         /**
+         * Maneja la selección de archivo de contrato
+         */
+        function handleContractFileSelect(file) {
+            if (!file) return;
+            
+            // Validar tipo de archivo
+            if (file.type !== 'application/pdf') {
+                alert('Solo se permiten archivos PDF.');
+                return;
+            }
+            
+            // Validar tamaño (10MB máximo)
+            const maxSize = 10 * 1024 * 1024; // 10MB en bytes
+            if (file.size > maxSize) {
+                alert('El archivo es demasiado grande. El tamaño máximo permitido es 10MB.');
+                return;
+            }
+            
+            currentContractFile = file;
+            
+            // Mostrar información del archivo
+            const fileInfo = document.getElementById('contract-file-info');
+            const fileName = document.getElementById('contract-file-name');
+            const fileSize = document.getElementById('contract-file-size');
+            
+            fileName.textContent = file.name;
+            fileSize.textContent = ` (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            fileInfo.style.display = 'block';
+            
+            console.log('Archivo de contrato seleccionado:', file.name, file.size);
+        }
+
+        /**
+         * Sube el archivo de contrato a Firebase Storage
+         */
+        async function uploadContractFile(certificationId) {
+            if (!currentContractFile) {
+                return null;
+            }
+            
+            try {
+                const storageRef = storage.ref();
+                const contractRef = storageRef.child(`contracts/${certificationId}.pdf`);
+                
+                const snapshot = await contractRef.put(currentContractFile);
+                const downloadURL = await snapshot.ref.getDownloadURL();
+                
+                console.log('Contrato subido exitosamente:', downloadURL);
+                return downloadURL;
+            } catch (error) {
+                console.error('Error al subir el contrato:', error);
+                throw error;
+            }
+        }
+
+        /**
+         * Descarga un contrato asociado a una certificación
+         */
+        async function downloadContract(certificationId, certificationNumber) {
+            try {
+                const storageRef = storage.ref();
+                const contractRef = storageRef.child(`contracts/${certificationId}.pdf`);
+                
+                const url = await contractRef.getDownloadURL();
+                
+                // Crear enlace de descarga
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+            } catch (error) {
+                console.error('Error al descargar el contrato:', error);
+                
+                if (error.code === 'storage/object-not-found') {
+                    alert('No se encontró un contrato asociado a esta certificación.');
+                } else {
+                    alert('Error al descargar el contrato: ' + error.message);
+                }
+            }
+        }
+
+        /**
          * Genera una Certificación Final
          */
         async function generateFinalCertification() {
@@ -3595,14 +3748,32 @@
                     'Órdenes Realizadas': selectedOrders,
                     'Total': totalAmount.toFixed(2),
                     'Fecha de Creación': getCurrentCaracasDate(),
-                    'Creado por': firebase.auth().currentUser.email
+                    'Creado por': firebase.auth().currentUser.email,
+                    'TieneContrato': currentContractFile ? true : false
                 };
                 
                 // Guardar en Firebase
                 const docRef = await FINAL_CERTIFICATIONS_COLLECTION.add(certificationData);
+                const certificationId = docRef.id;
+                
+                // Subir contrato si existe
+                if (currentContractFile) {
+                    try {
+                        const contractURL = await uploadContractFile(certificationId);
+                        certificationData['ContratoURL'] = contractURL;
+                        
+                        // Actualizar el documento con la URL del contrato
+                        await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).update({
+                            'ContratoURL': contractURL
+                        });
+                    } catch (error) {
+                        console.error('Error al subir contrato, continuando sin contrato:', error);
+                        // Continuar sin contrato si hay error
+                    }
+                }
                 
                 // Actualizar array local
-                certificationData.id = docRef.id;
+                certificationData.id = certificationId;
                 finalCertifications.push(certificationData);
                 
                 // Incrementar contador
@@ -3621,7 +3792,7 @@
                 // Actualizar lista de certificaciones
                 renderFinalCertificationsList();
                 
-                alert('✅ Certificación Final creada exitosamente y PDF generado.');
+                alert('✅ Certificación Final creada exitosamente y PDF generado.' + (currentContractFile ? ' Contrato adjuntado.' : ''));
                 
             } catch (error) {
                 console.error('Error al crear certificación final:', error);
@@ -3650,6 +3821,11 @@
             document.getElementById('all-orders-certified-message').style.display = 'none';
             document.getElementById('certification-total').textContent = '0.00';
             document.getElementById('certification-total-hidden').value = '0.00';
+            
+            // Limpiar archivo de contrato
+            document.getElementById('contract-file').value = '';
+            document.getElementById('contract-file-info').style.display = 'none';
+            currentContractFile = null;
             
             // CORRECCIÓN: Actualizar visualmente el número de certificación después de limpiar
             updateCertificationNumberDisplay();
@@ -3732,6 +3908,27 @@
                                     font-weight: bold;
                                     font-size: 14px;
                                 }
+                                .signature-section {
+                                    margin-top: 40px;
+                                    padding-top: 20px;
+                                    border-top: 2px dashed #9C27B0;
+                                    width: 100%;
+                                }
+                                .signatures-container {
+                                    display: flex;
+                                    justify-content: space-between;
+                                    width: 100%;
+                                }
+                                .signature-box {
+                                    width: 45%;
+                                    text-align: center;
+                                }
+                                .signature-line {
+                                    border-bottom: 1px solid #000;
+                                    margin-top: 60px;
+                                    height: 1px;
+                                    width: 100%;
+                                }
                                 .footer-text {
                                     margin-top: 40px;
                                     padding-top: 20px;
@@ -3800,6 +3997,20 @@
                                 <h3>Total Certificación Final</h3>
                                 <div style="font-size: 16px; color: #9C27B0;">
                                     ${parseFloat(data['Total']).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                </div>
+                            </div>
+                            
+                            <!-- *** MODIFICACIÓN: Agregar firmas de Gerente Técnico y Contratista *** -->
+                            <div class="signature-section">
+                                <div class="signatures-container">
+                                    <div class="signature-box">
+                                        <strong>Firma Gerente Técnico (Firma/Sello)</strong>
+                                        <div class="signature-line"></div>
+                                    </div>
+                                    <div class="signature-box">
+                                        <strong>Firma Contratista (Firma/Sello)</strong>
+                                        <div class="signature-line"></div>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -3951,6 +4162,16 @@
                 pdfButton.textContent = '📄 Descargar PDF';
                 pdfButton.className = 'certification-pdf-button';
                 pdfButton.onclick = () => generateFinalCertificationPDF(certification);
+                
+                // *** NUEVO: Botón para descargar contrato ***
+                if (certification['TieneContrato'] || certification['ContratoURL']) {
+                    const contractButton = document.createElement('button');
+                    contractButton.textContent = '📎 Contrato';
+                    contractButton.className = 'contract-download-button';
+                    contractButton.style.marginLeft = '5px';
+                    contractButton.onclick = () => downloadContract(certification.id, certification['Número de Certificación Final']);
+                    certificationActions.appendChild(contractButton);
+                }
                 
                 certificationActions.appendChild(pdfButton);
                 certificationHeader.appendChild(certificationTitle);
@@ -4185,7 +4406,8 @@
                         'Empresa': certification['Empresa'],
                         'Total': parseFloat(certification['Total']).toFixed(2),
                         'Fecha de Creación': certification['Fecha de Creación'],
-                        'Creado por': certification['Creado por']
+                        'Creado por': certification['Creado por'],
+                        'Tiene Contrato': certification['TieneContrato'] ? 'Sí' : 'No'
                     };
                     
                     const ordenes = certification['Órdenes Realizadas'].map(order => 
