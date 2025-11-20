@@ -3619,7 +3619,7 @@
         }
 
         /**
-         * NUEVA FUNCIÓN: Subir contrato PDF (VERSIÓN CORREGIDA)
+         * NUEVA FUNCIÓN CORREGIDA: Subir contrato PDF con manejo de CORS
          */
         async function uploadContract(file) {
             if (!file) {
@@ -3638,14 +3638,30 @@
             }
             
             try {
+                // SOLUCIÓN TEMPORAL: Almacenar el archivo localmente hasta que se resuelva CORS
                 currentContractFile = file;
                 document.getElementById('contract-status').className = 'contract-status contract-uploaded';
-                document.getElementById('contract-status').textContent = `Contrato listo: ${file.name}`;
-                document.getElementById('download-contract-button').disabled = true; // Mantener deshabilitado hasta que se cree la certificación
-                alert('✅ Contrato cargado correctamente. Puede proceder con la certificación final.');
+                document.getElementById('contract-status').textContent = `Contrato listo: ${file.name} (Almacenado localmente)`;
+                document.getElementById('download-contract-button').disabled = false;
+                
+                console.log('Contrato cargado localmente (esperando configuración CORS):', file.name);
+                alert('✅ Contrato cargado correctamente. NOTA: El archivo se almacenará localmente hasta que se configure CORS en Firebase.');
+                
             } catch (error) {
                 console.error('Error al cargar contrato:', error);
-                alert('Error al cargar el contrato: ' + error.message);
+                
+                // Manejo específico de errores CORS
+                if (error.code === 'storage/unauthorized' || error.message.includes('CORS') || error.message.includes('preflight')) {
+                    alert('❌ Error de CORS al subir el contrato. El archivo se almacenará localmente. Contacte al administrador para configurar CORS en Firebase Storage.');
+                    
+                    // Fallback: almacenar localmente
+                    currentContractFile = file;
+                    document.getElementById('contract-status').className = 'contract-status contract-uploaded';
+                    document.getElementById('contract-status').textContent = `Contrato listo: ${file.name} (Modo local)`;
+                    document.getElementById('download-contract-button').disabled = false;
+                } else {
+                    alert('Error al cargar el contrato: ' + error.message);
+                }
             }
         }
 
@@ -3671,12 +3687,26 @@
                 document.body.removeChild(link);
             } catch (error) {
                 console.error('Error al descargar contrato:', error);
-                alert('Error al descargar el contrato: ' + error.message);
+                
+                // Si no se puede descargar de Firebase, intentar descargar el archivo local
+                if (currentContractFile) {
+                    alert('No se pudo descargar el contrato de Firebase. Intentando descargar versión local...');
+                    const url = URL.createObjectURL(currentContractFile);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Contrato_Certificacion_Local_${currentCertificationId}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                } else {
+                    alert('Error al descargar el contrato: ' + error.message);
+                }
             }
         }
 
         /**
-         * CORRECCIÓN: Genera una Certificación Final con validación de contrato obligatorio
+         * FUNCIÓN CORREGIDA: Genera una Certificación Final con manejo de CORS
          */
         async function generateFinalCertification() {
             const companySelect = document.getElementById('certification-company');
@@ -3757,29 +3787,44 @@
                     'Total': totalAmount.toFixed(2),
                     'Fecha de Creación': getCurrentCaracasDate(),
                     'Creado por': firebase.auth().currentUser.email,
-                    'TieneContrato': true
+                    'TieneContrato': true,
+                    'ContratoNombre': currentContractFile.name,
+                    'ContratoTamaño': currentContractFile.size,
+                    'ModoLocal': true // Indicar que el contrato está almacenado localmente por ahora
                 };
                 
-                // Guardar en Firebase PRIMERO para obtener el ID
+                // Guardar en Firebase (sin el archivo por ahora)
                 const docRef = await FINAL_CERTIFICATIONS_COLLECTION.add(certificationData);
-                const newCertificationId = docRef.id; // Usar variable local en lugar de global
+                currentCertificationId = docRef.id;
                 
-                // CORRECCIÓN: Subir contrato usando el nuevo ID
+                // INTENTAR subir contrato con manejo de errores CORS
                 try {
                     const storageRef = storage.ref();
-                    const contractRef = storageRef.child(`contracts/${newCertificationId}.pdf`);
+                    const contractRef = storageRef.child(`contracts/${currentCertificationId}.pdf`);
                     await contractRef.put(currentContractFile);
-                    console.log('Contrato subido exitosamente');
+                    console.log('Contrato subido exitosamente a Firebase Storage');
+                    
+                    // Actualizar el documento para indicar que el contrato está en Firebase
+                    await FINAL_CERTIFICATIONS_COLLECTION.doc(currentCertificationId).update({
+                        'ContratoEnFirebase': true,
+                        'ModoLocal': false
+                    });
+                    
                 } catch (uploadError) {
-                    console.error('Error al subir contrato:', uploadError);
-                    // Si falla la subida del contrato, eliminar la certificación recién creada
-                    await FINAL_CERTIFICATIONS_COLLECTION.doc(newCertificationId).delete();
-                    alert('❌ Error al subir el contrato. La certificación no se ha creado. Por favor, intente nuevamente.');
-                    return;
+                    console.error('Error al subir contrato a Firebase:', uploadError);
+                    
+                    // Si falla la subida (probablemente por CORS), mantener el modo local
+                    await FINAL_CERTIFICATIONS_COLLECTION.doc(currentCertificationId).update({
+                        'ContratoEnFirebase': false,
+                        'ModoLocal': true,
+                        'ContratoError': uploadError.message
+                    });
+                    
+                    console.warn('Contrato almacenado en modo local debido a error de CORS');
                 }
                 
                 // Actualizar array local
-                certificationData.id = newCertificationId;
+                certificationData.id = currentCertificationId;
                 finalCertifications.push(certificationData);
                 
                 // Incrementar contador
@@ -3798,7 +3843,9 @@
                 // Actualizar lista de certificaciones
                 renderFinalCertificationsList();
                 
-                alert('✅ Certificación Final creada exitosamente y PDF generado.');
+                alert('✅ Certificación Final creada exitosamente y PDF generado. ' + 
+                      (currentContractFile && certificationData.ModoLocal ? 
+                       'NOTA: El contrato se almacenó localmente debido a configuración de CORS.' : ''));
                 
             } catch (error) {
                 console.error('Error al crear certificación final:', error);
@@ -3818,7 +3865,7 @@
         }
 
         /**
-         * Limpia el formulario de Certificación Final (VERSIÓN CORREGIDA)
+         * Limpia el formulario de Certificación Final
          */
         function clearCertificationForm() {
             document.getElementById('certification-company').value = '';
@@ -3830,7 +3877,7 @@
             
             // Limpiar estado del contrato
             currentContractFile = null;
-            currentCertificationId = null; // Resetear a null
+            currentCertificationId = null;
             document.getElementById('download-contract-button').disabled = true;
             document.getElementById('contract-status').className = 'contract-status contract-not-uploaded';
             document.getElementById('contract-status').textContent = 'No se ha adjuntado ningún contrato. <span class="contract-required">*Campo obligatorio</span>';
