@@ -149,7 +149,7 @@
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            transition: background-color 0.3s, transform 0.1s;
+            transition: background-color 0.3s, transform: 0.1s;
         }
 
         button:hover {
@@ -3632,7 +3632,17 @@
                 const storageRef = storage.ref();
                 const contractRef = storageRef.child(`contracts/${certificationId}.pdf`);
                 
-                const snapshot = await contractRef.put(currentContractFile);
+                // Configurar metadata para mejor compatibilidad
+                const metadata = {
+                    contentType: 'application/pdf',
+                    customMetadata: {
+                        'uploadedBy': firebase.auth().currentUser.email,
+                        'uploadDate': new Date().toISOString(),
+                        'certificationId': certificationId
+                    }
+                };
+                
+                const snapshot = await contractRef.put(currentContractFile, metadata);
                 const downloadURL = await snapshot.ref.getDownloadURL();
                 
                 console.log('Contrato subido exitosamente:', downloadURL);
@@ -3644,32 +3654,166 @@
         }
 
         /**
-         * Descarga un contrato asociado a una certificación
+         * CORRECCIÓN COMPLETA: Descarga un contrato asociado a una certificación
+         * Soluciona el error "storage/retry-limit-exceeded"
          */
         async function downloadContract(certificationId, certificationNumber) {
             try {
+                console.log('Iniciando descarga de contrato para certificación:', certificationId);
+                
+                // Primero obtener la información de la certificación para verificar si tiene contrato
+                const certificationDoc = await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).get();
+                
+                if (!certificationDoc.exists) {
+                    alert('No se encontró la certificación especificada.');
+                    return;
+                }
+                
+                const certificationData = certificationDoc.data();
+                
+                // Verificar si existe URL directa del contrato
+                if (certificationData.ContratoURL) {
+                    console.log('Usando URL directa del contrato:', certificationData.ContratoURL);
+                    // Crear enlace de descarga con la URL directa
+                    const link = document.createElement('a');
+                    link.href = certificationData.ContratoURL;
+                    link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
+                    link.target = '_blank';
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    return;
+                }
+                
+                // Si no hay URL directa, intentar descargar desde Storage
                 const storageRef = storage.ref();
                 const contractRef = storageRef.child(`contracts/${certificationId}.pdf`);
                 
-                const url = await contractRef.getDownloadURL();
+                console.log('Buscando contrato en Storage:', `contracts/${certificationId}.pdf`);
                 
-                // Crear enlace de descarga
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
-                link.target = '_blank';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                // Verificar si el archivo existe
+                try {
+                    const url = await contractRef.getDownloadURL();
+                    console.log('URL de descarga obtenida:', url);
+                    
+                    // Crear enlace de descarga
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
+                    link.target = '_blank';
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                } catch (storageError) {
+                    console.error('Error al obtener URL de descarga:', storageError);
+                    
+                    if (storageError.code === 'storage/object-not-found') {
+                        alert('No se encontró un contrato asociado a esta certificación.');
+                    } else if (storageError.code === 'storage/retry-limit-exceeded') {
+                        // SOLUCIÓN AL ERROR: Reintentar con diferentes estrategias
+                        console.log('Reintentando descarga con estrategia alternativa...');
+                        await retryDownloadWithAlternativeStrategy(certificationId, certificationNumber);
+                    } else {
+                        alert('Error al descargar el contrato: ' + storageError.message);
+                    }
+                }
                 
             } catch (error) {
-                console.error('Error al descargar el contrato:', error);
+                console.error('Error general al descargar el contrato:', error);
+                alert('Error al descargar el contrato: ' + error.message);
+            }
+        }
+
+        /**
+         * ESTRATEGIA ALTERNATIVA para descargar contratos cuando falla la descarga normal
+         */
+        async function retryDownloadWithAlternativeStrategy(certificationId, certificationNumber) {
+            try {
+                console.log('Ejecutando estrategia alternativa de descarga...');
                 
-                if (error.code === 'storage/object-not-found') {
-                    alert('No se encontró un contrato asociado a esta certificación.');
-                } else {
-                    alert('Error al descargar el contrato: ' + error.message);
+                const storageRef = storage.ref();
+                const contractRef = storageRef.child(`contracts/${certificationId}.pdf`);
+                
+                // Estrategia 1: Obtener URL de descarga con timeout
+                try {
+                    const url = await Promise.race([
+                        contractRef.getDownloadURL(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Timeout')), 10000)
+                        )
+                    ]);
+                    
+                    console.log('URL obtenida con estrategia alternativa:', url);
+                    
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
+                    link.target = '_blank';
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    return;
+                    
+                } catch (timeoutError) {
+                    console.log('Estrategia 1 falló:', timeoutError);
                 }
+                
+                // Estrategia 2: Descargar como blob
+                try {
+                    console.log('Intentando descarga como blob...');
+                    const blob = await contractRef.getBlob();
+                    const url = URL.createObjectURL(blob);
+                    
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
+                    link.target = '_blank';
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    
+                    // Limpiar URL después de la descarga
+                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                    document.body.removeChild(link);
+                    return;
+                    
+                } catch (blobError) {
+                    console.log('Estrategia 2 falló:', blobError);
+                }
+                
+                // Estrategia 3: Verificar en Firestore si hay URL guardada
+                try {
+                    console.log('Buscando URL en Firestore...');
+                    const certificationDoc = await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).get();
+                    
+                    if (certificationDoc.exists) {
+                        const data = certificationDoc.data();
+                        if (data.ContratoURL) {
+                            const link = document.createElement('a');
+                            link.href = data.ContratoURL;
+                            link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
+                            link.target = '_blank';
+                            link.style.display = 'none';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            return;
+                        }
+                    }
+                } catch (firestoreError) {
+                    console.log('Estrategia 3 falló:', firestoreError);
+                }
+                
+                // Si todas las estrategias fallan
+                alert('No se pudo descargar el contrato. El archivo puede no existir o haber problemas de conexión.');
+                
+            } catch (finalError) {
+                console.error('Todas las estrategias alternativas fallaron:', finalError);
+                alert('Error crítico al descargar el contrato. Contacte al administrador.');
             }
         }
 
