@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -11,6 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.9.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.9.0/firebase-storage-compat.js"></script>
     
     <!-- NUEVA LIBRERÍA: Exportación a Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -35,6 +35,7 @@
             --color-certification: #9C27B0; /* Púrpura para certificaciones finales */
             --color-certified: #4CAF50;  /* Verde para certificadas */
             --color-not-certified: #FF9800; /* Naranja para no certificadas */
+            --color-contract: #FF5722;   /* Naranja para sección de contrato */
         }
 
         /* Estilos Generales (Diseño Pastel) */
@@ -645,6 +646,117 @@
             opacity: 0.9;
         }
 
+        /* NUEVOS ESTILOS PARA SECCIÓN DE CONTRATO */
+        .contract-section {
+            border: 2px solid var(--color-contract);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #fff3e0;
+        }
+        
+        .contract-section h4 {
+            color: var(--color-contract);
+            border-bottom: 1px solid var(--color-contract);
+            margin-top: 0;
+        }
+        
+        .contract-upload-area {
+            border: 2px dashed var(--color-contract);
+            border-radius: 6px;
+            padding: 25px;
+            text-align: center;
+            margin: 15px 0;
+            background-color: #ffecb3;
+            transition: all 0.3s ease;
+        }
+        
+        .contract-upload-area:hover {
+            background-color: #ffe082;
+        }
+        
+        .contract-upload-area.dragover {
+            background-color: #ffd54f;
+            border-color: #e65100;
+        }
+        
+        .contract-button {
+            background-color: var(--color-contract);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .contract-button:hover {
+            background-color: #e64a19;
+        }
+        
+        .contract-file-info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #ffccbc;
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .contract-file-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .contract-file-size {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .contract-progress-container {
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .contract-progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+        
+        .contract-progress-fill {
+            height: 100%;
+            background-color: var(--color-contract);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .contract-progress-text {
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .contract-success {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #c8e6c9;
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .contract-error {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #ffcdd2;
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .contract-download-button {
+            background-color: #4caf50;
+            color: white;
+            margin-top: 10px;
+        }
+
     </style>
 </head>
 <body>
@@ -912,6 +1024,46 @@
                         </p>
                     </div>
                     
+                    <!-- NUEVA SECCIÓN: CONTRATO -->
+                    <div class="contract-section">
+                        <h4>📄 Contrato Adjunto</h4>
+                        <p>Adjunte el archivo PDF del contrato relacionado con esta certificación final.</p>
+                        
+                        <div class="contract-upload-area" id="contract-upload-area">
+                            <p>📎 Arrastre y suelte el archivo PDF aquí o haga clic para seleccionar</p>
+                            <input type="file" id="contract-file" accept=".pdf" style="display: none;" onchange="handleContractFileSelect(this.files[0])">
+                            <button type="button" class="contract-button" onclick="document.getElementById('contract-file').click()">
+                                📁 Seleccionar Archivo PDF
+                            </button>
+                        </div>
+                        
+                        <div class="contract-file-info" id="contract-file-info">
+                            <div class="contract-file-name" id="contract-file-name"></div>
+                            <div class="contract-file-size" id="contract-file-size"></div>
+                            <button type="button" class="contract-button" onclick="uploadContractFile()" id="upload-contract-button">
+                                ⬆️ Subir Contrato
+                            </button>
+                        </div>
+                        
+                        <div class="contract-progress-container" id="contract-progress-container">
+                            <div class="contract-progress-bar">
+                                <div class="contract-progress-fill" id="contract-progress-fill"></div>
+                            </div>
+                            <div class="contract-progress-text" id="contract-progress-text">0%</div>
+                        </div>
+                        
+                        <div class="contract-success" id="contract-success">
+                            ✅ Contrato subido exitosamente
+                            <button type="button" class="contract-download-button" id="contract-download-button" style="display: none;">
+                                📥 Descargar Contrato
+                            </button>
+                        </div>
+                        
+                        <div class="contract-error" id="contract-error">
+                            ❌ Error al subir el contrato
+                        </div>
+                    </div>
+                    
                     <div class="certification-total-section">
                         <h4>Total Certificación</h4>
                         <div class="certification-total-display" id="certification-total">0.00</div>
@@ -1134,6 +1286,7 @@
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.firestore();
+        const storage = firebase.storage();
         
         // Referencias a las "colecciones" de la base de datos
         const ORDERS_COLLECTION = db.collection("workOrders");
@@ -1154,6 +1307,8 @@
         let certificationActiveFilters = [];
         let currentOrderForCertification = null;
         let certificationFilter = 'all'; // NUEVO: Filtro de certificación
+        let selectedContractFile = null; // NUEVO: Archivo de contrato seleccionado
+        let currentContractUrl = null; // NUEVO: URL del contrato subido
 
         // ----------------------------------------------------------------------------------
         // *** CONFIGURACIÓN DE ROLES CON MÚLTIPLES CORREOS (LISTAS/ARRAYS) ***
@@ -1581,6 +1736,9 @@
                 renderCompletedOrdersTable();
                 renderFinalCertificationForm();
                 renderFinalCertificationsList();
+                
+                // NUEVO: Inicializar funcionalidad de arrastrar y soltar para contrato
+                initializeContractDragAndDrop();
                 
                 console.log("✅ App inicializada correctamente");
                 
@@ -3599,6 +3757,15 @@
                     'Creado por': firebase.auth().currentUser.email
                 };
                 
+                // NUEVO: Agregar información del contrato si está disponible
+                if (currentContractUrl) {
+                    certificationData['ContratoAdjunto'] = {
+                        url: currentContractUrl,
+                        nombre: selectedContractFile ? selectedContractFile.name : 'Contrato.pdf',
+                        fechaSubida: getCurrentCaracasDate()
+                    };
+                }
+                
                 // Guardar en Firebase
                 const docRef = await FINAL_CERTIFICATIONS_COLLECTION.add(certificationData);
                 
@@ -3651,6 +3818,9 @@
             document.getElementById('all-orders-certified-message').style.display = 'none';
             document.getElementById('certification-total').textContent = '0.00';
             document.getElementById('certification-total-hidden').value = '0.00';
+            
+            // NUEVO: Limpiar sección de contrato
+            clearContractSection();
             
             // CORRECCIÓN: Actualizar visualmente el número de certificación después de limpiar
             updateCertificationNumberDisplay();
@@ -3796,6 +3966,22 @@
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            ${data['ContratoAdjunto'] ? `
+                            <div class="section">
+                                <h3>IV. Contrato Adjunto</h3>
+                                <table>
+                                    <tr>
+                                        <td class="label">Contrato:</td>
+                                        <td>${data['ContratoAdjunto'].nombre || 'Contrato.pdf'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label">Fecha de Subida:</td>
+                                        <td>${data['ContratoAdjunto'].fechaSubida || getCurrentCaracasDate()}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            ` : ''}
                             
                             <div class="total-section">
                                 <h3>Total Certificación Final</h3>
@@ -5145,6 +5331,240 @@
                 default:
                     return true;
             }
+        }
+
+        // *** 17. NUEVAS FUNCIONES PARA MANEJO DE CONTRATO ***
+
+        /**
+         * Inicializa la funcionalidad de arrastrar y soltar para el contrato
+         */
+        function initializeContractDragAndDrop() {
+            const uploadArea = document.getElementById('contract-upload-area');
+            const fileInput = document.getElementById('contract-file');
+            
+            if (!uploadArea || !fileInput) return;
+            
+            // Prevenir comportamiento por defecto para eventos de arrastre
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            // Resaltar área de drop cuando se arrastra sobre ella
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, unhighlight, false);
+            });
+            
+            // Manejar el drop de archivos
+            uploadArea.addEventListener('drop', handleDrop, false);
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            function highlight() {
+                uploadArea.classList.add('dragover');
+            }
+            
+            function unhighlight() {
+                uploadArea.classList.remove('dragover');
+            }
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files.length > 0) {
+                    handleContractFileSelect(files[0]);
+                }
+            }
+        }
+
+        /**
+         * Maneja la selección de un archivo de contrato
+         */
+        function handleContractFileSelect(file) {
+            if (!file) return;
+            
+            // Verificar que sea un PDF
+            if (file.type !== 'application/pdf') {
+                alert('Por favor, seleccione un archivo PDF válido.');
+                return;
+            }
+            
+            // Verificar tamaño del archivo (máximo 10MB)
+            const maxSize = 10 * 1024 * 1024; // 10MB en bytes
+            if (file.size > maxSize) {
+                alert('El archivo es demasiado grande. El tamaño máximo permitido es 10MB.');
+                return;
+            }
+            
+            selectedContractFile = file;
+            
+            // Mostrar información del archivo
+            const fileInfo = document.getElementById('contract-file-info');
+            const fileName = document.getElementById('contract-file-name');
+            const fileSize = document.getElementById('contract-file-size');
+            
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            
+            fileInfo.style.display = 'block';
+            
+            // Ocultar mensajes de éxito/error anteriores
+            document.getElementById('contract-success').style.display = 'none';
+            document.getElementById('contract-error').style.display = 'none';
+            document.getElementById('contract-progress-container').style.display = 'none';
+            
+            console.log('Archivo de contrato seleccionado:', file.name, formatFileSize(file.size));
+        }
+
+        /**
+         * Formatea el tamaño del archivo para mostrarlo de forma legible
+         */
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        /**
+         * Sube el archivo de contrato a Firebase Storage
+         */
+        async function uploadContractFile() {
+            if (!selectedContractFile) {
+                alert('Por favor, seleccione un archivo PDF primero.');
+                return;
+            }
+            
+            try {
+                // Mostrar barra de progreso
+                const progressContainer = document.getElementById('contract-progress-container');
+                const progressFill = document.getElementById('contract-progress-fill');
+                const progressText = document.getElementById('contract-progress-text');
+                const uploadButton = document.getElementById('upload-contract-button');
+                
+                progressContainer.style.display = 'block';
+                uploadButton.disabled = true;
+                uploadButton.textContent = '⏳ Subiendo...';
+                
+                // Ocultar mensajes anteriores
+                document.getElementById('contract-success').style.display = 'none';
+                document.getElementById('contract-error').style.display = 'none';
+                
+                // Generar nombre único para el archivo
+                const timestamp = new Date().getTime();
+                const fileName = `contratos/certificacion_${timestamp}_${selectedContractFile.name}`;
+                
+                // Referencia al archivo en Firebase Storage
+                const storageRef = storage.ref();
+                const fileRef = storageRef.child(fileName);
+                
+                // Subir archivo con monitoreo de progreso
+                const uploadTask = fileRef.put(selectedContractFile);
+                
+                // Monitorear progreso de subida
+                uploadTask.on('state_changed',
+                    (snapshot) => {
+                        // Actualizar barra de progreso
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        progressFill.style.width = progress + '%';
+                        progressText.textContent = Math.round(progress) + '%';
+                        
+                        console.log('Progreso de subida:', progress + '%');
+                    },
+                    (error) => {
+                        // Manejar errores
+                        console.error('Error al subir contrato:', error);
+                        
+                        // Mostrar mensaje de error
+                        const errorDiv = document.getElementById('contract-error');
+                        errorDiv.style.display = 'block';
+                        errorDiv.textContent = '❌ Error al subir el contrato: ' + error.message;
+                        
+                        // Restablecer interfaz
+                        progressContainer.style.display = 'none';
+                        uploadButton.disabled = false;
+                        uploadButton.textContent = '⬆️ Subir Contrato';
+                    },
+                    async () => {
+                        // Subida completada
+                        try {
+                            // Obtener URL de descarga
+                            const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+                            currentContractUrl = downloadURL;
+                            
+                            console.log('Contrato subido exitosamente. URL:', downloadURL);
+                            
+                            // Mostrar mensaje de éxito
+                            const successDiv = document.getElementById('contract-success');
+                            successDiv.style.display = 'block';
+                            
+                            // Agregar botón de descarga
+                            const downloadButton = document.getElementById('contract-download-button');
+                            downloadButton.style.display = 'inline-block';
+                            downloadButton.onclick = () => {
+                                window.open(downloadURL, '_blank');
+                            };
+                            
+                            // Ocultar barra de progreso
+                            progressContainer.style.display = 'none';
+                            
+                            // Actualizar botón de subida
+                            uploadButton.disabled = false;
+                            uploadButton.textContent = '🔄 Reemplazar Contrato';
+                            
+                            alert('✅ Contrato subido exitosamente.');
+                            
+                        } catch (error) {
+                            console.error('Error al obtener URL de descarga:', error);
+                            
+                            const errorDiv = document.getElementById('contract-error');
+                            errorDiv.style.display = 'block';
+                            errorDiv.textContent = '❌ Error al obtener URL del contrato: ' + error.message;
+                            
+                            progressContainer.style.display = 'none';
+                            uploadButton.disabled = false;
+                            uploadButton.textContent = '⬆️ Subir Contrato';
+                        }
+                    }
+                );
+                
+            } catch (error) {
+                console.error('Error al iniciar subida de contrato:', error);
+                alert('Error al subir el contrato: ' + error.message);
+            }
+        }
+
+        /**
+         * Limpia la sección de contrato
+         */
+        function clearContractSection() {
+            selectedContractFile = null;
+            currentContractUrl = null;
+            
+            // Limpiar interfaz
+            document.getElementById('contract-file-info').style.display = 'none';
+            document.getElementById('contract-progress-container').style.display = 'none';
+            document.getElementById('contract-success').style.display = 'none';
+            document.getElementById('contract-error').style.display = 'none';
+            
+            // Restablecer botón de subida
+            const uploadButton = document.getElementById('upload-contract-button');
+            uploadButton.disabled = false;
+            uploadButton.textContent = '⬆️ Subir Contrato';
+            
+            // Limpiar input de archivo
+            document.getElementById('contract-file').value = '';
         }
 
     </script>
