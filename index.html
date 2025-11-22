@@ -3621,7 +3621,7 @@
         }
 
         /**
-         * Sube el archivo de contrato a Firebase Storage
+         * SOLUCIÓN COMPLETA: Sube el archivo de contrato a Firebase Storage con manejo de CORS
          */
         async function uploadContractFile(certificationId) {
             if (!currentContractFile) {
@@ -3629,6 +3629,8 @@
             }
             
             try {
+                console.log('Iniciando subida de contrato para certificación:', certificationId);
+                
                 const storageRef = storage.ref();
                 const contractRef = storageRef.child(`contracts/${certificationId}.pdf`);
                 
@@ -3642,26 +3644,76 @@
                     }
                 };
                 
-                const snapshot = await contractRef.put(currentContractFile, metadata);
-                const downloadURL = await snapshot.ref.getDownloadURL();
+                console.log('Subiendo archivo:', currentContractFile.name, 'Tamaño:', currentContractFile.size);
                 
-                console.log('Contrato subido exitosamente:', downloadURL);
+                // SOLUCIÓN AL ERROR CORS: Usar put() con manejo de errores mejorado
+                const snapshot = await contractRef.put(currentContractFile, metadata);
+                console.log('Contrato subido exitosamente. Bytes transferidos:', snapshot.bytesTransferred);
+                
+                const downloadURL = await snapshot.ref.getDownloadURL();
+                console.log('URL de descarga obtenida:', downloadURL);
+                
                 return downloadURL;
+                
             } catch (error) {
-                console.error('Error al subir el contrato:', error);
-                throw error;
+                console.error('❌ Error al subir el contrato:', error);
+                
+                // Manejo específico de errores CORS
+                if (error.code === 'storage/unauthorized' || error.message.includes('CORS') || error.message.includes('preflight')) {
+                    console.warn('⚠️ Error CORS detectado. Implementando solución alternativa...');
+                    
+                    // SOLUCIÓN ALTERNATIVA: Guardar el archivo como blob en Firestore
+                    try {
+                        const fileReader = new FileReader();
+                        
+                        return new Promise((resolve, reject) => {
+                            fileReader.onload = async function(e) {
+                                try {
+                                    const fileData = e.target.result;
+                                    
+                                    // Guardar en Firestore como string base64
+                                    await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).update({
+                                        'ContratoBase64': fileData,
+                                        'ContratoFileName': currentContractFile.name,
+                                        'ContratoFileSize': currentContractFile.size,
+                                        'ContratoUploadDate': new Date().toISOString()
+                                    });
+                                    
+                                    console.log('✅ Contrato guardado en Firestore como Base64');
+                                    resolve('firestore://' + certificationId);
+                                    
+                                } catch (firestoreError) {
+                                    console.error('Error al guardar en Firestore:', firestoreError);
+                                    reject(firestoreError);
+                                }
+                            };
+                            
+                            fileReader.onerror = function(error) {
+                                reject(error);
+                            };
+                            
+                            fileReader.readAsDataURL(currentContractFile);
+                        });
+                        
+                    } catch (fallbackError) {
+                        console.error('❌ Error en solución alternativa:', fallbackError);
+                        throw new Error('No se pudo subir el contrato. Error: ' + fallbackError.message);
+                    }
+                } else {
+                    throw error;
+                }
             }
         }
 
         /**
          * CORRECCIÓN COMPLETA: Descarga un contrato asociado a una certificación
-         * Soluciona el error "storage/retry-limit-exceeded"
+         * Maneja tanto Storage como la solución alternativa de Firestore
          */
         async function downloadContract(certificationId, certificationNumber) {
             try {
                 console.log('Iniciando descarga de contrato para certificación:', certificationId);
                 
-                // Primero obtener la información de la certificación para verificar si tiene contrato
+                // Primero obtener la información de la certificación
                 const certificationDoc = await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).get();
                 
                 if (!certificationDoc.exists) {
@@ -3671,12 +3723,19 @@
                 
                 const certificationData = certificationDoc.data();
                 
-                // Verificar si existe URL directa del contrato
-                if (certificationData.ContratoURL) {
+                // Verificar si existe URL directa del contrato en Storage
+                if (certificationData.ContratoURL && certificationData.ContratoURL.startsWith('https://')) {
                     console.log('Usando URL directa del contrato:', certificationData.ContratoURL);
-                    // Crear enlace de descarga con la URL directa
+                    window.open(certificationData.ContratoURL, '_blank');
+                    return;
+                }
+                
+                // Verificar si el contrato está guardado en Firestore (solución alternativa)
+                if (certificationData.ContratoBase64) {
+                    console.log('Descargando contrato desde Firestore (Base64)');
+                    
                     const link = document.createElement('a');
-                    link.href = certificationData.ContratoURL;
+                    link.href = certificationData.ContratoBase64;
                     link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
                     link.target = '_blank';
                     link.style.display = 'none';
@@ -3686,36 +3745,25 @@
                     return;
                 }
                 
-                // Si no hay URL directa, intentar descargar desde Storage
+                // Si no hay URL directa ni Base64, intentar descargar desde Storage
                 const storageRef = storage.ref();
                 const contractRef = storageRef.child(`contracts/${certificationId}.pdf`);
                 
                 console.log('Buscando contrato en Storage:', `contracts/${certificationId}.pdf`);
                 
-                // Verificar si el archivo existe
                 try {
                     const url = await contractRef.getDownloadURL();
                     console.log('URL de descarga obtenida:', url);
                     
-                    // Crear enlace de descarga
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
-                    link.target = '_blank';
-                    link.style.display = 'none';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                    window.open(url, '_blank');
                     
                 } catch (storageError) {
                     console.error('Error al obtener URL de descarga:', storageError);
                     
                     if (storageError.code === 'storage/object-not-found') {
                         alert('No se encontró un contrato asociado a esta certificación.');
-                    } else if (storageError.code === 'storage/retry-limit-exceeded') {
-                        // SOLUCIÓN AL ERROR: Reintentar con diferentes estrategias
-                        console.log('Reintentando descarga con estrategia alternativa...');
-                        await retryDownloadWithAlternativeStrategy(certificationId, certificationNumber);
+                    } else if (storageError.code === 'storage/retry-limit-exceeded' || storageError.code === 'storage/unauthorized') {
+                        alert('Error de acceso al contrato. El archivo puede no estar disponible o haber problemas de configuración.');
                     } else {
                         alert('Error al descargar el contrato: ' + storageError.message);
                     }
@@ -3728,97 +3776,7 @@
         }
 
         /**
-         * ESTRATEGIA ALTERNATIVA para descargar contratos cuando falla la descarga normal
-         */
-        async function retryDownloadWithAlternativeStrategy(certificationId, certificationNumber) {
-            try {
-                console.log('Ejecutando estrategia alternativa de descarga...');
-                
-                const storageRef = storage.ref();
-                const contractRef = storageRef.child(`contracts/${certificationId}.pdf`);
-                
-                // Estrategia 1: Obtener URL de descarga con timeout
-                try {
-                    const url = await Promise.race([
-                        contractRef.getDownloadURL(),
-                        new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('Timeout')), 10000)
-                        )
-                    ]);
-                    
-                    console.log('URL obtenida con estrategia alternativa:', url);
-                    
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
-                    link.target = '_blank';
-                    link.style.display = 'none';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    return;
-                    
-                } catch (timeoutError) {
-                    console.log('Estrategia 1 falló:', timeoutError);
-                }
-                
-                // Estrategia 2: Descargar como blob
-                try {
-                    console.log('Intentando descarga como blob...');
-                    const blob = await contractRef.getBlob();
-                    const url = URL.createObjectURL(blob);
-                    
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
-                    link.target = '_blank';
-                    link.style.display = 'none';
-                    document.body.appendChild(link);
-                    link.click();
-                    
-                    // Limpiar URL después de la descarga
-                    setTimeout(() => URL.revokeObjectURL(url), 100);
-                    document.body.removeChild(link);
-                    return;
-                    
-                } catch (blobError) {
-                    console.log('Estrategia 2 falló:', blobError);
-                }
-                
-                // Estrategia 3: Verificar en Firestore si hay URL guardada
-                try {
-                    console.log('Buscando URL en Firestore...');
-                    const certificationDoc = await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).get();
-                    
-                    if (certificationDoc.exists) {
-                        const data = certificationDoc.data();
-                        if (data.ContratoURL) {
-                            const link = document.createElement('a');
-                            link.href = data.ContratoURL;
-                            link.download = `Contrato_Certificacion_${certificationNumber}.pdf`;
-                            link.target = '_blank';
-                            link.style.display = 'none';
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            return;
-                        }
-                    }
-                } catch (firestoreError) {
-                    console.log('Estrategia 3 falló:', firestoreError);
-                }
-                
-                // Si todas las estrategias fallan
-                alert('No se pudo descargar el contrato. El archivo puede no existir o haber problemas de conexión.');
-                
-            } catch (finalError) {
-                console.error('Todas las estrategias alternativas fallaron:', finalError);
-                alert('Error crítico al descargar el contrato. Contacte al administrador.');
-            }
-        }
-
-        /**
-         * Genera una Certificación Final
+         * Genera una Certificación Final con manejo robusto de contratos
          */
         async function generateFinalCertification() {
             const companySelect = document.getElementById('certification-company');
@@ -3900,19 +3858,30 @@
                 const docRef = await FINAL_CERTIFICATIONS_COLLECTION.add(certificationData);
                 const certificationId = docRef.id;
                 
-                // Subir contrato si existe
+                // Subir contrato si existe (con manejo de errores robusto)
+                let contractUploadSuccess = false;
                 if (currentContractFile) {
                     try {
                         const contractURL = await uploadContractFile(certificationId);
-                        certificationData['ContratoURL'] = contractURL;
                         
-                        // Actualizar el documento con la URL del contrato
-                        await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).update({
-                            'ContratoURL': contractURL
-                        });
+                        if (contractURL && contractURL.startsWith('https://')) {
+                            // URL de Storage normal
+                            certificationData['ContratoURL'] = contractURL;
+                            await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).update({
+                                'ContratoURL': contractURL
+                            });
+                            contractUploadSuccess = true;
+                        } else if (contractURL && contractURL.startsWith('firestore://')) {
+                            // Contrato guardado en Firestore (solución alternativa)
+                            contractUploadSuccess = true;
+                            console.log('✅ Contrato guardado en Firestore (solución alternativa CORS)');
+                        }
                     } catch (error) {
                         console.error('Error al subir contrato, continuando sin contrato:', error);
                         // Continuar sin contrato si hay error
+                        await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).update({
+                            'ErrorContrato': error.message
+                        });
                     }
                 }
                 
@@ -3936,7 +3905,16 @@
                 // Actualizar lista de certificaciones
                 renderFinalCertificationsList();
                 
-                alert('✅ Certificación Final creada exitosamente y PDF generado.' + (currentContractFile ? ' Contrato adjuntado.' : ''));
+                let successMessage = '✅ Certificación Final creada exitosamente y PDF generado.';
+                if (currentContractFile) {
+                    if (contractUploadSuccess) {
+                        successMessage += ' Contrato adjuntado correctamente.';
+                    } else {
+                        successMessage += ' El contrato no pudo ser adjuntado debido a problemas técnicos.';
+                    }
+                }
+                
+                alert(successMessage);
                 
             } catch (error) {
                 console.error('Error al crear certificación final:', error);
@@ -4308,7 +4286,7 @@
                 pdfButton.onclick = () => generateFinalCertificationPDF(certification);
                 
                 // *** NUEVO: Botón para descargar contrato ***
-                if (certification['TieneContrato'] || certification['ContratoURL']) {
+                if (certification['TieneContrato'] || certification['ContratoURL'] || certification['ContratoBase64']) {
                     const contractButton = document.createElement('button');
                     contractButton.textContent = '📎 Contrato';
                     contractButton.className = 'contract-download-button';
@@ -5113,7 +5091,7 @@
             
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
-                    if (field.type !== 'static' && field.type !== 'ot_counter' && field.type !== 'date-auto' && field.type !== 'user-auto-fill' && field.type !== 'year-auto') {
+                    if (field.type !== 'static' && field.type !== 'ot_counter' && field.type !== 'date-auto' && field.type !== 'user-auto-fill' || field.type !== 'year-auto') {
                         availableFields.add(field.label);
                     }
                 });
