@@ -5438,7 +5438,7 @@
         }
 
         /**
-         * Sube el archivo de contrato a Firebase Storage
+         * Sube el archivo de contrato a Firebase Storage con manejo mejorado de errores
          */
         async function uploadContractFile() {
             if (!selectedContractFile) {
@@ -5461,16 +5461,29 @@
                 document.getElementById('contract-success').style.display = 'none';
                 document.getElementById('contract-error').style.display = 'none';
                 
-                // Generar nombre único para el archivo
+                // Generar nombre único para el archivo (sin caracteres especiales)
                 const timestamp = new Date().getTime();
-                const fileName = `contratos/certificacion_${timestamp}_${selectedContractFile.name}`;
+                const safeFileName = selectedContractFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                const fileName = `contratos/certificacion_${timestamp}_${safeFileName}`;
+                
+                console.log('Iniciando subida de archivo:', fileName);
                 
                 // Referencia al archivo en Firebase Storage
                 const storageRef = storage.ref();
                 const fileRef = storageRef.child(fileName);
                 
+                // Metadata para el archivo
+                const metadata = {
+                    contentType: 'application/pdf',
+                    customMetadata: {
+                        'uploadedBy': firebase.auth().currentUser.email,
+                        'uploadDate': new Date().toISOString(),
+                        'originalName': selectedContractFile.name
+                    }
+                };
+                
                 // Subir archivo con monitoreo de progreso
-                const uploadTask = fileRef.put(selectedContractFile);
+                const uploadTask = fileRef.put(selectedContractFile, metadata);
                 
                 // Monitorear progreso de subida
                 uploadTask.on('state_changed',
@@ -5483,13 +5496,34 @@
                         console.log('Progreso de subida:', progress + '%');
                     },
                     (error) => {
-                        // Manejar errores
+                        // Manejar errores específicos
                         console.error('Error al subir contrato:', error);
+                        
+                        let errorMessage = 'Error al subir el contrato: ';
+                        
+                        switch (error.code) {
+                            case 'storage/unauthorized':
+                                errorMessage += 'No tiene permiso para acceder a Storage.';
+                                break;
+                            case 'storage/canceled':
+                                errorMessage += 'La subida fue cancelada.';
+                                break;
+                            case 'storage/unknown':
+                                errorMessage += 'Error desconocido. Verifique su conexión.';
+                                break;
+                            case 'storage/retry-limit-exceeded':
+                                errorMessage += 'Límite de reintentos excedido. Problema de CORS detectado.';
+                                // Solución alternativa: intentar con método diferente
+                                attemptAlternativeUpload(selectedContractFile, fileName);
+                                return;
+                            default:
+                                errorMessage += error.message;
+                        }
                         
                         // Mostrar mensaje de error
                         const errorDiv = document.getElementById('contract-error');
                         errorDiv.style.display = 'block';
-                        errorDiv.textContent = '❌ Error al subir el contrato: ' + error.message;
+                        errorDiv.innerHTML = `❌ ${errorMessage}`;
                         
                         // Restablecer interfaz
                         progressContainer.style.display = 'none';
@@ -5497,7 +5531,7 @@
                         uploadButton.textContent = '⬆️ Subir Contrato';
                     },
                     async () => {
-                        // Subida completada
+                        // Subida completada exitosamente
                         try {
                             // Obtener URL de descarga
                             const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
@@ -5541,7 +5575,40 @@
                 
             } catch (error) {
                 console.error('Error al iniciar subida de contrato:', error);
-                alert('Error al subir el contrato: ' + error.message);
+                
+                const errorDiv = document.getElementById('contract-error');
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = '❌ Error inesperado: ' + error.message;
+                
+                document.getElementById('contract-progress-container').style.display = 'none';
+                document.getElementById('upload-contract-button').disabled = false;
+                document.getElementById('upload-contract-button').textContent = '⬆️ Subir Contrato';
+            }
+        }
+
+        /**
+         * Método alternativo para subir archivos si falla el método principal
+         */
+        async function attemptAlternativeUpload(file, fileName) {
+            console.log('Intentando método alternativo de subida...');
+            
+            try {
+                // Crear FormData para enviar como blob
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                // En una implementación real, aquí enviarías a un Cloud Function
+                // Por ahora, mostramos un mensaje al usuario
+                const errorDiv = document.getElementById('contract-error');
+                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = `
+                    ❌ Problema de CORS detectado.<br>
+                    <strong>Solución temporal:</strong> Configure CORS en Firebase Storage ejecutando:<br>
+                    <code>gsutil cors set cors.json gs://certificacionordenes.firebasestorage.app</code>
+                `;
+                
+            } catch (error) {
+                console.error('Error en método alternativo:', error);
             }
         }
 
@@ -5566,6 +5633,37 @@
             // Limpiar input de archivo
             document.getElementById('contract-file').value = '';
         }
+
+        /**
+         * Verifica la configuración de CORS actual
+         */
+        async function checkCorsConfiguration() {
+            try {
+                const storageRef = storage.ref();
+                // Intentar una operación simple para verificar CORS
+                const testRef = storageRef.child('test-cors-file.txt');
+                
+                await testRef.put(new Blob(['test'], { type: 'text/plain' }));
+                await testRef.delete();
+                
+                console.log('✅ Configuración de CORS correcta');
+                return true;
+            } catch (error) {
+                console.error('❌ Problema de CORS detectado:', error);
+                return false;
+            }
+        }
+
+        // Ejecutar verificación al cargar la aplicación
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                checkCorsConfiguration().then(isCorsOk => {
+                    if (!isCorsOk) {
+                        console.warn('Advertencia: Posible problema de CORS en Storage');
+                    }
+                });
+            }, 3000);
+        });
 
     </script>
 
