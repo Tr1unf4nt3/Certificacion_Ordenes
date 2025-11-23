@@ -1024,7 +1024,7 @@
                         </p>
                     </div>
                     
-                    <!-- NUEVA SECCIÓN: CONTRATO -->
+                    <!-- NUEVA SECCIÓN: CONTRATO CORREGIDA -->
                     <div class="contract-section">
                         <h4>📄 Contrato Adjunto</h4>
                         <p>Adjunte el archivo PDF del contrato relacionado con esta certificación final.</p>
@@ -5386,7 +5386,7 @@
         }
 
         /**
-         * Maneja la selección de un archivo de contrato
+         * Maneja la selección de un archivo de contrato - VERSIÓN CORREGIDA
          */
         function handleContractFileSelect(file) {
             if (!file) return;
@@ -5411,15 +5411,26 @@
             const fileName = document.getElementById('contract-file-name');
             const fileSize = document.getElementById('contract-file-size');
             
+            // VERIFICAR QUE LOS ELEMENTOS EXISTAN
+            if (!fileInfo || !fileName || !fileSize) {
+                console.error('Elementos del DOM para información de archivo no encontrados');
+                alert('Error al cargar la información del archivo. Recargue la página.');
+                return;
+            }
+            
             fileName.textContent = file.name;
             fileSize.textContent = formatFileSize(file.size);
             
             fileInfo.style.display = 'block';
             
             // Ocultar mensajes de éxito/error anteriores
-            document.getElementById('contract-success').style.display = 'none';
-            document.getElementById('contract-error').style.display = 'none';
-            document.getElementById('contract-progress-container').style.display = 'none';
+            const successDiv = document.getElementById('contract-success');
+            const errorDiv = document.getElementById('contract-error');
+            const progressContainer = document.getElementById('contract-progress-container');
+            
+            if (successDiv) successDiv.style.display = 'none';
+            if (errorDiv) errorDiv.style.display = 'none';
+            if (progressContainer) progressContainer.style.display = 'none';
             
             console.log('Archivo de contrato seleccionado:', file.name, formatFileSize(file.size));
         }
@@ -5438,7 +5449,7 @@
         }
 
         /**
-         * Sube el archivo de contrato a Firebase Storage con manejo mejorado de errores
+         * Sube el archivo de contrato a Firebase Storage - VERSIÓN CORREGIDA
          */
         async function uploadContractFile() {
             if (!selectedContractFile) {
@@ -5447,21 +5458,28 @@
             }
             
             try {
-                // Mostrar barra de progreso
+                // VERIFICAR QUE TODOS LOS ELEMENTOS DEL DOM EXISTAN
                 const progressContainer = document.getElementById('contract-progress-container');
                 const progressFill = document.getElementById('contract-progress-fill');
                 const progressText = document.getElementById('contract-progress-text');
                 const uploadButton = document.getElementById('upload-contract-button');
+                const successDiv = document.getElementById('contract-success');
+                const errorDiv = document.getElementById('contract-error');
                 
+                if (!progressContainer || !progressFill || !progressText || !uploadButton || !successDiv || !errorDiv) {
+                    throw new Error('Elementos de la interfaz no encontrados. Recargue la página.');
+                }
+                
+                // Mostrar barra de progreso
                 progressContainer.style.display = 'block';
                 uploadButton.disabled = true;
                 uploadButton.textContent = '⏳ Subiendo...';
                 
                 // Ocultar mensajes anteriores
-                document.getElementById('contract-success').style.display = 'none';
-                document.getElementById('contract-error').style.display = 'none';
+                successDiv.style.display = 'none';
+                errorDiv.style.display = 'none';
                 
-                // Generar nombre único para el archivo (sin caracteres especiales)
+                // Generar nombre único para el archivo
                 const timestamp = new Date().getTime();
                 const safeFileName = selectedContractFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
                 const fileName = `contratos/certificacion_${timestamp}_${safeFileName}`;
@@ -5496,7 +5514,7 @@
                         console.log('Progreso de subida:', progress + '%');
                     },
                     (error) => {
-                        // Manejar errores específicos
+                        // Manejar errores
                         console.error('Error al subir contrato:', error);
                         
                         let errorMessage = 'Error al subir el contrato: ';
@@ -5511,17 +5529,11 @@
                             case 'storage/unknown':
                                 errorMessage += 'Error desconocido. Verifique su conexión.';
                                 break;
-                            case 'storage/retry-limit-exceeded':
-                                errorMessage += 'Límite de reintentos excedido. Problema de CORS detectado.';
-                                // Solución alternativa: intentar con método diferente
-                                attemptAlternativeUpload(selectedContractFile, fileName);
-                                return;
                             default:
                                 errorMessage += error.message;
                         }
                         
                         // Mostrar mensaje de error
-                        const errorDiv = document.getElementById('contract-error');
                         errorDiv.style.display = 'block';
                         errorDiv.innerHTML = `❌ ${errorMessage}`;
                         
@@ -5540,15 +5552,16 @@
                             console.log('Contrato subido exitosamente. URL:', downloadURL);
                             
                             // Mostrar mensaje de éxito
-                            const successDiv = document.getElementById('contract-success');
                             successDiv.style.display = 'block';
                             
                             // Agregar botón de descarga
                             const downloadButton = document.getElementById('contract-download-button');
-                            downloadButton.style.display = 'inline-block';
-                            downloadButton.onclick = () => {
-                                window.open(downloadURL, '_blank');
-                            };
+                            if (downloadButton) {
+                                downloadButton.style.display = 'inline-block';
+                                downloadButton.onclick = () => {
+                                    window.open(downloadURL, '_blank');
+                                };
+                            }
                             
                             // Ocultar barra de progreso
                             progressContainer.style.display = 'none';
@@ -5562,7 +5575,6 @@
                         } catch (error) {
                             console.error('Error al obtener URL de descarga:', error);
                             
-                            const errorDiv = document.getElementById('contract-error');
                             errorDiv.style.display = 'block';
                             errorDiv.textContent = '❌ Error al obtener URL del contrato: ' + error.message;
                             
@@ -5577,38 +5589,19 @@
                 console.error('Error al iniciar subida de contrato:', error);
                 
                 const errorDiv = document.getElementById('contract-error');
-                errorDiv.style.display = 'block';
-                errorDiv.textContent = '❌ Error inesperado: ' + error.message;
+                if (errorDiv) {
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = '❌ Error inesperado: ' + error.message;
+                }
                 
-                document.getElementById('contract-progress-container').style.display = 'none';
-                document.getElementById('upload-contract-button').disabled = false;
-                document.getElementById('upload-contract-button').textContent = '⬆️ Subir Contrato';
-            }
-        }
-
-        /**
-         * Método alternativo para subir archivos si falla el método principal
-         */
-        async function attemptAlternativeUpload(file, fileName) {
-            console.log('Intentando método alternativo de subida...');
-            
-            try {
-                // Crear FormData para enviar como blob
-                const formData = new FormData();
-                formData.append('file', file);
+                const progressContainer = document.getElementById('contract-progress-container');
+                if (progressContainer) progressContainer.style.display = 'none';
                 
-                // En una implementación real, aquí enviarías a un Cloud Function
-                // Por ahora, mostramos un mensaje al usuario
-                const errorDiv = document.getElementById('contract-error');
-                errorDiv.style.display = 'block';
-                errorDiv.innerHTML = `
-                    ❌ Problema de CORS detectado.<br>
-                    <strong>Solución temporal:</strong> Configure CORS en Firebase Storage ejecutando:<br>
-                    <code>gsutil cors set cors.json gs://certificacionordenes.firebasestorage.app</code>
-                `;
-                
-            } catch (error) {
-                console.error('Error en método alternativo:', error);
+                const uploadButton = document.getElementById('upload-contract-button');
+                if (uploadButton) {
+                    uploadButton.disabled = false;
+                    uploadButton.textContent = '⬆️ Subir Contrato';
+                }
             }
         }
 
@@ -5620,50 +5613,27 @@
             currentContractUrl = null;
             
             // Limpiar interfaz
-            document.getElementById('contract-file-info').style.display = 'none';
-            document.getElementById('contract-progress-container').style.display = 'none';
-            document.getElementById('contract-success').style.display = 'none';
-            document.getElementById('contract-error').style.display = 'none';
+            const fileInfo = document.getElementById('contract-file-info');
+            const progressContainer = document.getElementById('contract-progress-container');
+            const successDiv = document.getElementById('contract-success');
+            const errorDiv = document.getElementById('contract-error');
+            
+            if (fileInfo) fileInfo.style.display = 'none';
+            if (progressContainer) progressContainer.style.display = 'none';
+            if (successDiv) successDiv.style.display = 'none';
+            if (errorDiv) errorDiv.style.display = 'none';
             
             // Restablecer botón de subida
             const uploadButton = document.getElementById('upload-contract-button');
-            uploadButton.disabled = false;
-            uploadButton.textContent = '⬆️ Subir Contrato';
+            if (uploadButton) {
+                uploadButton.disabled = false;
+                uploadButton.textContent = '⬆️ Subir Contrato';
+            }
             
             // Limpiar input de archivo
-            document.getElementById('contract-file').value = '';
+            const fileInput = document.getElementById('contract-file');
+            if (fileInput) fileInput.value = '';
         }
-
-        /**
-         * Verifica la configuración de CORS actual
-         */
-        async function checkCorsConfiguration() {
-            try {
-                const storageRef = storage.ref();
-                // Intentar una operación simple para verificar CORS
-                const testRef = storageRef.child('test-cors-file.txt');
-                
-                await testRef.put(new Blob(['test'], { type: 'text/plain' }));
-                await testRef.delete();
-                
-                console.log('✅ Configuración de CORS correcta');
-                return true;
-            } catch (error) {
-                console.error('❌ Problema de CORS detectado:', error);
-                return false;
-            }
-        }
-
-        // Ejecutar verificación al cargar la aplicación
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                checkCorsConfiguration().then(isCorsOk => {
-                    if (!isCorsOk) {
-                        console.warn('Advertencia: Posible problema de CORS en Storage');
-                    }
-                });
-            }, 3000);
-        });
 
     </script>
 
