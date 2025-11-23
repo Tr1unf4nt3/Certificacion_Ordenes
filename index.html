@@ -1024,7 +1024,7 @@
                         </p>
                     </div>
                     
-                    <!-- NUEVA SECCIÓN: CONTRATO CORREGIDA -->
+                    <!-- SECCIÓN DE CONTRATO MEJORADA -->
                     <div class="contract-section">
                         <h4>📄 Contrato Adjunto</h4>
                         <p>Adjunte el archivo PDF del contrato relacionado con esta certificación final.</p>
@@ -5333,7 +5333,7 @@
             }
         }
 
-        // *** 17. NUEVAS FUNCIONES PARA MANEJO DE CONTRATO ***
+        // *** 17. NUEVAS FUNCIONES PARA MANEJO DE CONTRATO - CORREGIDAS ***
 
         /**
          * Inicializa la funcionalidad de arrastrar y soltar para el contrato
@@ -5449,7 +5449,7 @@
         }
 
         /**
-         * Sube el archivo de contrato a Firebase Storage - VERSIÓN CORREGIDA
+         * Sube el archivo de contrato a Firebase Storage - VERSIÓN MEJORADA CON MANEJO DE ERRORES
          */
         async function uploadContractFile() {
             if (!selectedContractFile) {
@@ -5500,8 +5500,13 @@
                     }
                 };
                 
+                // Configurar timeout para evitar el error de retry-limit-exceeded
+                const uploadOptions = {
+                    customMetadata: metadata
+                };
+                
                 // Subir archivo con monitoreo de progreso
-                const uploadTask = fileRef.put(selectedContractFile, metadata);
+                const uploadTask = fileRef.put(selectedContractFile, uploadOptions);
                 
                 // Monitorear progreso de subida
                 uploadTask.on('state_changed',
@@ -5514,20 +5519,23 @@
                         console.log('Progreso de subida:', progress + '%');
                     },
                     (error) => {
-                        // Manejar errores
+                        // Manejar errores específicos de Firebase Storage
                         console.error('Error al subir contrato:', error);
                         
                         let errorMessage = 'Error al subir el contrato: ';
                         
                         switch (error.code) {
                             case 'storage/unauthorized':
-                                errorMessage += 'No tiene permiso para acceder a Storage.';
+                                errorMessage += 'No tiene permiso para acceder a Storage. Verifique las reglas de seguridad.';
                                 break;
                             case 'storage/canceled':
                                 errorMessage += 'La subida fue cancelada.';
                                 break;
+                            case 'storage/retry-limit-exceeded':
+                                errorMessage += 'Tiempo de espera agotado. El archivo puede ser muy grande o la conexión es lenta. Intente con un archivo más pequeño.';
+                                break;
                             case 'storage/unknown':
-                                errorMessage += 'Error desconocido. Verifique su conexión.';
+                                errorMessage += 'Error desconocido. Verifique su conexión a internet.';
                                 break;
                             default:
                                 errorMessage += error.message;
@@ -5545,8 +5553,14 @@
                     async () => {
                         // Subida completada exitosamente
                         try {
-                            // Obtener URL de descarga
-                            const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+                            // Obtener URL de descarga con timeout
+                            const downloadURL = await Promise.race([
+                                uploadTask.snapshot.ref.getDownloadURL(),
+                                new Promise((_, reject) => 
+                                    setTimeout(() => reject(new Error('Timeout al obtener URL de descarga')), 30000)
+                                )
+                            ]);
+                            
                             currentContractUrl = downloadURL;
                             
                             console.log('Contrato subido exitosamente. URL:', downloadURL);
