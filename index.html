@@ -2286,7 +2286,7 @@
             }
         }
 
-        // *** 6. GENERACIÓN DE PDF MEJORADA ***
+        // *** 6. GENERACIÓN DE PDF MEJORADA CON LAS MODIFICACIONES SOLICITADAS ***
 
         function formatLongTextForPDF(text, maxLineLength = 70) {
             if (!text || text === 'N/A') return 'N/A';
@@ -2455,15 +2455,16 @@
                         formContentHTML += '</table></div>';
                     }
 
+                    // *** MODIFICACIÓN: NUEVAS FIRMAS SOLICITADAS ***
                     formContentHTML += `
                         <div style="margin-top: 40px; padding-top: 20px; border-top: 2px dashed #B0C4DE; width: 100%; page-break-inside: avoid;">
                             <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; width: 100%;">
                                 <div style="width: 45%;">
-                                    Firma Contratista:
+                                    Contratista:
                                     <div style="border-top: 1px solid #36454F; margin-top: 5px; padding-top: 40px;"></div>
                                 </div>
                                 <div style="width: 45%;">
-                                    Firma Responsable:
+                                    Supervisor Técnico:
                                     <div style="border-top: 1px solid #36454F; margin-top: 5px; padding-top: 40px;"></div>
                                 </div>
                             </div>
@@ -2476,7 +2477,7 @@
                         <style>
                             @media print {
                                 @page {
-                                    margin: 10mm;
+                                    margin: 8mm 10mm 5mm 10mm; /* Margen inferior reducido */
                                     size: A4;
                                 }
                                 
@@ -2517,6 +2518,14 @@
                                     page-break-before: avoid;
                                     page-break-inside: avoid;
                                 }
+                                
+                                /* Asegurar que las firmas siempre estén en la misma página */
+                                .signature-container {
+                                    position: relative;
+                                    margin-top: 20px;
+                                    page-break-inside: avoid;
+                                    break-inside: avoid;
+                                }
                             }
                             
                             body {
@@ -2534,7 +2543,7 @@
                     console.log('Contenedor PDF creado y agregado al DOM');
 
                     const opt = {
-                        margin:       10,
+                        margin:       8, // Margen reducido
                         filename:     fileName,
                         image:        { 
                             type: 'jpeg', 
@@ -3004,7 +3013,7 @@
                             <style>
                                 body { 
                                     font-family: Arial, sans-serif; 
-                                    margin: 20px; 
+                                    margin: 8mm 20px 5mm 20px; /* Margen inferior reducido */
                                     color: #36454F; 
                                     line-height: 1.4;
                                     background: white;
@@ -3046,6 +3055,7 @@
                                     padding-top: 20px;
                                     border-top: 2px dashed #B0C4DE;
                                     width: 100%;
+                                    page-break-inside: avoid;
                                 }
                                 .signatures-container {
                                     display: flex;
@@ -3063,9 +3073,13 @@
                                     width: 100%;
                                 }
                                 @media print {
-                                    body { margin: 15mm; }
+                                    @page {
+                                        margin: 8mm 15mm 5mm 15mm; /* Margen inferior reducido */
+                                    }
+                                    body { margin: 0; }
                                     .section { page-break-inside: avoid; }
                                     .signatures-container { display: flex; justify-content: space-between; }
+                                    .signature-section { page-break-inside: avoid; }
                                 }
                             </style>
                         </head>
@@ -3167,7 +3181,7 @@
                     document.body.appendChild(printContainer);
 
                     const opt = {
-                        margin: 10,
+                        margin: 8, // Margen reducido
                         filename: fileName,
                         image: { 
                             type: 'jpeg', 
@@ -3656,7 +3670,7 @@
         }
 
         /**
-         * Genera el PDF de Certificación Final
+         * Genera el PDF de Certificación Final CON LAS MODIFICACIONES SOLICITADAS
          */
         function generateFinalCertificationPDF(data) {
             return new Promise((resolve, reject) => {
@@ -3674,7 +3688,7 @@
                             <style>
                                 body { 
                                     font-family: Arial, sans-serif; 
-                                    margin: 10mm;
+                                    margin: 8mm 10mm 5mm 10mm; /* Margen inferior reducido */
                                     color: #36454F; 
                                     line-height: 1.4;
                                     background: white;
@@ -3740,10 +3754,36 @@
                                     text-align: center;
                                     font-size: 12px;
                                 }
+                                .signature-section {
+                                    margin-top: 50px;
+                                    padding-top: 20px;
+                                    border-top: 2px dashed #9C27B0;
+                                    width: 100%;
+                                    page-break-inside: avoid;
+                                }
+                                .signatures-container {
+                                    display: flex;
+                                    justify-content: space-between;
+                                    width: 100%;
+                                }
+                                .signature-box {
+                                    width: 45%;
+                                    text-align: center;
+                                }
+                                .signature-line {
+                                    border-bottom: 1px solid #000;
+                                    margin-top: 60px;
+                                    height: 1px;
+                                    width: 100%;
+                                }
                                 @media print {
-                                    body { margin: 10mm; }
+                                    @page {
+                                        margin: 8mm 10mm 5mm 10mm; /* Margen inferior reducido */
+                                    }
+                                    body { margin: 0; }
                                     .section { page-break-inside: avoid; }
                                     .page-break { page-break-before: always; }
+                                    .signature-section { page-break-inside: avoid; }
                                 }
                             </style>
                         </head>
@@ -3803,6 +3843,20 @@
                                 </div>
                             </div>
                             
+                            <!-- *** MODIFICACIÓN: NUEVAS FIRMAS SOLICITADAS *** -->
+                            <div class="signature-section">
+                                <div class="signatures-container">
+                                    <div class="signature-box">
+                                        <strong>Gerente Técnico</strong>
+                                        <div class="signature-line"></div>
+                                    </div>
+                                    <div class="signature-box">
+                                        <strong>Contratista</strong>
+                                        <div class="signature-line"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div class="footer-text">
                                 Quedan archivadas cada una de las Ordenes de Trabajo finalizadas indicadas en la presente Certificación Final.
                             </div>
@@ -3815,7 +3869,7 @@
                     document.body.appendChild(printContainer);
 
                     const opt = {
-                        margin: 10,
+                        margin: 8, // Margen reducido
                         filename: fileName,
                         image: { 
                             type: 'jpeg', 
