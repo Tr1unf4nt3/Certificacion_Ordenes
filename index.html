@@ -1637,6 +1637,94 @@
             }
         };
 
+        // *** NUEVA FUNCIÓN: Normalizar nombre de empresa para comparación ***
+        function normalizeCompanyName(companyName) {
+            if (!companyName) return '';
+            
+            // Convertir a minúsculas
+            let normalized = companyName.toLowerCase();
+            
+            // Eliminar espacios múltiples y espacios al inicio/final
+            normalized = normalized.trim().replace(/\s+/g, ' ');
+            
+            // Eliminar caracteres especiales y acentos (simplificado)
+            normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            
+            // Reemplazar "&" por "y" para uniformidad
+            normalized = normalized.replace(/&/g, 'y');
+            
+            // Eliminar puntos y comas
+            normalized = normalized.replace(/[.,]/g, '');
+            
+            // Normalizar espacios alrededor de "C.A"
+            normalized = normalized.replace(/\s*c\.a\s*/g, ' c.a');
+            
+            return normalized;
+        }
+
+        // *** FUNCIÓN MEJORADA: Buscar empresa en orden ***
+        function findCompanyInOrder(order, selectedCompany) {
+            if (!order || !selectedCompany) return false;
+            
+            // Normalizar nombre de empresa seleccionada
+            const normalizedSelectedCompany = normalizeCompanyName(selectedCompany);
+            
+            // Buscar en todos los campos de la orden
+            for (const key in order) {
+                if (typeof order[key] === 'string' && order[key].trim() !== '') {
+                    // Normalizar el valor del campo
+                    const normalizedFieldValue = normalizeCompanyName(order[key]);
+                    
+                    // Comparación flexible
+                    if (normalizedFieldValue === normalizedSelectedCompany) {
+                        return true;
+                    }
+                    
+                    // También verificar si contiene el nombre de la empresa (para casos de variaciones)
+                    if (normalizedFieldValue.includes(normalizedSelectedCompany) || 
+                        normalizedSelectedCompany.includes(normalizedFieldValue)) {
+                        return true;
+                    }
+                    
+                    // Casos especiales para las empresas problemáticas
+                    if (selectedCompany.includes("G&D INTEGRAL RED 2023")) {
+                        const variations = [
+                            "g&d integral red 2023",
+                            "g&d integral red",
+                            "g d integral red 2023",
+                            "g y d integral red 2023"
+                        ];
+                        
+                        for (const variation of variations) {
+                            if (normalizedFieldValue.includes(variation) || 
+                                normalizedFieldValue === variation) {
+                                return true;
+                            }
+                        }
+                    }
+                    
+                    if (selectedCompany.includes("SERVICIOS J&G SOLUTION")) {
+                        const variations = [
+                            "servicios j&g solution c.a",
+                            "servicios j&g solution",
+                            "servicios j y g solution c.a",
+                            "servicios j g solution c.a",
+                            "servicios j&g solution  c.a" // Con doble espacio
+                        ];
+                        
+                        for (const variation of variations) {
+                            if (normalizedFieldValue.includes(variation) || 
+                                normalizedFieldValue === variation) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return false;
+        }
+
         // Estructura inicial por defecto CON EL NUEVO CAMPO DE AÑO
         const DEFAULT_FORM_STRUCTURE = [
             { title: "I. Información General", fields: [
@@ -3934,7 +4022,7 @@
         }
 
         /**
-         * Actualiza las órdenes disponibles cuando se selecciona una empresa
+         * *** FUNCIÓN CORREGIDA: Actualiza las órdenes disponibles cuando se selecciona una empresa ***
          */
         function updateOrdersForCertification() {
             const companySelect = document.getElementById('certification-company');
@@ -3954,26 +4042,33 @@
             // Obtener IDs de órdenes ya certificadas
             const certifiedOrderIds = getCertifiedOrderIds();
             
-            // Filtrar órdenes finalizadas para la empresa seleccionada
+            // *** MODIFICACIÓN: Usar la nueva función de búsqueda flexible ***
             const ordersForCompany = completedOrders.filter(order => {
                 // Verificar si la orden ya está en una certificación final
                 if (certifiedOrderIds.has(order.id)) {
                     return false;
                 }
                 
-                // Buscar en todos los campos que puedan contener el nombre de la empresa
-                for (const key in order) {
-                    if (order[key] === selectedCompany) {
-                        return true;
-                    }
-                }
-                return false;
+                // *** USAR LA NUEVA FUNCIÓN DE BÚSQUEDA FLEXIBLE ***
+                return findCompanyInOrder(order, selectedCompany);
             });
             
             if (ordersForCompany.length === 0) {
                 ordersContainer.style.display = 'none';
-                noOrdersMessage.style.display = 'none';
-                allOrdersCertifiedMessage.style.display = 'block';
+                
+                // Verificar si no hay órdenes o si todas están certificadas
+                const allOrdersForCompany = completedOrders.filter(order => 
+                    findCompanyInOrder(order, selectedCompany)
+                );
+                
+                if (allOrdersForCompany.length === 0) {
+                    noOrdersMessage.style.display = 'block';
+                    allOrdersCertifiedMessage.style.display = 'none';
+                } else {
+                    noOrdersMessage.style.display = 'none';
+                    allOrdersCertifiedMessage.style.display = 'block';
+                }
+                
                 updateCertificationTotal();
                 return;
             }
@@ -5794,9 +5889,10 @@
          * Obtiene la empresa de una orden
          */
         function getCompanyFromOrder(order) {
-            for (const key in order) {
-                if (key.includes('Empresa') && order[key] && order[key] !== 'N/A' && order[key] !== 'Seleccione una Empresa') {
-                    return order[key];
+            // *** USAR LA NUEVA FUNCIÓN DE BÚSQUEDA FLEXIBLE ***
+            for (const key in CONTRATISTAS_DATA) {
+                if (key !== "Seleccione una Empresa" && findCompanyInOrder(order, key)) {
+                    return key;
                 }
             }
             return 'No especificada';
@@ -6002,18 +6098,10 @@
             const empresa = certification['Empresa'];
             const certifiedOrderIds = new Set(certification['Órdenes Realizadas'].map(o => o.id));
             
-            // Filtrar órdenes de la misma empresa que no estén ya certificadas
+            // *** MODIFICACIÓN: Usar la nueva función de búsqueda flexible ***
             const availableOrders = completedOrders.filter(order => {
-                // Verificar empresa
-                let isSameCompany = false;
-                for (const key in order) {
-                    if (order[key] === empresa) {
-                        isSameCompany = true;
-                        break;
-                    }
-                }
-                
-                if (!isSameCompany) return false;
+                // Verificar empresa usando búsqueda flexible
+                if (!findCompanyInOrder(order, empresa)) return false;
                 
                 // Verificar que no esté ya en esta certificación
                 if (certifiedOrderIds.has(order.id)) return false;
@@ -6112,15 +6200,9 @@
             
             // Agregar a la lista de disponibles (si corresponde)
             const empresa = currentCertificationForManagement['Empresa'];
-            let isSameCompany = false;
-            for (const key in order) {
-                if (order[key] === empresa) {
-                    isSameCompany = true;
-                    break;
-                }
-            }
             
-            if (isSameCompany) {
+            // *** USAR LA NUEVA FUNCIÓN DE BÚSQUEDA FLEXIBLE ***
+            if (findCompanyInOrder(order, empresa)) {
                 const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
                 
                 const orderItem = document.createElement('div');
@@ -6330,18 +6412,10 @@
             const empresa = certification['Empresa'];
             const certifiedOrderIds = new Set(certification['Órdenes Realizadas'].map(o => o.id));
             
-            // Filtrar órdenes de la misma empresa que no estén ya certificadas
+            // *** MODIFICACIÓN: Usar la nueva función de búsqueda flexible ***
             const availableOrders = completedOrders.filter(order => {
-                // Verificar empresa
-                let isSameCompany = false;
-                for (const key in order) {
-                    if (order[key] === empresa) {
-                        isSameCompany = true;
-                        break;
-                    }
-                }
-                
-                if (!isSameCompany) return false;
+                // Verificar empresa usando búsqueda flexible
+                if (!findCompanyInOrder(order, empresa)) return false;
                 
                 // Verificar que no esté ya en esta certificación
                 if (certifiedOrderIds.has(order.id)) return false;
@@ -6473,15 +6547,9 @@
             
             // Agregar a la lista de disponibles (si corresponde a la empresa)
             const empresa = currentCertificationForManagement['Empresa'];
-            let isSameCompany = false;
-            for (const key in order) {
-                if (order[key] === empresa) {
-                    isSameCompany = true;
-                    break;
-                }
-            }
             
-            if (isSameCompany) {
+            // *** USAR LA NUEVA FUNCIÓN DE BÚSQUEDA FLEXIBLE ***
+            if (findCompanyInOrder(order, empresa)) {
                 const availableList = document.getElementById('modal-available-orders');
                 
                 // Si el mensaje de "no hay órdenes" está visible, eliminarlo
