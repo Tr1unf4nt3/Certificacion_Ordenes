@@ -2432,7 +2432,7 @@
             });
             
             formElement.innerHTML += `
-                <h4>Tipo de Construcción (Selección Única)</h4>
+                <h4>Tipo de Construcción (Selección Opcional)</h4>
                 <button type="button" class="conditional-check" id="check_node_acceso" onclick="toggleConditionalSection('node_acceso')">
                     La Construcción es de un Nodo de Acceso
                 </button>
@@ -2473,10 +2473,10 @@
                     <h4>${title}</h4>
                     
                     <p><label for="${prefix}_costo_proyectado">Costo Proyectado de la Obra (*):</label>
-                        <input type="text" id="${prefix}_costo_proyectado" name="${prefix}_costo_proyectado" required></p>
+                        <input type="text" id="${prefix}_costo_proyectado" name="${prefix}_costo_proyectado"></p>
                     
                     <p><label for="${prefix}_pago_por_realizado">Pago realizado por (*):</label>
-                        <select id="${prefix}_pago_por_realizado" name="${prefix}_pago_por_realizado" required>
+                        <select id="${prefix}_pago_por_realizado" name="${prefix}_pago_por_realizado">
                             <option value="Inter">Inter</option>
                             <option value="Cliente">Cliente</option>
                         </select></p>
@@ -2487,12 +2487,12 @@
                     <h5>Pago x VGT CANTV</h5>
                     <div class="calculation-group">
                         <label for="${prefix}_precio_unitario">Precio Unitario (*):</label>
-                        <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario" name="${prefix}_precio_unitario" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input" required>
+                        <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario" name="${prefix}_precio_unitario" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input">
                         
                         <span class="formula-symbol">X</span>
                         
                         <label for="${prefix}_puntos">Puntos (*):</label>
-                        <input type="number" step="1" min="0" id="${prefix}_puntos" name="${prefix}_puntos" placeholder="0" oninput="${onChangeFunc}" class="calculation-input" required>
+                        <input type="number" step="1" min="0" id="${prefix}_puntos" name="${prefix}_puntos" placeholder="0" oninput="${onChangeFunc}" class="calculation-input">
                         
                         <span class="formula-symbol">=</span>
                         
@@ -2509,12 +2509,12 @@
                     <h5>Pago x VGT EDC</h5>
                     <div class="calculation-group">
                         <label for="${prefix}_precio_unitario1">Precio Unitario (*):</label>
-                        <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario1" name="${prefix}_precio_unitario1" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input" required>
+                        <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario1" name="${prefix}_precio_unitario1" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input">
                         
                         <span class="formula-symbol">X</span>
                         
                         <label for="${prefix}_puntos1">Puntos (*):</label>
-                        <input type="number" step="1" min="0" id="${prefix}_puntos1" name="${prefix}_puntos1" placeholder="0" oninput="${onChangeFunc}" class="calculation-input" required>
+                        <input type="number" step="1" min="0" id="${prefix}_puntos1" name="${prefix}_puntos1" placeholder="0" oninput="${onChangeFunc}" class="calculation-input">
                         
                         <span class="formula-symbol">=</span>
                         
@@ -2528,10 +2528,10 @@
                     <hr>
 
                     <p><label for="${prefix}_descripcion">Descripción (*):</label>
-                        <textarea id="${prefix}_descripcion" name="${prefix}_descripcion" required style="min-height: 120px;"></textarea></p>
+                        <textarea id="${prefix}_descripcion" name="${prefix}_descripcion" style="min-height: 120px;"></textarea></p>
                     
                     <p><label for="${prefix}_abono_mensual">Abono Mensual a Recibir por el cliente (*):</label>
-                        <input type="text" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual" required></p>
+                        <input type="text" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual"></p>
                         
                 </div>
             `;
@@ -2666,21 +2666,18 @@
                 for (const campo of camposCondicionales) {
                     if (!campo) {
                         console.error(`Campo condicional no encontrado: ${prefix}`);
-                        firstInvalidField = document.getElementById(`check_${prefix}`);
                         break;
                     }
                     
-                    if (campo.type === 'text' || campo.type === 'select' || campo.tagName === 'TEXTAREA' || campo.type === 'date') {
-                        if (!campo.value.trim()) {
-                            firstInvalidField = campo;
-                            break;
-                        }
-                    } 
-                    else if (campo.type === 'number') {
-                        const numericValue = parseFloat(campo.value.replace(',', '.'));
-                        if (isNaN(numericValue) || numericValue < 0) {
-                            firstInvalidField = campo;
-                            break;
+                    // Los campos condicionales ya no son obligatorios
+                    // Solo validar si tienen contenido
+                    if (campo.value && campo.value.trim()) {
+                        if (campo.type === 'number') {
+                            const numericValue = parseFloat(campo.value.replace(',', '.'));
+                            if (isNaN(numericValue) || numericValue < 0) {
+                                firstInvalidField = campo;
+                                break;
+                            }
                         }
                     }
                 }
@@ -2695,10 +2692,8 @@
                 return false;
             }
 
-            if (!selectedType) {
-                alert('⚠️ Debe seleccionar un tipo de construcción (Nodo de Acceso o ISP).');
-                return false;
-            }
+            // MODIFICACIÓN: Ya no se requiere seleccionar un tipo de construcción
+            // La selección de tipo de construcción es opcional
 
             return true;
         }
