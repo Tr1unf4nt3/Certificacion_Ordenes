@@ -1637,145 +1637,6 @@
             }
         };
 
-        // *** NUEVA FUNCIÓN MEJORADA: Normalizar nombre de empresa para comparación ***
-        function normalizeCompanyName(companyName) {
-            if (!companyName) return '';
-            
-            // Convertir a minúsculas
-            let normalized = companyName.toLowerCase();
-            
-            // Eliminar espacios múltiples y espacios al inicio/final
-            normalized = normalized.trim().replace(/\s+/g, ' ');
-            
-            // Eliminar caracteres especiales y acentos (simplificado)
-            normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            
-            // Reemplazar "&" por "y" para uniformidad
-            normalized = normalized.replace(/&/g, 'y');
-            
-            // Eliminar puntos y comas
-            normalized = normalized.replace(/[.,]/g, '');
-            
-            // Normalizar espacios alrededor de "C.A"
-            normalized = normalized.replace(/\s*c\.a\s*/g, ' c.a');
-            
-            // Eliminar año (como "2023") para hacer más flexible la búsqueda
-            normalized = normalized.replace(/\s*\d{4}\s*/g, ' ');
-            
-            // Eliminar "servicios" para hacer más flexible
-            normalized = normalized.replace(/\s*servicios\s*/g, ' ');
-            
-            // Eliminar palabras comunes que no afectan la identificación
-            const commonWords = ['corporacion', 'inversiones', 'multiservicios', 'tecnologia', 'innovacion', 'distribuidora', 'telecomunicaciones', 'soluciones', 'integral', 'red', 'redes'];
-            commonWords.forEach(word => {
-                normalized = normalized.replace(new RegExp('\\s*' + word + '\\s*', 'g'), ' ');
-            });
-            
-            // Eliminar espacios extras nuevamente
-            normalized = normalized.replace(/\s+/g, ' ').trim();
-            
-            return normalized;
-        }
-
-        // *** FUNCIÓN MEJORADA: Buscar empresa en orden - CORRECCIÓN PARA LAS EMPRESAS PROBLEMÁTICAS ***
-        function findCompanyInOrder(order, selectedCompany) {
-            if (!order || !selectedCompany) return false;
-            
-            // Normalizar nombre de empresa seleccionada
-            const normalizedSelectedCompany = normalizeCompanyName(selectedCompany);
-            
-            console.log('Buscando empresa:', selectedCompany, 'Normalizada:', normalizedSelectedCompany);
-            
-            // Buscar en todos los campos de la orden
-            for (const key in order) {
-                if (typeof order[key] === 'string' && order[key].trim() !== '') {
-                    // Normalizar el valor del campo
-                    const normalizedFieldValue = normalizeCompanyName(order[key]);
-                    
-                    console.log('Campo:', key, 'Valor:', order[key], 'Normalizado:', normalizedFieldValue);
-                    
-                    // CASO ESPECIAL: G&D INTEGRAL RED 2023
-                    if (selectedCompany.includes("G&D INTEGRAL RED 2023")) {
-                        const variations = [
-                            "g&d integral red 2023",
-                            "g&d integral red",
-                            "g d integral red 2023",
-                            "g y d integral red 2023",
-                            "g&d integral red 2023",
-                            "gyd integral red 2023",
-                            "g d integral red",
-                            "gd integral red"
-                        ];
-                        
-                        for (const variation of variations) {
-                            const normalizedVariation = normalizeCompanyName(variation);
-                            if (normalizedFieldValue.includes(normalizedVariation) || 
-                                normalizedVariation.includes(normalizedFieldValue)) {
-                                console.log('✅ Encontrada variación G&D:', variation);
-                                return true;
-                            }
-                        }
-                    }
-                    
-                    // CASO ESPECIAL: SERVICIOS J&G SOLUTION C.A
-                    if (selectedCompany.includes("SERVICIOS J&G SOLUTION")) {
-                        const variations = [
-                            "servicios j&g solution c.a",
-                            "servicios j&g solution",
-                            "servicios j y g solution c.a",
-                            "servicios j g solution c.a",
-                            "servicios j&g solution  c.a",
-                            "servicios jyg solution c.a",
-                            "servicios j g solution",
-                            "j&g solution"
-                        ];
-                        
-                        for (const variation of variations) {
-                            const normalizedVariation = normalizeCompanyName(variation);
-                            if (normalizedFieldValue.includes(normalizedVariation) || 
-                                normalizedVariation.includes(normalizedFieldValue)) {
-                                console.log('✅ Encontrada variación J&G:', variation);
-                                return true;
-                            }
-                        }
-                    }
-                    
-                    // Comparación directa normalizada
-                    if (normalizedFieldValue === normalizedSelectedCompany) {
-                        console.log('✅ Coincidencia exacta normalizada');
-                        return true;
-                    }
-                    
-                    // Comparación por inclusión (para casos donde hay texto adicional)
-                    if (normalizedFieldValue.includes(normalizedSelectedCompany) || 
-                        normalizedSelectedCompany.includes(normalizedFieldValue)) {
-                        console.log('✅ Coincidencia por inclusión');
-                        return true;
-                    }
-                    
-                    // Comparación por palabras clave (último recurso)
-                    const selectedWords = normalizedSelectedCompany.split(' ').filter(w => w.length > 2);
-                    const fieldWords = normalizedFieldValue.split(' ').filter(w => w.length > 2);
-                    
-                    let matchingWords = 0;
-                    selectedWords.forEach(word => {
-                        if (fieldWords.includes(word)) {
-                            matchingWords++;
-                        }
-                    });
-                    
-                    // Si al menos 2 palabras coinciden, considerar como match
-                    if (matchingWords >= 2) {
-                        console.log('✅ Coincidencia por palabras clave:', matchingWords, 'palabras');
-                        return true;
-                    }
-                }
-            }
-            
-            console.log('❌ No se encontró coincidencia');
-            return false;
-        }
-
         // Estructura inicial por defecto CON EL NUEVO CAMPO DE AÑO
         const DEFAULT_FORM_STRUCTURE = [
             { title: "I. Información General", fields: [
@@ -2483,7 +2344,7 @@
             });
             
             formElement.innerHTML += `
-                <h4>Tipo de Construcción (Selección Opcional)</h4>
+                <h4>Tipo de Construcción (Selección Única)</h4>
                 <button type="button" class="conditional-check" id="check_node_acceso" onclick="toggleConditionalSection('node_acceso')">
                     La Construcción es de un Nodo de Acceso
                 </button>
@@ -2524,10 +2385,10 @@
                     <h4>${title}</h4>
                     
                     <p><label for="${prefix}_costo_proyectado">Costo Proyectado de la Obra (*):</label>
-                        <input type="text" id="${prefix}_costo_proyectado" name="${prefix}_costo_proyectado"></p>
+                        <input type="text" id="${prefix}_costo_proyectado" name="${prefix}_costo_proyectado" required></p>
                     
                     <p><label for="${prefix}_pago_por_realizado">Pago realizado por (*):</label>
-                        <select id="${prefix}_pago_por_realizado" name="${prefix}_pago_por_realizado">
+                        <select id="${prefix}_pago_por_realizado" name="${prefix}_pago_por_realizado" required>
                             <option value="Inter">Inter</option>
                             <option value="Cliente">Cliente</option>
                         </select></p>
@@ -2538,12 +2399,12 @@
                     <h5>Pago x VGT CANTV</h5>
                     <div class="calculation-group">
                         <label for="${prefix}_precio_unitario">Precio Unitario (*):</label>
-                        <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario" name="${prefix}_precio_unitario" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input">
+                        <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario" name="${prefix}_precio_unitario" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input" required>
                         
                         <span class="formula-symbol">X</span>
                         
                         <label for="${prefix}_puntos">Puntos (*):</label>
-                        <input type="number" step="1" min="0" id="${prefix}_puntos" name="${prefix}_puntos" placeholder="0" oninput="${onChangeFunc}" class="calculation-input">
+                        <input type="number" step="1" min="0" id="${prefix}_puntos" name="${prefix}_puntos" placeholder="0" oninput="${onChangeFunc}" class="calculation-input" required>
                         
                         <span class="formula-symbol">=</span>
                         
@@ -2560,12 +2421,12 @@
                     <h5>Pago x VGT EDC</h5>
                     <div class="calculation-group">
                         <label for="${prefix}_precio_unitario1">Precio Unitario (*):</label>
-                        <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario1" name="${prefix}_precio_unitario1" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input">
+                        <input type="number" step="0.01" min="0" id="${prefix}_precio_unitario1" name="${prefix}_precio_unitario1" placeholder="0.00" oninput="${onChangeFunc}" class="calculation-input" required>
                         
                         <span class="formula-symbol">X</span>
                         
                         <label for="${prefix}_puntos1">Puntos (*):</label>
-                        <input type="number" step="1" min="0" id="${prefix}_puntos1" name="${prefix}_puntos1" placeholder="0" oninput="${onChangeFunc}" class="calculation-input">
+                        <input type="number" step="1" min="0" id="${prefix}_puntos1" name="${prefix}_puntos1" placeholder="0" oninput="${onChangeFunc}" class="calculation-input" required>
                         
                         <span class="formula-symbol">=</span>
                         
@@ -2579,10 +2440,10 @@
                     <hr>
 
                     <p><label for="${prefix}_descripcion">Descripción (*):</label>
-                        <textarea id="${prefix}_descripcion" name="${prefix}_descripcion" style="min-height: 120px;"></textarea></p>
+                        <textarea id="${prefix}_descripcion" name="${prefix}_descripcion" required style="min-height: 120px;"></textarea></p>
                     
                     <p><label for="${prefix}_abono_mensual">Abono Mensual a Recibir por el cliente (*):</label>
-                        <input type="text" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual"></p>
+                        <input type="text" id="${prefix}_abono_mensual" name="${prefix}_abono_mensual" required></p>
                         
                 </div>
             `;
@@ -2717,18 +2578,21 @@
                 for (const campo of camposCondicionales) {
                     if (!campo) {
                         console.error(`Campo condicional no encontrado: ${prefix}`);
+                        firstInvalidField = document.getElementById(`check_${prefix}`);
                         break;
                     }
                     
-                    // Los campos condicionales ya no son obligatorios
-                    // Solo validar si tienen contenido
-                    if (campo.value && campo.value.trim()) {
-                        if (campo.type === 'number') {
-                            const numericValue = parseFloat(campo.value.replace(',', '.'));
-                            if (isNaN(numericValue) || numericValue < 0) {
-                                firstInvalidField = campo;
-                                break;
-                            }
+                    if (campo.type === 'text' || campo.type === 'select' || campo.tagName === 'TEXTAREA' || campo.type === 'date') {
+                        if (!campo.value.trim()) {
+                            firstInvalidField = campo;
+                            break;
+                        }
+                    } 
+                    else if (campo.type === 'number') {
+                        const numericValue = parseFloat(campo.value.replace(',', '.'));
+                        if (isNaN(numericValue) || numericValue < 0) {
+                            firstInvalidField = campo;
+                            break;
                         }
                     }
                 }
@@ -2743,8 +2607,10 @@
                 return false;
             }
 
-            // MODIFICACIÓN: Ya no se requiere seleccionar un tipo de construcción
-            // La selección de tipo de construcción es opcional
+            if (!selectedType) {
+                alert('⚠️ Debe seleccionar un tipo de construcción (Nodo de Acceso o ISP).');
+                return false;
+            }
 
             return true;
         }
@@ -4068,7 +3934,7 @@
         }
 
         /**
-         * *** FUNCIÓN CORREGIDA Y MEJORADA: Actualiza las órdenes disponibles cuando se selecciona una empresa ***
+         * Actualiza las órdenes disponibles cuando se selecciona una empresa
          */
         function updateOrdersForCertification() {
             const companySelect = document.getElementById('certification-company');
@@ -4085,49 +3951,29 @@
                 return;
             }
             
-            console.log(`🔍 Buscando órdenes para empresa: "${selectedCompany}"`);
-            
             // Obtener IDs de órdenes ya certificadas
             const certifiedOrderIds = getCertifiedOrderIds();
             
-            // *** CORRECCIÓN: Usar la función mejorada de búsqueda flexible ***
+            // Filtrar órdenes finalizadas para la empresa seleccionada
             const ordersForCompany = completedOrders.filter(order => {
                 // Verificar si la orden ya está en una certificación final
                 if (certifiedOrderIds.has(order.id)) {
-                    console.log(`Orden ${order['Orden de Trabajo']} ya está certificada, omitiendo`);
                     return false;
                 }
                 
-                // *** USAR LA FUNCIÓN MEJORADA DE BÚSQUEDA FLEXIBLE ***
-                const found = findCompanyInOrder(order, selectedCompany);
-                if (found) {
-                    console.log(`✅ Encontrada orden ${order['Orden de Trabajo']} para empresa ${selectedCompany}`);
+                // Buscar en todos los campos que puedan contener el nombre de la empresa
+                for (const key in order) {
+                    if (order[key] === selectedCompany) {
+                        return true;
+                    }
                 }
-                return found;
+                return false;
             });
-            
-            console.log(`📊 Encontradas ${ordersForCompany.length} órdenes para ${selectedCompany}`);
             
             if (ordersForCompany.length === 0) {
                 ordersContainer.style.display = 'none';
-                
-                // Verificar si no hay órdenes o si todas están certificadas
-                const allOrdersForCompany = completedOrders.filter(order => 
-                    findCompanyInOrder(order, selectedCompany)
-                );
-                
-                console.log(`📊 Total de órdenes para ${selectedCompany} (incluyendo certificadas): ${allOrdersForCompany.length}`);
-                
-                if (allOrdersForCompany.length === 0) {
-                    noOrdersMessage.style.display = 'block';
-                    allOrdersCertifiedMessage.style.display = 'none';
-                    console.log(`❌ No se encontraron órdenes para ${selectedCompany}`);
-                } else {
-                    noOrdersMessage.style.display = 'none';
-                    allOrdersCertifiedMessage.style.display = 'block';
-                    console.log(`ℹ️ Todas las órdenes de ${selectedCompany} ya están certificadas`);
-                }
-                
+                noOrdersMessage.style.display = 'none';
+                allOrdersCertifiedMessage.style.display = 'block';
                 updateCertificationTotal();
                 return;
             }
@@ -5948,10 +5794,9 @@
          * Obtiene la empresa de una orden
          */
         function getCompanyFromOrder(order) {
-            // *** USAR LA FUNCIÓN MEJORADA DE BÚSQUEDA FLEXIBLE ***
-            for (const key in CONTRATISTAS_DATA) {
-                if (key !== "Seleccione una Empresa" && findCompanyInOrder(order, key)) {
-                    return key;
+            for (const key in order) {
+                if (key.includes('Empresa') && order[key] && order[key] !== 'N/A' && order[key] !== 'Seleccione una Empresa') {
+                    return order[key];
                 }
             }
             return 'No especificada';
@@ -6157,10 +6002,18 @@
             const empresa = certification['Empresa'];
             const certifiedOrderIds = new Set(certification['Órdenes Realizadas'].map(o => o.id));
             
-            // *** CORRECCIÓN: Usar la función mejorada de búsqueda flexible ***
+            // Filtrar órdenes de la misma empresa que no estén ya certificadas
             const availableOrders = completedOrders.filter(order => {
-                // Verificar empresa usando búsqueda flexible mejorada
-                if (!findCompanyInOrder(order, empresa)) return false;
+                // Verificar empresa
+                let isSameCompany = false;
+                for (const key in order) {
+                    if (order[key] === empresa) {
+                        isSameCompany = true;
+                        break;
+                    }
+                }
+                
+                if (!isSameCompany) return false;
                 
                 // Verificar que no esté ya en esta certificación
                 if (certifiedOrderIds.has(order.id)) return false;
@@ -6259,9 +6112,15 @@
             
             // Agregar a la lista de disponibles (si corresponde)
             const empresa = currentCertificationForManagement['Empresa'];
+            let isSameCompany = false;
+            for (const key in order) {
+                if (order[key] === empresa) {
+                    isSameCompany = true;
+                    break;
+                }
+            }
             
-            // *** USAR LA FUNCIÓN MEJORADA DE BÚSQUEDA FLEXIBLE ***
-            if (findCompanyInOrder(order, empresa)) {
+            if (isSameCompany) {
                 const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
                 
                 const orderItem = document.createElement('div');
@@ -6471,10 +6330,18 @@
             const empresa = certification['Empresa'];
             const certifiedOrderIds = new Set(certification['Órdenes Realizadas'].map(o => o.id));
             
-            // *** CORRECCIÓN: Usar la función mejorada de búsqueda flexible ***
+            // Filtrar órdenes de la misma empresa que no estén ya certificadas
             const availableOrders = completedOrders.filter(order => {
-                // Verificar empresa usando búsqueda flexible mejorada
-                if (!findCompanyInOrder(order, empresa)) return false;
+                // Verificar empresa
+                let isSameCompany = false;
+                for (const key in order) {
+                    if (order[key] === empresa) {
+                        isSameCompany = true;
+                        break;
+                    }
+                }
+                
+                if (!isSameCompany) return false;
                 
                 // Verificar que no esté ya en esta certificación
                 if (certifiedOrderIds.has(order.id)) return false;
@@ -6606,9 +6473,15 @@
             
             // Agregar a la lista de disponibles (si corresponde a la empresa)
             const empresa = currentCertificationForManagement['Empresa'];
+            let isSameCompany = false;
+            for (const key in order) {
+                if (order[key] === empresa) {
+                    isSameCompany = true;
+                    break;
+                }
+            }
             
-            // *** USAR LA FUNCIÓN MEJORADA DE BÚSQUEDA FLEXIBLE ***
-            if (findCompanyInOrder(order, empresa)) {
+            if (isSameCompany) {
                 const availableList = document.getElementById('modal-available-orders');
                 
                 // Si el mensaje de "no hay órdenes" está visible, eliminarlo
