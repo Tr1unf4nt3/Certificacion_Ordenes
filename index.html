@@ -1637,7 +1637,7 @@
             }
         };
 
-        // *** NUEVA FUNCIÓN: Normalizar nombre de empresa para comparación ***
+        // *** NUEVA FUNCIÓN MEJORADA: Normalizar nombre de empresa para comparación ***
         function normalizeCompanyName(companyName) {
             if (!companyName) return '';
             
@@ -1659,15 +1659,32 @@
             // Normalizar espacios alrededor de "C.A"
             normalized = normalized.replace(/\s*c\.a\s*/g, ' c.a');
             
+            // Eliminar año (como "2023") para hacer más flexible la búsqueda
+            normalized = normalized.replace(/\s*\d{4}\s*/g, ' ');
+            
+            // Eliminar "servicios" para hacer más flexible
+            normalized = normalized.replace(/\s*servicios\s*/g, ' ');
+            
+            // Eliminar palabras comunes que no afectan la identificación
+            const commonWords = ['corporacion', 'inversiones', 'multiservicios', 'tecnologia', 'innovacion', 'distribuidora', 'telecomunicaciones', 'soluciones', 'integral', 'red', 'redes'];
+            commonWords.forEach(word => {
+                normalized = normalized.replace(new RegExp('\\s*' + word + '\\s*', 'g'), ' ');
+            });
+            
+            // Eliminar espacios extras nuevamente
+            normalized = normalized.replace(/\s+/g, ' ').trim();
+            
             return normalized;
         }
 
-        // *** FUNCIÓN MEJORADA: Buscar empresa en orden ***
+        // *** FUNCIÓN MEJORADA: Buscar empresa en orden - CORRECCIÓN PARA LAS EMPRESAS PROBLEMÁTICAS ***
         function findCompanyInOrder(order, selectedCompany) {
             if (!order || !selectedCompany) return false;
             
             // Normalizar nombre de empresa seleccionada
             const normalizedSelectedCompany = normalizeCompanyName(selectedCompany);
+            
+            console.log('Buscando empresa:', selectedCompany, 'Normalizada:', normalizedSelectedCompany);
             
             // Buscar en todos los campos de la orden
             for (const key in order) {
@@ -1675,35 +1692,32 @@
                     // Normalizar el valor del campo
                     const normalizedFieldValue = normalizeCompanyName(order[key]);
                     
-                    // Comparación flexible
-                    if (normalizedFieldValue === normalizedSelectedCompany) {
-                        return true;
-                    }
+                    console.log('Campo:', key, 'Valor:', order[key], 'Normalizado:', normalizedFieldValue);
                     
-                    // También verificar si contiene el nombre de la empresa (para casos de variaciones)
-                    if (normalizedFieldValue.includes(normalizedSelectedCompany) || 
-                        normalizedSelectedCompany.includes(normalizedFieldValue)) {
-                        return true;
-                    }
-                    
-                    // Casos especiales para las empresas problemáticas
+                    // CASO ESPECIAL: G&D INTEGRAL RED 2023
                     if (selectedCompany.includes("G&D INTEGRAL RED 2023")) {
                         const variations = [
                             "g&d integral red 2023",
                             "g&d integral red",
                             "g d integral red 2023",
                             "g y d integral red 2023",
-							"G&amp;D INTEGRAL RED 2023"
+                            "g&d integral red 2023",
+                            "gyd integral red 2023",
+                            "g d integral red",
+                            "gd integral red"
                         ];
                         
                         for (const variation of variations) {
-                            if (normalizedFieldValue.includes(variation) || 
-                                normalizedFieldValue === variation) {
+                            const normalizedVariation = normalizeCompanyName(variation);
+                            if (normalizedFieldValue.includes(normalizedVariation) || 
+                                normalizedVariation.includes(normalizedFieldValue)) {
+                                console.log('✅ Encontrada variación G&D:', variation);
                                 return true;
                             }
                         }
                     }
                     
+                    // CASO ESPECIAL: SERVICIOS J&G SOLUTION C.A
                     if (selectedCompany.includes("SERVICIOS J&G SOLUTION")) {
                         const variations = [
                             "servicios j&g solution c.a",
@@ -1711,19 +1725,54 @@
                             "servicios j y g solution c.a",
                             "servicios j g solution c.a",
                             "servicios j&g solution  c.a",
-							"SERVICIOS J&amp;G SOLUTION  C.A"// Con doble espacio
+                            "servicios jyg solution c.a",
+                            "servicios j g solution",
+                            "j&g solution"
                         ];
                         
                         for (const variation of variations) {
-                            if (normalizedFieldValue.includes(variation) || 
-                                normalizedFieldValue === variation) {
+                            const normalizedVariation = normalizeCompanyName(variation);
+                            if (normalizedFieldValue.includes(normalizedVariation) || 
+                                normalizedVariation.includes(normalizedFieldValue)) {
+                                console.log('✅ Encontrada variación J&G:', variation);
                                 return true;
                             }
                         }
                     }
+                    
+                    // Comparación directa normalizada
+                    if (normalizedFieldValue === normalizedSelectedCompany) {
+                        console.log('✅ Coincidencia exacta normalizada');
+                        return true;
+                    }
+                    
+                    // Comparación por inclusión (para casos donde hay texto adicional)
+                    if (normalizedFieldValue.includes(normalizedSelectedCompany) || 
+                        normalizedSelectedCompany.includes(normalizedFieldValue)) {
+                        console.log('✅ Coincidencia por inclusión');
+                        return true;
+                    }
+                    
+                    // Comparación por palabras clave (último recurso)
+                    const selectedWords = normalizedSelectedCompany.split(' ').filter(w => w.length > 2);
+                    const fieldWords = normalizedFieldValue.split(' ').filter(w => w.length > 2);
+                    
+                    let matchingWords = 0;
+                    selectedWords.forEach(word => {
+                        if (fieldWords.includes(word)) {
+                            matchingWords++;
+                        }
+                    });
+                    
+                    // Si al menos 2 palabras coinciden, considerar como match
+                    if (matchingWords >= 2) {
+                        console.log('✅ Coincidencia por palabras clave:', matchingWords, 'palabras');
+                        return true;
+                    }
                 }
             }
             
+            console.log('❌ No se encontró coincidencia');
             return false;
         }
 
@@ -4019,7 +4068,7 @@
         }
 
         /**
-         * *** FUNCIÓN CORREGIDA: Actualiza las órdenes disponibles cuando se selecciona una empresa ***
+         * *** FUNCIÓN CORREGIDA Y MEJORADA: Actualiza las órdenes disponibles cuando se selecciona una empresa ***
          */
         function updateOrdersForCertification() {
             const companySelect = document.getElementById('certification-company');
@@ -4036,19 +4085,28 @@
                 return;
             }
             
+            console.log(`🔍 Buscando órdenes para empresa: "${selectedCompany}"`);
+            
             // Obtener IDs de órdenes ya certificadas
             const certifiedOrderIds = getCertifiedOrderIds();
             
-            // *** MODIFICACIÓN: Usar la nueva función de búsqueda flexible ***
+            // *** CORRECCIÓN: Usar la función mejorada de búsqueda flexible ***
             const ordersForCompany = completedOrders.filter(order => {
                 // Verificar si la orden ya está en una certificación final
                 if (certifiedOrderIds.has(order.id)) {
+                    console.log(`Orden ${order['Orden de Trabajo']} ya está certificada, omitiendo`);
                     return false;
                 }
                 
-                // *** USAR LA NUEVA FUNCIÓN DE BÚSQUEDA FLEXIBLE ***
-                return findCompanyInOrder(order, selectedCompany);
+                // *** USAR LA FUNCIÓN MEJORADA DE BÚSQUEDA FLEXIBLE ***
+                const found = findCompanyInOrder(order, selectedCompany);
+                if (found) {
+                    console.log(`✅ Encontrada orden ${order['Orden de Trabajo']} para empresa ${selectedCompany}`);
+                }
+                return found;
             });
+            
+            console.log(`📊 Encontradas ${ordersForCompany.length} órdenes para ${selectedCompany}`);
             
             if (ordersForCompany.length === 0) {
                 ordersContainer.style.display = 'none';
@@ -4058,12 +4116,16 @@
                     findCompanyInOrder(order, selectedCompany)
                 );
                 
+                console.log(`📊 Total de órdenes para ${selectedCompany} (incluyendo certificadas): ${allOrdersForCompany.length}`);
+                
                 if (allOrdersForCompany.length === 0) {
                     noOrdersMessage.style.display = 'block';
                     allOrdersCertifiedMessage.style.display = 'none';
+                    console.log(`❌ No se encontraron órdenes para ${selectedCompany}`);
                 } else {
                     noOrdersMessage.style.display = 'none';
                     allOrdersCertifiedMessage.style.display = 'block';
+                    console.log(`ℹ️ Todas las órdenes de ${selectedCompany} ya están certificadas`);
                 }
                 
                 updateCertificationTotal();
@@ -5886,7 +5948,7 @@
          * Obtiene la empresa de una orden
          */
         function getCompanyFromOrder(order) {
-            // *** USAR LA NUEVA FUNCIÓN DE BÚSQUEDA FLEXIBLE ***
+            // *** USAR LA FUNCIÓN MEJORADA DE BÚSQUEDA FLEXIBLE ***
             for (const key in CONTRATISTAS_DATA) {
                 if (key !== "Seleccione una Empresa" && findCompanyInOrder(order, key)) {
                     return key;
@@ -6095,9 +6157,9 @@
             const empresa = certification['Empresa'];
             const certifiedOrderIds = new Set(certification['Órdenes Realizadas'].map(o => o.id));
             
-            // *** MODIFICACIÓN: Usar la nueva función de búsqueda flexible ***
+            // *** CORRECCIÓN: Usar la función mejorada de búsqueda flexible ***
             const availableOrders = completedOrders.filter(order => {
-                // Verificar empresa usando búsqueda flexible
+                // Verificar empresa usando búsqueda flexible mejorada
                 if (!findCompanyInOrder(order, empresa)) return false;
                 
                 // Verificar que no esté ya en esta certificación
@@ -6198,7 +6260,7 @@
             // Agregar a la lista de disponibles (si corresponde)
             const empresa = currentCertificationForManagement['Empresa'];
             
-            // *** USAR LA NUEVA FUNCIÓN DE BÚSQUEDA FLEXIBLE ***
+            // *** USAR LA FUNCIÓN MEJORADA DE BÚSQUEDA FLEXIBLE ***
             if (findCompanyInOrder(order, empresa)) {
                 const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
                 
@@ -6409,9 +6471,9 @@
             const empresa = certification['Empresa'];
             const certifiedOrderIds = new Set(certification['Órdenes Realizadas'].map(o => o.id));
             
-            // *** MODIFICACIÓN: Usar la nueva función de búsqueda flexible ***
+            // *** CORRECCIÓN: Usar la función mejorada de búsqueda flexible ***
             const availableOrders = completedOrders.filter(order => {
-                // Verificar empresa usando búsqueda flexible
+                // Verificar empresa usando búsqueda flexible mejorada
                 if (!findCompanyInOrder(order, empresa)) return false;
                 
                 // Verificar que no esté ya en esta certificación
@@ -6545,7 +6607,7 @@
             // Agregar a la lista de disponibles (si corresponde a la empresa)
             const empresa = currentCertificationForManagement['Empresa'];
             
-            // *** USAR LA NUEVA FUNCIÓN DE BÚSQUEDA FLEXIBLE ***
+            // *** USAR LA FUNCIÓN MEJORADA DE BÚSQUEDA FLEXIBLE ***
             if (findCompanyInOrder(order, empresa)) {
                 const availableList = document.getElementById('modal-available-orders');
                 
@@ -6844,4 +6906,3 @@
 
 </body>
 </html>
-
