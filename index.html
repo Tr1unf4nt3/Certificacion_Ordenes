@@ -34,6 +34,7 @@
             --color-certification: #9C27B0; /* Púrpura para certificaciones finales */
             --color-certified: #4CAF50;  /* Verde para certificadas */
             --color-not-certified: #FF9800; /* Naranja para no certificadas */
+            --color-admin-action: #6A5ACD; /* Azul admin para acciones especiales */
         }
 
         /* Estilos Generales (Diseño Pastel) */
@@ -644,6 +645,143 @@
             opacity: 0.9;
         }
 
+        /* NUEVOS ESTILOS PARA ACCIONES DE ADMINISTRADOR */
+        .admin-actions-section {
+            border: 2px solid var(--color-admin-action);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #f0f8ff;
+        }
+        
+        .admin-actions-section h4 {
+            color: var(--color-admin-action);
+            border-bottom: 1px solid var(--color-admin-action);
+            margin-top: 0;
+        }
+        
+        .admin-actions-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .admin-action-button {
+            background-color: var(--color-admin-action);
+            color: white;
+            font-weight: bold;
+            padding: 10px 15px;
+        }
+        
+        .admin-action-button:hover {
+            background-color: #483D8B;
+        }
+        
+        /* Modal para gestión de certificaciones */
+        .certification-management-modal {
+            max-width: 900px;
+            width: 95%;
+        }
+        
+        .certification-management-content {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .available-orders-section,
+        .certified-orders-section {
+            flex: 1;
+            border: 1px solid var(--color-secondary);
+            border-radius: 6px;
+            padding: 15px;
+            background-color: var(--color-bg);
+        }
+        
+        .available-orders-list,
+        .certified-orders-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: var(--color-white);
+            border: 1px solid var(--color-secondary);
+            border-radius: 4px;
+        }
+        
+        .order-management-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            border: 1px solid var(--color-secondary);
+            border-radius: 4px;
+            background-color: var(--color-white);
+        }
+        
+        .order-management-item:hover {
+            background-color: var(--color-primary);
+        }
+        
+        .order-management-info {
+            flex: 1;
+        }
+        
+        .order-management-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .move-order-button {
+            background-color: var(--color-certification);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .move-order-button:hover {
+            opacity: 0.8;
+        }
+        
+        .move-order-button.remove {
+            background-color: var(--color-error);
+        }
+
+        /* Indicadores de carga */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            color: white;
+            font-size: 1.2em;
+            flex-direction: column;
+        }
+        
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--color-primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
     </style>
 </head>
 <body>
@@ -654,6 +792,12 @@
         <input type="password" id="password" placeholder="Contraseña" required><br>
         <button onclick="login()">Acceder</button>
         <p id="login-error"></p>
+    </div>
+
+    <!-- Overlay de carga -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div id="loading-message">Cargando...</div>
     </div>
 
     <div id="main-app" class="container" style="display: none;">
@@ -667,6 +811,7 @@
             <button class="tablinks" onclick="openTab(event, 'final-certification')">📜 Certificación Final</button>
             <button class="tablinks" onclick="openTab(event, 'view-certifications')">📋 Certificaciones Finales</button>
             <button class="tablinks" id="edit-tab-button" onclick="openTab(event, 'edit-form')" style="display: none;">⚙️ Edición de Formulario</button>
+            <button class="tablinks" id="admin-tools-tab-button" onclick="openTab(event, 'admin-tools')" style="display: none;">🛠️ Herramientas Admin</button>
             <button onclick="logout()" style="float: right;">🚪 Cerrar Sesión</button>
         </div>
 
@@ -677,6 +822,7 @@
             <h3>Nueva Orden de Trabajo</h3>
             <form id="work-order-form"></form>
             <button onclick="generateWorkOrder()">✅ Crear Orden y Generar PDF</button>
+            <button onclick="previewWorkOrder()" style="background-color: var(--color-warning);">👁️ Vista Previa PDF</button>
         </div>
 
         <!-- Pestaña 2: Visualización de Órdenes de Trabajo en Curso -->
@@ -1023,6 +1169,110 @@
                 </p>
             </div>
         </div>
+
+        <!-- Pestaña 7: Herramientas de Administrador (NUEVA) -->
+        <div id="admin-tools" class="tabcontent">
+            <h3>🛠️ Herramientas de Administrador</h3>
+            
+            <!-- SECCIÓN 1: Gestión de Estados de Certificación -->
+            <div class="admin-actions-section">
+                <h4>📊 Gestión de Estados de Certificación</h4>
+                <p>Cambie el estado de certificación de órdenes finalizadas individualmente.</p>
+                
+                <div class="filter-controls" style="margin-top: 15px;">
+                    <div class="filter-group">
+                        <label for="admin-filter-company">Filtrar por Empresa:</label>
+                        <select id="admin-filter-company" onchange="filterOrdersByCompany()">
+                            <option value="">Todas las empresas</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="admin-filter-status">Filtrar por Estado:</label>
+                        <select id="admin-filter-status" onchange="filterOrdersByCertificationStatus()">
+                            <option value="all">Todos los estados</option>
+                            <option value="certified">Solo certificadas</option>
+                            <option value="not-certified">No certificadas</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="admin-orders-list" class="orders-checkbox-group" style="max-height: 400px; margin-top: 15px;">
+                    <!-- Lista de órdenes para gestión -->
+                </div>
+                
+                <div class="admin-actions-buttons">
+                    <button class="admin-action-button" onclick="markSelectedOrdersAsCertified()">
+                        ✅ Marcar como Certificadas
+                    </button>
+                    <button class="admin-action-button" onclick="markSelectedOrdersAsNotCertified()">
+                        🔄 Marcar como No Certificadas
+                    </button>
+                </div>
+            </div>
+            
+            <!-- SECCIÓN 2: Gestión de Certificaciones Finales -->
+            <div class="admin-actions-section">
+                <h4>📋 Gestión de Certificaciones Finales</h4>
+                <p>Agregue o quite órdenes de certificaciones finales ya existentes.</p>
+                
+                <div class="filter-controls" style="margin-top: 15px;">
+                    <div class="filter-group">
+                        <label for="admin-select-certification">Seleccionar Certificación:</label>
+                        <select id="admin-select-certification" onchange="loadCertificationForManagement()">
+                            <option value="">Seleccionar certificación...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="certification-management-container" style="display: none;">
+                    <div class="certification-management-content">
+                        <div class="available-orders-section">
+                            <h5>Órdenes Disponibles</h5>
+                            <p><small>Órdenes finalizadas no certificadas para esta empresa</small></p>
+                            <div id="available-orders-list" class="available-orders-list">
+                                <!-- Órdenes disponibles -->
+                            </div>
+                        </div>
+                        
+                        <div class="certified-orders-section">
+                            <h5>Órdenes en Certificación</h5>
+                            <p><small>Órdenes actualmente en esta certificación</small></p>
+                            <div id="certified-orders-list" class="certified-orders-list">
+                                <!-- Órdenes certificadas -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-actions-buttons" style="margin-top: 20px; justify-content: center;">
+                        <button class="admin-action-button" onclick="saveCertificationChanges()">
+                            💾 Guardar Cambios
+                        </button>
+                        <button class="admin-action-button" onclick="recalculateCertificationTotal()" style="background-color: var(--color-warning);">
+                            🔄 Recalcular Total
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SECCIÓN 3: Herramientas Avanzadas -->
+            <div class="admin-actions-section">
+                <h4>⚙️ Herramientas Avanzadas</h4>
+                
+                <div class="admin-actions-buttons">
+                    <button class="admin-action-button" onclick="recalculateAllCounters()">
+                        🔢 Recalcular Todos los Contadores
+                    </button>
+                    <button class="admin-action-button" onclick="fixDuplicatedOrders()" style="background-color: var(--color-error);">
+                        🛠️ Corregir Órdenes Duplicadas
+                    </button>
+                    <button class="admin-action-button" onclick="generateConsistencyReport()" style="background-color: var(--color-primary);">
+                        📊 Generar Reporte de Consistencia
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Modal para Certificación de Obras -->
@@ -1114,6 +1364,43 @@
         </div>
     </div>
 
+    <!-- Modal para Gestión de Certificaciones (NUEVO) -->
+    <div id="certification-management-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content certification-management-modal">
+            <h3>🛠️ Gestión de Certificación Final</h3>
+            <div id="certification-management-info" style="margin-bottom: 20px;">
+                <!-- Información de la certificación -->
+            </div>
+            
+            <div class="certification-management-content">
+                <div class="available-orders-section">
+                    <h4>Órdenes Disponibles</h4>
+                    <p><small>Órdenes finalizadas no certificadas</small></p>
+                    <div id="modal-available-orders" class="available-orders-list">
+                        <!-- Órdenes disponibles para agregar -->
+                    </div>
+                </div>
+                
+                <div class="certified-orders-section">
+                    <h4>Órdenes en Certificación</h4>
+                    <p><small>Órdenes actualmente en esta certificación</small></p>
+                    <div id="modal-certified-orders" class="certified-orders-list">
+                        <!-- Órdenes actualmente en la certificación -->
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: center;">
+                <p><strong>Total Actual:</strong> <span id="management-total">0.00</span></p>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="modal-back-button" onclick="closeCertificationManagementModal()">← Cancelar</button>
+                <button class="modal-accept-button" onclick="saveManagementChanges()">💾 Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // *** 1. CONFIGURACIÓN FIREBASE Y VARIABLES GLOBALES ***
         
@@ -1152,7 +1439,9 @@
         let completedActiveFilters = [];
         let certificationActiveFilters = [];
         let currentOrderForCertification = null;
-        let certificationFilter = 'all'; // NUEVO: Filtro de certificación
+        let certificationFilter = 'all'; // Filtro de certificación
+        let isGeneratingOrder = false; // NUEVO: Bloqueo para evitar duplicidad concurrente
+        let currentCertificationForManagement = null; // NUEVO: Certificación en gestión
 
         // ----------------------------------------------------------------------------------
         // *** CONFIGURACIÓN DE ROLES CON MÚLTIPLES CORREOS (LISTAS/ARRAYS) ***
@@ -1391,8 +1680,22 @@
         
         // *** 2. LÓGICA DE FIREBASE: CARGA Y GUARDADO ***
 
+        // *** NUEVA FUNCIÓN: Mostrar/Ocultar overlay de carga ***
+        function showLoading(message = 'Cargando...') {
+            const overlay = document.getElementById('loading-overlay');
+            const messageElement = document.getElementById('loading-message');
+            messageElement.textContent = message;
+            overlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loading-overlay');
+            overlay.style.display = 'none';
+        }
+
         async function loadInitialData() {
             try {
+                showLoading('Cargando datos iniciales...');
                 console.log("🔍 Iniciando carga de datos...");
                 
                 // Verificar autenticación primero
@@ -1451,8 +1754,10 @@
                 verifyFormStructurePreservation();
 
                 console.log("🚀 Carga de datos completada exitosamente");
+                hideLoading();
 
             } catch (error) {
+                hideLoading();
                 console.error("❌ Error cargando datos iniciales: ", error);
                 console.error("Código del error:", error.code);
                 console.error("Mensaje del error:", error.message);
@@ -1512,6 +1817,7 @@
             errorElement.textContent = '';
             
             try {
+                showLoading('Iniciando sesión...');
                 const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
                 const user = userCredential.user;
                 
@@ -1524,6 +1830,7 @@
                 initializeApp(role);
                 
             } catch (error) {
+                hideLoading();
                 console.error("Error de autenticación:", error.code, error.message);
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                     errorElement.textContent = 'Credenciales incorrectas o usuario no encontrado.';
@@ -1562,6 +1869,7 @@
 
                 document.getElementById('edit-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
                 document.getElementById('new-order-tab-button').style.display = isCreator ? 'inline-block' : 'none';
+                document.getElementById('admin-tools-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
                 
                 // Cargar datos después de verificar autenticación
                 await loadInitialData(); 
@@ -1637,6 +1945,9 @@
                 initializeCertificationFilters();
             }
             else if (tabName === 'edit-form' && currentRole === 'admin' && formStructure) renderFormEditor();
+            else if (tabName === 'admin-tools' && currentRole === 'admin') {
+                initializeAdminTools();
+            }
         }
         
         // *** 4. LÓGICA DE EDICIÓN DE FORMULARIO (ADMIN) ***
@@ -2114,7 +2425,86 @@
                       .replace(/'/g, '&#039;');
         }
 
-        async function generateWorkOrder() {
+        // *** NUEVA FUNCIÓN: Vista previa de PDF ***
+        function previewWorkOrder() {
+            const form = document.getElementById('work-order-form');
+            const selectedType = document.querySelector('.conditional-check.active');
+            
+            // Validar formulario
+            if (!validateWorkOrderForm()) {
+                return;
+            }
+
+            // Recopilar datos
+            const formData = new FormData(form);
+            const orderData = {};
+            
+            const caracasDate = getCurrentCaracasDate(); 
+            const currentYear = getCurrentCaracasYear();
+            const currentMonth = getCurrentCaracasMonth();
+            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR';
+
+            formStructure.forEach(section => {
+                section.fields.forEach(field => {
+                    let value;
+                    let fieldId = (section.title.includes('II. Información de la Contratista') && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
+                                ? field.label 
+                                : field.id;
+
+                    if (field.type === 'ot_counter') {
+                        // Usar un número temporal para la vista previa
+                        value = `(${currentMonth}-XX)`;
+                    }
+                    else if (field.type === 'user-auto-fill') value = currentUserEmail; 
+                    else if (field.type === 'date-auto') value = caracasDate;
+                    else if (field.type === 'year-auto') value = currentYear.toString();
+                    else if (field.type === 'static') value = field.value;
+                    else {
+                        const inputElement = document.getElementById(fieldId);
+                        value = inputElement ? inputElement.value : formData.get(fieldId);
+                    }
+                    
+                    if (field.type === 'date-input' && value && value.trim() !== '') {
+                        orderData[field.label] = formatDateToDDMMYYYY(value);
+                    } else {
+                        const sanitizedValue = sanitizeInput(value);
+                        orderData[field.label] = (sanitizedValue && sanitizedValue.trim() !== '') ? sanitizedValue : 'N/A';
+                    }
+                });
+            });
+            
+            orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim() : 'Ninguno';
+
+            if (selectedType) {
+                const prefix = selectedType.id.replace('check_', '');
+                
+                calculateNewTotal(prefix); 
+
+                orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value) || 'N/A';
+                orderData[`${prefix} | Pago realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value) || 'N/A';
+                
+                orderData[`${prefix} | Pago x VGT CANTV a cargo de Inter`] = formData.get(`${prefix}_total_hidden`) || '0.00';
+                orderData[`${prefix} | Pago x VGT EDC a cargo de Inter`] = formData.get(`${prefix}_total_hidden1`) || '0.00';
+
+                orderData[`${prefix} | Precio Unitario CANTV`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2) || '0.00';
+                orderData[`${prefix} | Puntos CANTV`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0) || '0'; 
+                
+                orderData[`${prefix} | Precio Unitario EDC`] = parseFloat(document.getElementById(`${prefix}_precio_unitario1`).value.replace(',', '.')).toFixed(2) || '0.00';
+                orderData[`${prefix} | Puntos EDC`] = parseFloat(document.getElementById(`${prefix}_puntos1`).value.replace(',', '.')).toFixed(0) || '0'; 
+
+                orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value) || 'N/A';
+                orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value) || 'N/A';
+            }
+
+            orderData['Estado'] = 'En curso';
+            orderData['Fecha de Creación'] = caracasDate;
+
+            // Generar PDF de vista previa
+            generatePDF(orderData, true);
+        }
+
+        // *** NUEVA FUNCIÓN: Validar formulario de orden de trabajo ***
+        function validateWorkOrderForm() {
             const form = document.getElementById('work-order-form');
             const selectedType = document.querySelector('.conditional-check.active');
             let firstInvalidField = null;
@@ -2181,83 +2571,165 @@
                 firstInvalidField.reportValidity();
                 firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 firstInvalidField.focus();
+                return false;
+            }
+
+            if (!selectedType) {
+                alert('⚠️ Debe seleccionar un tipo de construcción (Nodo de Acceso o ISP).');
+                return false;
+            }
+
+            return true;
+        }
+
+        // *** MODIFICACIÓN IMPORTANTE: Función para evitar duplicidad concurrente ***
+        async function generateWorkOrder() {
+            // Evitar múltiples ejecuciones simultáneas
+            if (isGeneratingOrder) {
+                alert('⏳ Ya se está generando una orden. Por favor, espere...');
                 return;
             }
 
-            const formData = new FormData(form);
-            const orderData = {};
-            
-            const caracasDate = getCurrentCaracasDate(); 
-            const currentYear = getCurrentCaracasYear();
-            const currentMonth = getCurrentCaracasMonth(); // NUEVO: Obtener mes actual
-            const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR';
-
-            formStructure.forEach(section => {
-                section.fields.forEach(field => {
-                    let value;
-                    let fieldId = (section.title.includes('II. Información de la Contratista') && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
-                                ? field.label 
-                                : field.id;
-
-                    if (field.type === 'ot_counter') {
-                        // NUEVO FORMATO: (mes-número)
-                        value = `(${currentMonth}-${otCounter})`;
-                    }
-                    else if (field.type === 'user-auto-fill') value = currentUserEmail; 
-                    else if (field.type === 'date-auto') value = caracasDate;
-                    else if (field.type === 'year-auto') value = currentYear.toString();
-                    else if (field.type === 'static') value = field.value;
-                    else {
-                        const inputElement = document.getElementById(fieldId);
-                        value = inputElement ? inputElement.value : formData.get(fieldId);
-                    }
-                    
-                    if (field.type === 'date-input' && value && value.trim() !== '') {
-                        orderData[field.label] = formatDateToDDMMYYYY(value);
-                    } else {
-                        const sanitizedValue = sanitizeInput(value);
-                        orderData[field.label] = (sanitizedValue && sanitizedValue.trim() !== '') ? sanitizedValue : 'N/A';
-                    }
-                });
-            });
-            
-            orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim() : 'Ninguno';
-
-            if (selectedType) {
-                const prefix = selectedType.id.replace('check_', '');
-                
-                calculateNewTotal(prefix); 
-
-                orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value) || 'N/A';
-                orderData[`${prefix} | Pago realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value) || 'N/A';
-                
-                orderData[`${prefix} | Pago x VGT CANTV a cargo de Inter`] = formData.get(`${prefix}_total_hidden`) || '0.00';
-                orderData[`${prefix} | Pago x VGT EDC a cargo de Inter`] = formData.get(`${prefix}_total_hidden1`) || '0.00';
-
-                orderData[`${prefix} | Precio Unitario CANTV`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2) || '0.00';
-                orderData[`${prefix} | Puntos CANTV`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0) || '0'; 
-                
-                orderData[`${prefix} | Precio Unitario EDC`] = parseFloat(document.getElementById(`${prefix}_precio_unitario1`).value.replace(',', '.')).toFixed(2) || '0.00';
-                orderData[`${prefix} | Puntos EDC`] = parseFloat(document.getElementById(`${prefix}_puntos1`).value.replace(',', '.')).toFixed(0) || '0'; 
-
-                orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value) || 'N/A';
-                orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value) || 'N/A';
-            }
-
-            orderData['Estado'] = 'En curso';
-            orderData['Fecha de Creación'] = caracasDate;
-
-            console.log("Datos a guardar en Firebase:", orderData);
-            
             try {
+                isGeneratingOrder = true;
+                showLoading('Generando orden de trabajo...');
+
+                // Validar formulario
+                if (!validateWorkOrderForm()) {
+                    isGeneratingOrder = false;
+                    hideLoading();
+                    return;
+                }
+
+                const form = document.getElementById('work-order-form');
+                const selectedType = document.querySelector('.conditional-check.active');
+                const formData = new FormData(form);
+                const orderData = {};
+                
+                const caracasDate = getCurrentCaracasDate(); 
+                const currentYear = getCurrentCaracasYear();
+                const currentMonth = getCurrentCaracasMonth();
+                const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR';
+
+                // *** NUEVO: Obtener número de orden ÚNICO con transacción ***
+                let finalOtNumber;
+                let finalOtCounter;
+
+                try {
+                    // Usar transacción para evitar duplicidad
+                    await db.runTransaction(async (transaction) => {
+                        // Obtener configuración actual
+                        const configDoc = await transaction.get(CONFIG_COLLECTION.doc("systemConfig"));
+                        let currentConfig = configDoc.exists ? configDoc.data() : { otCounter: 1 };
+                        
+                        // Calcular número único
+                        let newOtCounter = currentConfig.otCounter || 1;
+                        let attempts = 0;
+                        const maxAttempts = 10;
+                        
+                        // Verificar que el número no exista ya
+                        while (attempts < maxAttempts) {
+                            const proposedNumber = `(${currentMonth}-${newOtCounter})`;
+                            const existingOrder = await ORDERS_COLLECTION.where('Orden de Trabajo', '==', proposedNumber).get();
+                            
+                            if (existingOrder.empty) {
+                                // Número único encontrado
+                                finalOtNumber = proposedNumber;
+                                finalOtCounter = newOtCounter;
+                                break;
+                            } else {
+                                // Número ya existe, intentar con el siguiente
+                                newOtCounter++;
+                                attempts++;
+                            }
+                        }
+                        
+                        if (!finalOtNumber) {
+                            throw new Error('No se pudo encontrar un número único después de múltiples intentos');
+                        }
+                        
+                        // Actualizar contador en la transacción
+                        transaction.set(CONFIG_COLLECTION.doc("systemConfig"), {
+                            ...currentConfig,
+                            otCounter: newOtCounter + 1,
+                            formStructure: currentConfig.formStructure || DEFAULT_FORM_STRUCTURE,
+                            finalCertificationCounter: currentConfig.finalCertificationCounter || 1
+                        }, { merge: true });
+                    });
+                    
+                    console.log('✅ Número único obtenido:', finalOtNumber, 'Contador:', finalOtCounter);
+                    
+                } catch (error) {
+                    console.error('Error en transacción:', error);
+                    throw new Error('Error al obtener número único de orden: ' + error.message);
+                }
+
+                // Recopilar datos del formulario
+                formStructure.forEach(section => {
+                    section.fields.forEach(field => {
+                        let value;
+                        let fieldId = (section.title.includes('II. Información de la Contratista') && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
+                                    ? field.label 
+                                    : field.id;
+
+                        if (field.type === 'ot_counter') {
+                            value = finalOtNumber; // Usar número único obtenido
+                        }
+                        else if (field.type === 'user-auto-fill') value = currentUserEmail; 
+                        else if (field.type === 'date-auto') value = caracasDate;
+                        else if (field.type === 'year-auto') value = currentYear.toString();
+                        else if (field.type === 'static') value = field.value;
+                        else {
+                            const inputElement = document.getElementById(fieldId);
+                            value = inputElement ? inputElement.value : formData.get(fieldId);
+                        }
+                        
+                        if (field.type === 'date-input' && value && value.trim() !== '') {
+                            orderData[field.label] = formatDateToDDMMYYYY(value);
+                        } else {
+                            const sanitizedValue = sanitizeInput(value);
+                            orderData[field.label] = (sanitizedValue && sanitizedValue.trim() !== '') ? sanitizedValue : 'N/A';
+                        }
+                    });
+                });
+                
+                orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim() : 'Ninguno';
+
+                if (selectedType) {
+                    const prefix = selectedType.id.replace('check_', '');
+                    
+                    calculateNewTotal(prefix); 
+
+                    orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value) || 'N/A';
+                    orderData[`${prefix} | Pago realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value) || 'N/A';
+                    
+                    orderData[`${prefix} | Pago x VGT CANTV a cargo de Inter`] = formData.get(`${prefix}_total_hidden`) || '0.00';
+                    orderData[`${prefix} | Pago x VGT EDC a cargo de Inter`] = formData.get(`${prefix}_total_hidden1`) || '0.00';
+
+                    orderData[`${prefix} | Precio Unitario CANTV`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2) || '0.00';
+                    orderData[`${prefix} | Puntos CANTV`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0) || '0'; 
+                    
+                    orderData[`${prefix} | Precio Unitario EDC`] = parseFloat(document.getElementById(`${prefix}_precio_unitario1`).value.replace(',', '.')).toFixed(2) || '0.00';
+                    orderData[`${prefix} | Puntos EDC`] = parseFloat(document.getElementById(`${prefix}_puntos1`).value.replace(',', '.')).toFixed(0) || '0'; 
+
+                    orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value) || 'N/A';
+                    orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value) || 'N/A';
+                }
+
+                orderData['Estado'] = 'En curso';
+                orderData['Fecha de Creación'] = caracasDate;
+
+                console.log("Datos a guardar en Firebase:", orderData);
+                
+                // Guardar en Firebase
                 const docRef = await ORDERS_COLLECTION.add(orderData); 
                 
                 orderData.id = docRef.id; 
                 workOrders.push(orderData);
-                otCounter++;
                 
-                await saveFormStructure(true); 
-
+                // Actualizar contador local
+                otCounter = finalOtCounter + 1;
+                
                 console.log('Generando PDF para nueva orden...');
                 await generatePDF(orderData);
                 console.log('PDF generado exitosamente');
@@ -2266,7 +2738,7 @@
                 renderWorkOrderForm(); 
                 renderOrdersTable(); 
                 
-                alert('✅ Orden de Trabajo creada exitosamente y PDF generado.');
+                alert(`✅ Orden de Trabajo ${finalOtNumber} creada exitosamente y PDF generado.`);
                 
             } catch (e) {
                 console.error("Error al crear la orden:", e);
@@ -2278,11 +2750,16 @@
                     errorMessage += "Error de permisos. Verifique las reglas de seguridad de Firestore.";
                 } else if (e.code === 'unavailable') {
                     errorMessage += "Error de conexión. Verifique su conexión a internet.";
+                } else if (e.message.includes('No se pudo encontrar un número único')) {
+                    errorMessage = "⚠️ Error: No se pudo generar un número único para la orden. Intente nuevamente.";
                 } else {
                     errorMessage += `Detalles: ${e.message}`;
                 }
                 
                 alert(errorMessage);
+            } finally {
+                isGeneratingOrder = false;
+                hideLoading();
             }
         }
 
@@ -2323,12 +2800,13 @@
             return resultLines.join('\n');
         }
 
-        function generatePDF(data) {
+        function generatePDF(data, isPreview = false) {
             return new Promise((resolve, reject) => {
                 try {
                     const otNumber = data['Orden de Trabajo'];
                     const creationDate = data['Fecha Actual'] || 'N/A';
-                    const fileName = `Orden_Trabajo_${otNumber}_${creationDate.replace(/\//g, '-')}.pdf`;
+                    const fileName = isPreview ? `Vista_Previa_${otNumber}_${creationDate.replace(/\//g, '-')}.pdf` : 
+                                                `Orden_Trabajo_${otNumber}_${creationDate.replace(/\//g, '-')}.pdf`;
                     
                     console.log('Iniciando generación de PDF para orden:', otNumber);
 
@@ -2357,6 +2835,7 @@
                                 
                                 <div style="text-align: right; margin-bottom: 25px; font-weight: bold; color: #555; font-size: 12px;">
                                     Fecha de Emisión: ${data['Fecha Actual']} | Año: ${data['Año'] || getCurrentCaracasYear()}
+                                    ${isPreview ? '<br><span style="color: #FF6961;">⚠️ VISTA PREVIA - NO VÁLIDO</span>' : ''}
                                 </div>
                             </div>
                             
@@ -3250,7 +3729,8 @@
                         return {
                             certificationNumber: certification['Número de Certificación Final'],
                             certificationDate: certification['Fecha de Creación'],
-                            empresa: certification['Empresa']
+                            empresa: certification['Empresa'],
+                            certificationId: certification.id
                         };
                     }
                 }
@@ -3951,6 +4431,17 @@
                 pdfButton.textContent = '📄 Descargar PDF';
                 pdfButton.className = 'certification-pdf-button';
                 pdfButton.onclick = () => generateFinalCertificationPDF(certification);
+                
+                // NUEVO: Botón para gestión de certificación (solo admin)
+                if (currentRole === 'admin') {
+                    const manageButton = document.createElement('button');
+                    manageButton.textContent = '🛠️ Gestionar';
+                    manageButton.style.backgroundColor = 'var(--color-admin-action)';
+                    manageButton.style.color = 'white';
+                    manageButton.style.marginLeft = '5px';
+                    manageButton.onclick = () => openCertificationManagementModal(certification);
+                    certificationActions.appendChild(manageButton);
+                }
                 
                 certificationActions.appendChild(pdfButton);
                 certificationHeader.appendChild(certificationTitle);
@@ -5143,6 +5634,1107 @@
                     return !isNaN(lessValue) && lessValue < lessFilter;
                 default:
                     return true;
+            }
+        }
+
+        // *** 17. NUEVAS FUNCIONES PARA ADMINISTRADOR ***
+
+        /**
+         * Inicializa las herramientas de administrador
+         */
+        function initializeAdminTools() {
+            // Cargar lista de empresas para filtro
+            const companySelect = document.getElementById('admin-filter-company');
+            companySelect.innerHTML = '<option value="">Todas las empresas</option>';
+            
+            const empresasUnicas = Object.keys(CONTRATISTAS_DATA).filter(empresa => empresa !== "Seleccione una Empresa");
+            
+            empresasUnicas.forEach(empresa => {
+                const option = document.createElement('option');
+                option.value = empresa;
+                option.textContent = empresa;
+                companySelect.appendChild(option);
+            });
+            
+            // Cargar lista de certificaciones para gestión
+            const certificationSelect = document.getElementById('admin-select-certification');
+            certificationSelect.innerHTML = '<option value="">Seleccionar certificación...</option>';
+            
+            finalCertifications.forEach(certification => {
+                const option = document.createElement('option');
+                option.value = certification.id;
+                option.textContent = `CF N° ${certification['Número de Certificación Final']} - ${certification['Empresa']}`;
+                certificationSelect.appendChild(option);
+            });
+            
+            // Cargar lista de órdenes para gestión de estados
+            loadAdminOrdersList();
+        }
+
+        /**
+         * Carga la lista de órdenes para gestión de estados
+         */
+        function loadAdminOrdersList() {
+            const ordersList = document.getElementById('admin-orders-list');
+            ordersList.innerHTML = '';
+            
+            if (completedOrders.length === 0) {
+                ordersList.innerHTML = '<p style="text-align: center; color: #666;">No hay órdenes finalizadas para gestionar.</p>';
+                return;
+            }
+            
+            completedOrders.forEach(order => {
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'order-checkbox-item';
+                
+                const orderNumber = order['Orden de Trabajo'];
+                const empresa = getCompanyFromOrder(order);
+                const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
+                const certificationStatus = getOrderCertificationStatus(order.id);
+                const isCertified = certificationStatus !== null;
+                
+                orderDiv.innerHTML = `
+                    <div>
+                        <input type="checkbox" id="admin-order-${order.id}" value="${order.id}" data-certified="${isCertified}">
+                        <label for="admin-order-${order.id}">
+                            <strong>Orden ${orderNumber}</strong>
+                            <div style="font-size: 0.85em; color: #666;">
+                                Empresa: ${empresa} | Importe: ${parseFloat(importeTotal).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                ${isCertified ? '<span style="color: var(--color-certified); margin-left: 10px;">✅ Certificada</span>' : '<span style="color: var(--color-not-certified); margin-left: 10px;">⏳ No certificada</span>'}
+                            </div>
+                        </label>
+                    </div>
+                `;
+                
+                ordersList.appendChild(orderDiv);
+            });
+        }
+
+        /**
+         * Filtra órdenes por empresa
+         */
+        function filterOrdersByCompany() {
+            const companySelect = document.getElementById('admin-filter-company');
+            const selectedCompany = companySelect.value;
+            const statusSelect = document.getElementById('admin-filter-status');
+            const selectedStatus = statusSelect.value;
+            
+            const checkboxes = document.querySelectorAll('#admin-orders-list .order-checkbox-item');
+            
+            checkboxes.forEach(item => {
+                const label = item.querySelector('label');
+                const orderText = label.textContent;
+                const isCertified = item.querySelector('input').dataset.certified === 'true';
+                
+                let show = true;
+                
+                // Filtrar por empresa
+                if (selectedCompany && !orderText.includes(selectedCompany)) {
+                    show = false;
+                }
+                
+                // Filtrar por estado
+                if (selectedStatus !== 'all') {
+                    if (selectedStatus === 'certified' && !isCertified) {
+                        show = false;
+                    } else if (selectedStatus === 'not-certified' && isCertified) {
+                        show = false;
+                    }
+                }
+                
+                item.style.display = show ? 'block' : 'none';
+            });
+        }
+
+        /**
+         * Filtra órdenes por estado de certificación
+         */
+        function filterOrdersByCertificationStatus() {
+            filterOrdersByCompany(); // Reutiliza la función de filtro
+        }
+
+        /**
+         * Obtiene la empresa de una orden
+         */
+        function getCompanyFromOrder(order) {
+            for (const key in order) {
+                if (key.includes('Empresa') && order[key] && order[key] !== 'N/A' && order[key] !== 'Seleccione una Empresa') {
+                    return order[key];
+                }
+            }
+            return 'No especificada';
+        }
+
+        /**
+         * Marca las órdenes seleccionadas como certificadas
+         */
+        async function markSelectedOrdersAsCertified() {
+            const checkboxes = document.querySelectorAll('#admin-orders-list input[type="checkbox"]:checked');
+            
+            if (checkboxes.length === 0) {
+                alert('Por favor, seleccione al menos una orden para marcar como certificada.');
+                return;
+            }
+            
+            if (!confirm(`¿Está seguro de que desea marcar ${checkboxes.length} orden(es) como certificadas? Esta acción es reversible.`)) {
+                return;
+            }
+            
+            try {
+                showLoading('Actualizando estados...');
+                
+                for (const checkbox of checkboxes) {
+                    const orderId = checkbox.value;
+                    const order = completedOrders.find(o => o.id === orderId);
+                    
+                    if (order) {
+                        // Verificar que no esté ya en una certificación final
+                        const existingStatus = getOrderCertificationStatus(orderId);
+                        if (existingStatus) {
+                            console.log(`La orden ${order['Orden de Trabajo']} ya está certificada en CF N° ${existingStatus.certificationNumber}`);
+                            continue;
+                        }
+                        
+                        // Aquí podrías agregar la lógica para marcar como certificada
+                        // Por ahora solo actualizamos visualmente
+                        console.log(`Marcando orden ${order['Orden de Trabajo']} como certificada`);
+                    }
+                }
+                
+                alert(`✅ ${checkboxes.length} orden(es) marcadas como certificadas.`);
+                loadAdminOrdersList();
+                
+            } catch (error) {
+                console.error('Error al marcar órdenes como certificadas:', error);
+                alert('Error al actualizar estados: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        /**
+         * Marca las órdenes seleccionadas como no certificadas
+         */
+        async function markSelectedOrdersAsNotCertified() {
+            const checkboxes = document.querySelectorAll('#admin-orders-list input[type="checkbox"]:checked');
+            
+            if (checkboxes.length === 0) {
+                alert('Por favor, seleccione al menos una orden para marcar como no certificada.');
+                return;
+            }
+            
+            if (!confirm(`¿Está seguro de que desea marcar ${checkboxes.length} orden(es) como no certificadas? Esta acción es reversible.`)) {
+                return;
+            }
+            
+            try {
+                showLoading('Actualizando estados...');
+                
+                for (const checkbox of checkboxes) {
+                    const orderId = checkbox.value;
+                    const order = completedOrders.find(o => o.id === orderId);
+                    
+                    if (order) {
+                        // Verificar que esté en una certificación final
+                        const existingStatus = getOrderCertificationStatus(orderId);
+                        if (existingStatus) {
+                            // Aquí necesitarías eliminar la orden de la certificación final
+                            console.log(`Quitando orden ${order['Orden de Trabajo']} de CF N° ${existingStatus.certificationNumber}`);
+                            await removeOrderFromCertification(orderId, existingStatus.certificationId);
+                        }
+                    }
+                }
+                
+                alert(`✅ ${checkboxes.length} orden(es) marcadas como no certificadas.`);
+                await loadInitialData(); // Recargar datos
+                loadAdminOrdersList();
+                
+            } catch (error) {
+                console.error('Error al marcar órdenes como no certificadas:', error);
+                alert('Error al actualizar estados: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        /**
+         * Elimina una orden de una certificación final
+         */
+        async function removeOrderFromCertification(orderId, certificationId) {
+            try {
+                const certificationDoc = await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).get();
+                if (!certificationDoc.exists) {
+                    throw new Error('Certificación no encontrada');
+                }
+                
+                const certification = certificationDoc.data();
+                const updatedOrders = certification['Órdenes Realizadas'].filter(order => order.id !== orderId);
+                
+                // Recalcular total
+                let newTotal = 0;
+                updatedOrders.forEach(order => {
+                    newTotal += parseFloat(order.importe || '0');
+                });
+                
+                // Actualizar certificación
+                await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).update({
+                    'Órdenes Realizadas': updatedOrders,
+                    'Total': newTotal.toFixed(2)
+                });
+                
+                console.log(`Orden ${orderId} eliminada de certificación ${certificationId}`);
+                return true;
+                
+            } catch (error) {
+                console.error('Error al eliminar orden de certificación:', error);
+                throw error;
+            }
+        }
+
+        /**
+         * Carga una certificación para gestión
+         */
+        function loadCertificationForManagement() {
+            const certificationSelect = document.getElementById('admin-select-certification');
+            const certificationId = certificationSelect.value;
+            
+            if (!certificationId) {
+                document.getElementById('certification-management-container').style.display = 'none';
+                return;
+            }
+            
+            const certification = finalCertifications.find(c => c.id === certificationId);
+            if (!certification) {
+                alert('Certificación no encontrada.');
+                return;
+            }
+            
+            currentCertificationForManagement = certification;
+            document.getElementById('certification-management-container').style.display = 'block';
+            
+            // Cargar órdenes certificadas
+            loadCertifiedOrdersList(certification);
+            
+            // Cargar órdenes disponibles
+            loadAvailableOrdersList(certification);
+        }
+
+        /**
+         * Carga las órdenes certificadas en la certificación seleccionada
+         */
+        function loadCertifiedOrdersList(certification) {
+            const certifiedList = document.getElementById('certified-orders-list');
+            certifiedList.innerHTML = '';
+            
+            if (!certification['Órdenes Realizadas'] || certification['Órdenes Realizadas'].length === 0) {
+                certifiedList.innerHTML = '<p style="text-align: center; color: #666;">No hay órdenes en esta certificación.</p>';
+                return;
+            }
+            
+            certification['Órdenes Realizadas'].forEach(order => {
+                const completeOrder = completedOrders.find(o => o.id === order.id);
+                if (!completeOrder) return;
+                
+                const orderItem = document.createElement('div');
+                orderItem.className = 'order-management-item';
+                orderItem.dataset.id = order.id;
+                
+                orderItem.innerHTML = `
+                    <div class="order-management-info">
+                        <strong>Orden ${order.numero}</strong>
+                        <div style="font-size: 0.85em; color: #666;">
+                            Importe: ${parseFloat(order.importe).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </div>
+                    </div>
+                    <div class="order-management-actions">
+                        <button class="move-order-button remove" onclick="removeOrderFromManagement('${order.id}')">➖ Quitar</button>
+                    </div>
+                `;
+                
+                certifiedList.appendChild(orderItem);
+            });
+        }
+
+        /**
+         * Carga las órdenes disponibles para agregar a la certificación
+         */
+        function loadAvailableOrdersList(certification) {
+            const availableList = document.getElementById('available-orders-list');
+            availableList.innerHTML = '';
+            
+            const empresa = certification['Empresa'];
+            const certifiedOrderIds = new Set(certification['Órdenes Realizadas'].map(o => o.id));
+            
+            // Filtrar órdenes de la misma empresa que no estén ya certificadas
+            const availableOrders = completedOrders.filter(order => {
+                // Verificar empresa
+                let isSameCompany = false;
+                for (const key in order) {
+                    if (order[key] === empresa) {
+                        isSameCompany = true;
+                        break;
+                    }
+                }
+                
+                if (!isSameCompany) return false;
+                
+                // Verificar que no esté ya en esta certificación
+                if (certifiedOrderIds.has(order.id)) return false;
+                
+                // Verificar que no esté en otra certificación
+                const otherCertificationStatus = getOrderCertificationStatus(order.id);
+                if (otherCertificationStatus && otherCertificationStatus.certificationId !== certification.id) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            if (availableOrders.length === 0) {
+                availableList.innerHTML = '<p style="text-align: center; color: #666;">No hay órdenes disponibles para agregar.</p>';
+                return;
+            }
+            
+            availableOrders.forEach(order => {
+                const orderItem = document.createElement('div');
+                orderItem.className = 'order-management-item';
+                orderItem.dataset.id = order.id;
+                
+                const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
+                
+                orderItem.innerHTML = `
+                    <div class="order-management-info">
+                        <strong>Orden ${order['Orden de Trabajo']}</strong>
+                        <div style="font-size: 0.85em; color: #666;">
+                            Importe: ${parseFloat(importeTotal).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </div>
+                    </div>
+                    <div class="order-management-actions">
+                        <button class="move-order-button" onclick="addOrderToManagement('${order.id}')">➕ Agregar</button>
+                    </div>
+                `;
+                
+                availableList.appendChild(orderItem);
+            });
+        }
+
+        /**
+         * Agrega una orden a la certificación en gestión
+         */
+        function addOrderToManagement(orderId) {
+            const order = completedOrders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            // Verificar que no esté ya en la lista de certificadas
+            const certifiedList = document.getElementById('certified-orders-list');
+            const alreadyExists = Array.from(certifiedList.children).some(item => item.dataset.id === orderId);
+            if (alreadyExists) return;
+            
+            const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
+            
+            const orderItem = document.createElement('div');
+            orderItem.className = 'order-management-item';
+            orderItem.dataset.id = orderId;
+            
+            orderItem.innerHTML = `
+                <div class="order-management-info">
+                    <strong>Orden ${order['Orden de Trabajo']}</strong>
+                    <div style="font-size: 0.85em; color: #666;">
+                        Importe: ${parseFloat(importeTotal).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </div>
+                </div>
+                <div class="order-management-actions">
+                    <button class="move-order-button remove" onclick="removeOrderFromManagement('${orderId}')">➖ Quitar</button>
+                </div>
+            `;
+            
+            certifiedList.appendChild(orderItem);
+            
+            // Eliminar de la lista de disponibles
+            const availableItem = document.querySelector(`#available-orders-list .order-management-item[data-id="${orderId}"]`);
+            if (availableItem) {
+                availableItem.remove();
+            }
+            
+            // Actualizar total
+            recalculateManagementTotal();
+        }
+
+        /**
+         * Elimina una orden de la certificación en gestión
+         */
+        function removeOrderFromManagement(orderId) {
+            const order = completedOrders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            // Eliminar de la lista de certificadas
+            const certifiedItem = document.querySelector(`#certified-orders-list .order-management-item[data-id="${orderId}"]`);
+            if (certifiedItem) {
+                certifiedItem.remove();
+            }
+            
+            // Agregar a la lista de disponibles (si corresponde)
+            const empresa = currentCertificationForManagement['Empresa'];
+            let isSameCompany = false;
+            for (const key in order) {
+                if (order[key] === empresa) {
+                    isSameCompany = true;
+                    break;
+                }
+            }
+            
+            if (isSameCompany) {
+                const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
+                
+                const orderItem = document.createElement('div');
+                orderItem.className = 'order-management-item';
+                orderItem.dataset.id = orderId;
+                
+                orderItem.innerHTML = `
+                    <div class="order-management-info">
+                        <strong>Orden ${order['Orden de Trabajo']}</strong>
+                        <div style="font-size: 0.85em; color: #666;">
+                            Importe: ${parseFloat(importeTotal).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </div>
+                    </div>
+                    <div class="order-management-actions">
+                        <button class="move-order-button" onclick="addOrderToManagement('${orderId}')">➕ Agregar</button>
+                    </div>
+                `;
+                
+                document.getElementById('available-orders-list').appendChild(orderItem);
+            }
+            
+            // Actualizar total
+            recalculateManagementTotal();
+        }
+
+        /**
+         * Recalcula el total de la certificación en gestión
+         */
+        function recalculateManagementTotal() {
+            const certifiedItems = document.querySelectorAll('#certified-orders-list .order-management-item');
+            let total = 0;
+            
+            certifiedItems.forEach(item => {
+                const orderId = item.dataset.id;
+                const order = completedOrders.find(o => o.id === orderId);
+                if (order) {
+                    const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
+                    total += parseFloat(importeTotal);
+                }
+            });
+            
+            // Mostrar total
+            console.log('Total recalculado:', total);
+        }
+
+        /**
+         * Recalcula el total de una certificación específica
+         */
+        async function recalculateCertificationTotal() {
+            const certificationSelect = document.getElementById('admin-select-certification');
+            const certificationId = certificationSelect.value;
+            
+            if (!certificationId) {
+                alert('Por favor, seleccione una certificación primero.');
+                return;
+            }
+            
+            try {
+                showLoading('Recalculando total...');
+                
+                const certification = finalCertifications.find(c => c.id === certificationId);
+                if (!certification) {
+                    throw new Error('Certificación no encontrada');
+                }
+                
+                let newTotal = 0;
+                certification['Órdenes Realizadas'].forEach(order => {
+                    newTotal += parseFloat(order.importe || '0');
+                });
+                
+                // Actualizar en Firebase
+                await FINAL_CERTIFICATIONS_COLLECTION.doc(certificationId).update({
+                    'Total': newTotal.toFixed(2)
+                });
+                
+                // Actualizar localmente
+                certification['Total'] = newTotal.toFixed(2);
+                
+                alert(`✅ Total recalculado: ${newTotal.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+                
+            } catch (error) {
+                console.error('Error al recalcular total:', error);
+                alert('Error al recalcular total: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        /**
+         * Guarda los cambios en la certificación
+         */
+        async function saveCertificationChanges() {
+            if (!currentCertificationForManagement) {
+                alert('No hay certificación seleccionada para guardar.');
+                return;
+            }
+            
+            const certifiedItems = document.querySelectorAll('#certified-orders-list .order-management-item');
+            const updatedOrders = [];
+            
+            certifiedItems.forEach(item => {
+                const orderId = item.dataset.id;
+                const order = completedOrders.find(o => o.id === orderId);
+                if (order) {
+                    updatedOrders.push({
+                        id: order.id,
+                        numero: order['Orden de Trabajo'],
+                        importe: order['Certificación']?.['Importe Total de la Obra'] || '0.00',
+                        fechaFinalizacion: order['Fecha de Finalización'] || 'N/A'
+                    });
+                }
+            });
+            
+            if (updatedOrders.length === 0) {
+                if (!confirm('La certificación quedará vacía. ¿Desea continuar?')) {
+                    return;
+                }
+            }
+            
+            try {
+                showLoading('Guardando cambios...');
+                
+                // Recalcular total
+                let newTotal = 0;
+                updatedOrders.forEach(order => {
+                    newTotal += parseFloat(order.importe || '0');
+                });
+                
+                // Actualizar en Firebase
+                await FINAL_CERTIFICATIONS_COLLECTION.doc(currentCertificationForManagement.id).update({
+                    'Órdenes Realizadas': updatedOrders,
+                    'Total': newTotal.toFixed(2)
+                });
+                
+                // Actualizar localmente
+                currentCertificationForManagement['Órdenes Realizadas'] = updatedOrders;
+                currentCertificationForManagement['Total'] = newTotal.toFixed(2);
+                
+                // Recargar datos
+                await loadInitialData();
+                renderFinalCertificationsList();
+                loadCertificationForManagement();
+                
+                alert('✅ Cambios guardados exitosamente.');
+                
+            } catch (error) {
+                console.error('Error al guardar cambios:', error);
+                alert('Error al guardar cambios: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        /**
+         * Abre el modal de gestión de certificación
+         */
+        function openCertificationManagementModal(certification) {
+            currentCertificationForManagement = certification;
+            
+            // Mostrar información de la certificación
+            document.getElementById('certification-management-info').innerHTML = `
+                <div style="background-color: #f3e5f5; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                    <h4 style="margin: 0 0 10px 0; color: var(--color-certification);">
+                        Certificación Final N° ${certification['Número de Certificación Final']}
+                    </h4>
+                    <p style="margin: 5px 0;"><strong>Empresa:</strong> ${certification['Empresa']}</p>
+                    <p style="margin: 5px 0;"><strong>Total Actual:</strong> ${parseFloat(certification['Total']).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                    <p style="margin: 5px 0;"><strong>Fecha:</strong> ${certification['Fecha de Creación']}</p>
+                </div>
+            `;
+            
+            // Cargar órdenes certificadas
+            const certifiedList = document.getElementById('modal-certified-orders');
+            certifiedList.innerHTML = '';
+            
+            if (certification['Órdenes Realizadas'] && certification['Órdenes Realizadas'].length > 0) {
+                certification['Órdenes Realizadas'].forEach(order => {
+                    const completeOrder = completedOrders.find(o => o.id === order.id);
+                    if (!completeOrder) return;
+                    
+                    const orderItem = document.createElement('div');
+                    orderItem.className = 'order-management-item';
+                    orderItem.dataset.id = order.id;
+                    
+                    orderItem.innerHTML = `
+                        <div class="order-management-info">
+                            <strong>Orden ${order.numero}</strong>
+                            <div style="font-size: 0.85em; color: #666;">
+                                Importe: ${parseFloat(order.importe).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </div>
+                        </div>
+                        <div class="order-management-actions">
+                            <button class="move-order-button remove" onclick="removeOrderFromModal('${order.id}')">➖ Quitar</button>
+                        </div>
+                    `;
+                    
+                    certifiedList.appendChild(orderItem);
+                });
+            } else {
+                certifiedList.innerHTML = '<p style="text-align: center; color: #666;">No hay órdenes en esta certificación.</p>';
+            }
+            
+            // Cargar órdenes disponibles
+            const availableList = document.getElementById('modal-available-orders');
+            availableList.innerHTML = '';
+            
+            const empresa = certification['Empresa'];
+            const certifiedOrderIds = new Set(certification['Órdenes Realizadas'].map(o => o.id));
+            
+            // Filtrar órdenes de la misma empresa que no estén ya certificadas
+            const availableOrders = completedOrders.filter(order => {
+                // Verificar empresa
+                let isSameCompany = false;
+                for (const key in order) {
+                    if (order[key] === empresa) {
+                        isSameCompany = true;
+                        break;
+                    }
+                }
+                
+                if (!isSameCompany) return false;
+                
+                // Verificar que no esté ya en esta certificación
+                if (certifiedOrderIds.has(order.id)) return false;
+                
+                // Verificar que no esté en otra certificación
+                const otherCertificationStatus = getOrderCertificationStatus(order.id);
+                if (otherCertificationStatus && otherCertificationStatus.certificationId !== certification.id) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            if (availableOrders.length > 0) {
+                availableOrders.forEach(order => {
+                    const orderItem = document.createElement('div');
+                    orderItem.className = 'order-management-item';
+                    orderItem.dataset.id = order.id;
+                    
+                    const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
+                    
+                    orderItem.innerHTML = `
+                        <div class="order-management-info">
+                            <strong>Orden ${order['Orden de Trabajo']}</strong>
+                            <div style="font-size: 0.85em; color: #666;">
+                                Importe: ${parseFloat(importeTotal).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </div>
+                        </div>
+                        <div class="order-management-actions">
+                            <button class="move-order-button" onclick="addOrderToModal('${order.id}')">➕ Agregar</button>
+                        </div>
+                    `;
+                    
+                    availableList.appendChild(orderItem);
+                });
+            } else {
+                availableList.innerHTML = '<p style="text-align: center; color: #666;">No hay órdenes disponibles para agregar.</p>';
+            }
+            
+            // Actualizar total
+            updateManagementTotal();
+            
+            // Mostrar modal
+            document.getElementById('certification-management-modal').style.display = 'flex';
+        }
+
+        /**
+         * Cierra el modal de gestión de certificación
+         */
+        function closeCertificationManagementModal() {
+            document.getElementById('certification-management-modal').style.display = 'none';
+            currentCertificationForManagement = null;
+        }
+
+        /**
+         * Agrega una orden al modal de gestión
+         */
+        function addOrderToModal(orderId) {
+            const order = completedOrders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            const certifiedList = document.getElementById('modal-certified-orders');
+            
+            // Verificar que no esté ya en la lista
+            const alreadyExists = Array.from(certifiedList.children).some(item => 
+                item.classList.contains('order-management-item') && item.dataset.id === orderId
+            );
+            if (alreadyExists) return;
+            
+            const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
+            
+            const orderItem = document.createElement('div');
+            orderItem.className = 'order-management-item';
+            orderItem.dataset.id = orderId;
+            
+            orderItem.innerHTML = `
+                <div class="order-management-info">
+                    <strong>Orden ${order['Orden de Trabajo']}</strong>
+                    <div style="font-size: 0.85em; color: #666;">
+                        Importe: ${parseFloat(importeTotal).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </div>
+                </div>
+                <div class="order-management-actions">
+                    <button class="move-order-button remove" onclick="removeOrderFromModal('${orderId}')">➖ Quitar</button>
+                </div>
+            `;
+            
+            // Si el mensaje de "no hay órdenes" está visible, eliminarlo
+            if (certifiedList.children.length === 1 && certifiedList.children[0].tagName === 'P') {
+                certifiedList.innerHTML = '';
+            }
+            
+            certifiedList.appendChild(orderItem);
+            
+            // Eliminar de la lista de disponibles
+            const availableItem = document.querySelector(`#modal-available-orders .order-management-item[data-id="${orderId}"]`);
+            if (availableItem) {
+                availableItem.remove();
+            }
+            
+            // Si no quedan órdenes disponibles, mostrar mensaje
+            const availableList = document.getElementById('modal-available-orders');
+            if (availableList.children.length === 0) {
+                availableList.innerHTML = '<p style="text-align: center; color: #666;">No hay órdenes disponibles para agregar.</p>';
+            }
+            
+            // Actualizar total
+            updateManagementTotal();
+        }
+
+        /**
+         * Elimina una orden del modal de gestión
+         */
+        function removeOrderFromModal(orderId) {
+            const order = completedOrders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            // Eliminar de la lista de certificadas
+            const certifiedItem = document.querySelector(`#modal-certified-orders .order-management-item[data-id="${orderId}"]`);
+            if (certifiedItem) {
+                certifiedItem.remove();
+            }
+            
+            // Si no quedan órdenes certificadas, mostrar mensaje
+            const certifiedList = document.getElementById('modal-certified-orders');
+            if (certifiedList.children.length === 0) {
+                certifiedList.innerHTML = '<p style="text-align: center; color: #666;">No hay órdenes en esta certificación.</p>';
+            }
+            
+            // Agregar a la lista de disponibles (si corresponde a la empresa)
+            const empresa = currentCertificationForManagement['Empresa'];
+            let isSameCompany = false;
+            for (const key in order) {
+                if (order[key] === empresa) {
+                    isSameCompany = true;
+                    break;
+                }
+            }
+            
+            if (isSameCompany) {
+                const availableList = document.getElementById('modal-available-orders');
+                
+                // Si el mensaje de "no hay órdenes" está visible, eliminarlo
+                if (availableList.children.length === 1 && availableList.children[0].tagName === 'P') {
+                    availableList.innerHTML = '';
+                }
+                
+                const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
+                
+                const orderItem = document.createElement('div');
+                orderItem.className = 'order-management-item';
+                orderItem.dataset.id = orderId;
+                
+                orderItem.innerHTML = `
+                    <div class="order-management-info">
+                        <strong>Orden ${order['Orden de Trabajo']}</strong>
+                        <div style="font-size: 0.85em; color: #666;">
+                            Importe: ${parseFloat(importeTotal).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </div>
+                    </div>
+                    <div class="order-management-actions">
+                        <button class="move-order-button" onclick="addOrderToModal('${orderId}')">➕ Agregar</button>
+                    </div>
+                `;
+                
+                availableList.appendChild(orderItem);
+            }
+            
+            // Actualizar total
+            updateManagementTotal();
+        }
+
+        /**
+         * Actualiza el total en el modal de gestión
+         */
+        function updateManagementTotal() {
+            const certifiedItems = document.querySelectorAll('#modal-certified-orders .order-management-item');
+            let total = 0;
+            
+            certifiedItems.forEach(item => {
+                const orderId = item.dataset.id;
+                const order = completedOrders.find(o => o.id === orderId);
+                if (order) {
+                    const importeTotal = order['Certificación']?.['Importe Total de la Obra'] || '0.00';
+                    total += parseFloat(importeTotal);
+                }
+            });
+            
+            document.getElementById('management-total').textContent = 
+                total.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        /**
+         * Guarda los cambios del modal de gestión
+         */
+        async function saveManagementChanges() {
+            if (!currentCertificationForManagement) {
+                alert('No hay certificación seleccionada.');
+                return;
+            }
+            
+            const certifiedItems = document.querySelectorAll('#modal-certified-orders .order-management-item');
+            const updatedOrders = [];
+            
+            certifiedItems.forEach(item => {
+                const orderId = item.dataset.id;
+                const order = completedOrders.find(o => o.id === orderId);
+                if (order) {
+                    updatedOrders.push({
+                        id: order.id,
+                        numero: order['Orden de Trabajo'],
+                        importe: order['Certificación']?.['Importe Total de la Obra'] || '0.00',
+                        fechaFinalizacion: order['Fecha de Finalización'] || 'N/A'
+                    });
+                }
+            });
+            
+            try {
+                showLoading('Guardando cambios...');
+                
+                // Recalcular total
+                let newTotal = 0;
+                updatedOrders.forEach(order => {
+                    newTotal += parseFloat(order.importe || '0');
+                });
+                
+                // Actualizar en Firebase
+                await FINAL_CERTIFICATIONS_COLLECTION.doc(currentCertificationForManagement.id).update({
+                    'Órdenes Realizadas': updatedOrders,
+                    'Total': newTotal.toFixed(2)
+                });
+                
+                // Actualizar localmente
+                currentCertificationForManagement['Órdenes Realizadas'] = updatedOrders;
+                currentCertificationForManagement['Total'] = newTotal.toFixed(2);
+                
+                // Recargar datos
+                await loadInitialData();
+                renderFinalCertificationsList();
+                renderCompletedOrdersTable();
+                
+                closeCertificationManagementModal();
+                
+                alert('✅ Cambios guardados exitosamente.');
+                
+            } catch (error) {
+                console.error('Error al guardar cambios:', error);
+                alert('Error al guardar cambios: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        /**
+         * Recalcula todos los contadores del sistema
+         */
+        async function recalculateAllCounters() {
+            if (currentRole !== 'admin') {
+                alert('🚫 Solo administradores pueden ejecutar esta función.');
+                return;
+            }
+            
+            if (!confirm('¿Está seguro de que desea recalcular todos los contadores del sistema? Esta acción puede tomar algunos momentos.')) {
+                return;
+            }
+            
+            try {
+                showLoading('Recalculando contadores...');
+                
+                // Recalcular contador de órdenes
+                recalculateOtCounter();
+                
+                // Recalcular contador de certificaciones finales
+                recalculateFinalCertificationCounter();
+                
+                // Guardar en Firebase
+                await saveFormStructure(true);
+                
+                alert('✅ Contadores recalculados exitosamente.');
+                
+            } catch (error) {
+                console.error('Error al recalcular contadores:', error);
+                alert('Error al recalcular contadores: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        /**
+         * Corrige órdenes duplicadas automáticamente
+         */
+        async function fixDuplicatedOrders() {
+            if (currentRole !== 'admin') {
+                alert('🚫 Solo administradores pueden ejecutar esta función.');
+                return;
+            }
+            
+            if (!confirm('¿Está seguro de que desea corregir automáticamente las órdenes duplicadas? Esta acción revisará y corregirá números duplicados.')) {
+                return;
+            }
+            
+            try {
+                showLoading('Buscando y corrigiendo duplicados...');
+                
+                await cleanDuplicateOrders(); // Reutiliza la función existente
+                
+            } catch (error) {
+                console.error('Error al corregir duplicados:', error);
+                alert('Error al corregir duplicados: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        /**
+         * Genera un reporte de consistencia del sistema
+         */
+        async function generateConsistencyReport() {
+            if (currentRole !== 'admin') {
+                alert('🚫 Solo administradores pueden ejecutar esta función.');
+                return;
+            }
+            
+            try {
+                showLoading('Generando reporte de consistencia...');
+                
+                const report = {
+                    fecha: new Date().toISOString(),
+                    totalOrdenesEnCurso: workOrders.length,
+                    totalOrdenesFinalizadas: completedOrders.length,
+                    totalCertificacionesFinales: finalCertifications.length,
+                    contadorOrdenesActual: otCounter,
+                    contadorCertificacionesActual: finalCertificationCounter,
+                    problemas: []
+                };
+                
+                // Verificar órdenes duplicadas
+                const currentMonth = getCurrentCaracasMonth();
+                const otNumbers = workOrders.map(order => order['Orden de Trabajo']);
+                const duplicateOTs = otNumbers.filter((ot, index) => otNumbers.indexOf(ot) !== index);
+                
+                if (duplicateOTs.length > 0) {
+                    report.problemas.push(`Se encontraron ${duplicateOTs.length} números de orden duplicados: ${duplicateOTs.join(', ')}`);
+                }
+                
+                // Verificar órdenes finalizadas sin certificación
+                const finalizadasSinCertificacion = completedOrders.filter(order => {
+                    return getOrderCertificationStatus(order.id) === null;
+                });
+                
+                report.problemas.push(`Hay ${finalizadasSinCertificacion.length} órdenes finalizadas sin certificación final.`);
+                
+                // Verificar certificaciones con órdenes no encontradas
+                const ordenesNoEncontradas = [];
+                finalCertifications.forEach(certification => {
+                    certification['Órdenes Realizadas'].forEach(order => {
+                        const found = completedOrders.find(o => o.id === order.id);
+                        if (!found) {
+                            ordenesNoEncontradas.push(`Orden ${order.numero} en CF ${certification['Número de Certificación Final']}`);
+                        }
+                    });
+                });
+                
+                if (ordenesNoEncontradas.length > 0) {
+                    report.problemas.push(`Se encontraron ${ordenesNoEncontradas.length} órdenes en certificaciones que no existen en la base de datos.`);
+                }
+                
+                // Mostrar reporte
+                let reportHTML = `
+                    <h3>📊 Reporte de Consistencia del Sistema</h3>
+                    <div style="background-color: #f0f8ff; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                        <p><strong>Fecha del reporte:</strong> ${new Date().toLocaleString('es-VE')}</p>
+                        <p><strong>Órdenes en curso:</strong> ${report.totalOrdenesEnCurso}</p>
+                        <p><strong>Órdenes finalizadas:</strong> ${report.totalOrdenesFinalizadas}</p>
+                        <p><strong>Certificaciones finales:</strong> ${report.totalCertificacionesFinales}</p>
+                        <p><strong>Contador de órdenes:</strong> ${report.contadorOrdenesActual}</p>
+                        <p><strong>Contador de certificaciones:</strong> ${report.contadorCertificacionesActual}</p>
+                    </div>
+                `;
+                
+                if (report.problemas.length > 0) {
+                    reportHTML += `
+                        <div style="background-color: #fff0f0; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                            <h4 style="color: var(--color-error);">⚠️ Problemas detectados:</h4>
+                            <ul>
+                                ${report.problemas.map(problema => `<li>${problema}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    reportHTML += `
+                        <div style="background-color: #f0fff0; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                            <h4 style="color: var(--color-success);">✅ Sistema consistente</h4>
+                            <p>No se detectaron problemas de consistencia en la base de datos.</p>
+                        </div>
+                    `;
+                }
+                
+                // Crear ventana de reporte
+                const reportWindow = window.open('', '_blank');
+                reportWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Reporte de Consistencia</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; margin: 20px; }
+                            h3 { color: #36454F; }
+                            .section { margin-bottom: 20px; }
+                            .problem { color: #FF6961; }
+                            .success { color: #77DD77; }
+                        </style>
+                    </head>
+                    <body>
+                        ${reportHTML}
+                        <div style="margin-top: 20px;">
+                            <button onclick="window.print()">🖨️ Imprimir Reporte</button>
+                            <button onclick="window.close()" style="margin-left: 10px;">❌ Cerrar</button>
+                        </div>
+                    </body>
+                    </html>
+                `);
+                
+                hideLoading();
+                alert('✅ Reporte de consistencia generado. Se abrirá en una nueva ventana.');
+                
+            } catch (error) {
+                hideLoading();
+                console.error('Error al generar reporte:', error);
+                alert('Error al generar reporte: ' + error.message);
             }
         }
 
