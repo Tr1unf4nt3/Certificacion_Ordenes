@@ -546,6 +546,7 @@
             border-bottom: none;
         }
         
+        /* MODIFICACIÓN: Nuevos estilos para los botones de Orden y Certificación */
         .order-actions {
             display: flex;
             gap: 5px;
@@ -561,6 +562,38 @@
         .certification-pdf-button {
             background-color: var(--color-certification);
             color: white;
+        }
+        
+        /* MODIFICACIÓN: Estilos específicos para los nuevos botones en certificaciones finales */
+        .order-action-button {
+            background-color: #87CEFA; /* Azul para botón Orden */
+            color: white;
+            padding: 5px 10px;
+            font-size: 0.8em;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-right: 5px;
+        }
+        
+        .order-action-button:hover {
+            background-color: #5aa9e6;
+        }
+        
+        .certification-action-button {
+            background-color: #77DD77; /* Verde para botón Certificación */
+            color: white;
+            padding: 5px 10px;
+            font-size: 0.8em;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .certification-action-button:hover {
+            background-color: #66bb6a;
         }
 
         /* Estilos para checkboxes de órdenes */
@@ -4344,7 +4377,7 @@
         }
 
         /**
-         * Renderiza la lista de Certificaciones Finales
+         * MODIFICACIÓN: Renderiza la lista de Certificaciones Finales CON BOTONES DE ORDEN Y CERTIFICACIÓN
          */
         function renderFinalCertificationsList() {
             const certificationsList = document.getElementById('certifications-list');
@@ -4472,18 +4505,22 @@
                     const completeOrder = completedOrders.find(o => o.id === order.id);
                     
                     if (completeOrder) {
-                        const certificationPdfButton = document.createElement('button');
-                        certificationPdfButton.textContent = '📄 Certificación';
-                        certificationPdfButton.className = 'order-pdf-button';
-                        certificationPdfButton.onclick = () => generateCertificationPDF(completeOrder);
-                        
+                        // MODIFICACIÓN: Agregar botón de Orden
                         const orderPdfButton = document.createElement('button');
                         orderPdfButton.textContent = '📋 Orden';
-                        orderPdfButton.className = 'order-pdf-button';
+                        orderPdfButton.className = 'order-action-button';
                         orderPdfButton.onclick = () => generatePDF(completeOrder);
                         
-                        orderActions.appendChild(certificationPdfButton);
+                        // MODIFICACIÓN: Agregar botón de Certificación
+                        const certificationPdfButton = document.createElement('button');
+                        certificationPdfButton.textContent = '📄 Certificación';
+                        certificationPdfButton.className = 'certification-action-button';
+                        certificationPdfButton.onclick = () => generateCertificationPDF(completeOrder);
+                        
                         orderActions.appendChild(orderPdfButton);
+                        orderActions.appendChild(certificationPdfButton);
+                    } else {
+                        orderActions.innerHTML = '<span style="color: #999; font-size: 0.85em;">Orden no encontrada en la base de datos</span>';
                     }
                     
                     orderItem.appendChild(orderInfo);
