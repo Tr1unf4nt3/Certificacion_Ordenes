@@ -666,7 +666,6 @@
             <button class="tablinks" onclick="openTab(event, 'completed-orders')">✅ Órdenes Finalizadas</button>
             <button class="tablinks" onclick="openTab(event, 'final-certification')">📜 Certificación Final</button>
             <button class="tablinks" onclick="openTab(event, 'view-certifications')">📋 Certificaciones Finales</button>
-            <button class="tablinks" id="edit-tab-button" onclick="openTab(event, 'edit-form')" style="display: none;">⚙️ Edición de Formulario</button>
             <button onclick="logout()" style="float: right;">🚪 Cerrar Sesión</button>
         </div>
 
@@ -999,30 +998,6 @@
             </div>
         </div>
 
-        <!-- Pestaña 6: Edición de Formulario (Solo Administrador) -->
-        <div id="edit-form" class="tabcontent">
-            <h3>Edición de Formulario</h3>
-            <div id="form-editor"></div>
-            <button onclick="saveFormStructure(false)">💾 Guardar Estructura del Formulario</button>
-            <button onclick="cleanDuplicateOrders()" style="background-color: var(--color-error); color: white; margin-left: 10px;">🧹 Limpiar Duplicados</button>
-            
-            <!-- SECCIÓN: Exportación e Importación de Base de Datos -->
-            <div class="backup-section">
-                <h4>🔄 Respaldo y Restauración de Base de Datos</h4>
-                <p>Estas funciones permiten exportar e importar toda la información del sistema para realizar respaldos o migraciones.</p>
-                
-                <div class="backup-buttons">
-                    <button class="backup-button" onclick="exportDatabase()">📤 Exportar Base de Datos</button>
-                    <button class="backup-button" onclick="document.getElementById('import-file').click()">📥 Importar Base de Datos</button>
-                    <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importDatabase(this.files[0])">
-                </div>
-                
-                <p style="font-size: 0.9em; margin-top: 15px; color: var(--color-warning);">
-                    <strong>Nota:</strong> La importación reemplazará todos los datos actuales en la base de datos. 
-                    Asegúrese de tener un respaldo reciente antes de realizar esta operación.
-                </p>
-            </div>
-        </div>
     </div>
 
     <!-- Modal para Certificación de Obras -->
@@ -1315,19 +1290,51 @@
             }
         };
 
-        // Estructura inicial por defecto CON EL NUEVO CAMPO DE AÑO
-        const DEFAULT_FORM_STRUCTURE = [
-            { title: "I. Información General", fields: [
-                { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
-                { id: "ot_number", label: "Orden de Trabajo", type: "ot_counter", required: true },
-                { id: "user_auto_fill", label: "Usuario que Crea la Orden", type: "user-auto-fill", required: true },
-                { id: "current_date", label: "Fecha Actual", type: "date-auto", required: true },
-                { id: "current_year", label: "Año", type: "year-auto", required: true } // NUEVO CAMPO AÑO
-            ]},
-            { title: "II. Información de la Contratista", fields: []},
-            { title: "III. Información del Trabajo/Obra", fields: [
-                { id: "presupuesto_total", label: "Presupuesto Total de la Obra", type: "number", required: true }
-            ]}
+        // *** NUEVA ESTRUCTURA FIJA DEL FORMULARIO ***
+        const FIXED_FORM_STRUCTURE = [
+            { 
+                title: "I. Información General", 
+                fields: [
+                    { id: "form_title", label: "Título del Formulario", type: "static", value: "Orden de Trabajo", required: true },
+                    { id: "ot_number", label: "Orden de Trabajo", type: "ot_counter", required: true },
+                    { id: "user_auto_fill", label: "Usuario que Crea la Orden", type: "user-auto-fill", required: true },
+                    { id: "current_date", label: "Fecha Actual", type: "date-auto", required: true },
+                    { id: "current_year", label: "Año", type: "year-auto", required: true },
+                    { id: "trabajo_obra", label: "Trabajo / Obra a realizar", type: "select", required: true, 
+                      options: ["Construcción de Acometida", "Construcción Nodo Acceso", "Construcción ISP", "Construcción Feeder (Pedestales - Zanjados - Tanquillas - Instalación de Postes)", "Mantenimiento de Red", "Relevamiento"] },
+                    { id: "municipio", label: "Municipio", type: "select", required: true, 
+                      options: ["Libertador", "Sucre", "Baruta", "Chacao", "El Hatillo"] },
+                    { id: "zona", label: "Zona", type: "text", required: true },
+                    { id: "responsable_solicita", label: "Responsable que Solicita la Obra", type: "text", required: true },
+                    { id: "responsable_autoriza", label: "Responsable que Autoriza", type: "text", required: true },
+                    { id: "tipo_contrato", label: "Tipo de Contrato", type: "select", required: true, 
+                      options: ["Acometidas", "Nodo de Acceso", "Relevamiento", "Desmantelado"] }
+                ]
+            },
+            { 
+                title: "II. Información de la Contratista", 
+                fields: [
+                    { id: "empresa", label: "Empresa", type: "autofill-select", required: true },
+                    { id: "Apellido y Nombre del Responsable", label: "Apellido y Nombre del Responsable", type: "text", required: true },
+                    { id: "Rif", label: "Rif", type: "text", required: true }
+                ]
+            },
+            { 
+                title: "III. Información del Trabajo/Obra", 
+                fields: [
+                    { id: "descripcion_detallada", label: "Descripción Detallada", type: "textarea", required: true },
+                    { id: "mano_obra", label: "Mano de Obra", type: "select", required: true, 
+                      options: ["Contratista", "Inter", "Ambos (Contratista - Inter)"] },
+                    { id: "materiales", label: "Materiales", type: "select", required: true, 
+                      options: ["Contratista", "Inter"] },
+                    { id: "equipos", label: "Equipos", type: "select", required: true, 
+                      options: ["Contratista", "Inter"] },
+                    { id: "fecha_inicio", label: "Fecha de inicio", type: "date-input", required: true },
+                    { id: "fecha_finalizacion", label: "Fecha de Finalización", type: "date-input", required: true },
+                    { id: "ubicacion_exacta", label: "Ubicación Exacta de la Obra", type: "textarea", required: true },
+                    { id: "presupuesto_total", label: "Presupuesto Total de la Obra", type: "number", required: true }
+                ]
+            }
         ];
 
         // *** FUNCIÓN AUXILIAR MEJORADA PARA EXTRAER AÑO DE FECHA ***
@@ -1360,25 +1367,6 @@
             return getCurrentCaracasYear();
         }
 
-        // *** FUNCIÓN DE VERIFICACIÓN DE ESTRUCTURA ***
-        function verifyFormStructurePreservation() {
-            const yearFieldExists = formStructure.some(section => 
-                section.fields.some(field => 
-                    field.type === 'year-auto' || field.label === 'Año'
-                )
-            );
-            
-            if (!yearFieldExists) {
-                console.warn('⚠️ El campo "Año" no se encontró en la estructura del formulario');
-                // Restaurar la estructura por defecto si es necesario
-                formStructure = DEFAULT_FORM_STRUCTURE;
-                saveFormStructure(true);
-                console.log('✅ Estructura del formulario restaurada a la versión por defecto');
-            } else {
-                console.log('✅ Estructura del formulario verificada correctamente - Campo "Año" presente');
-            }
-        }
-        
         // *** NUEVA FUNCIÓN: Obtener el mes actual en zona horaria de Caracas ***
         function getCurrentCaracasMonth() {
             const now = new Date();
@@ -1410,12 +1398,12 @@
                 if (configDoc.exists) {
                     console.log("✅ Configuración encontrada");
                     const data = configDoc.data();
-                    formStructure = data.formStructure || DEFAULT_FORM_STRUCTURE;
+                    formStructure = FIXED_FORM_STRUCTURE; // USAMOS LA ESTRUCTURA FIJA
                     otCounter = data.otCounter || 1;
                     finalCertificationCounter = data.finalCertificationCounter || 1;
                 } else {
                     console.log("⚠️ Configuración no encontrada, usando valores por defecto");
-                    formStructure = DEFAULT_FORM_STRUCTURE;
+                    formStructure = FIXED_FORM_STRUCTURE; // USAMOS LA ESTRUCTURA FIJA
                     await saveFormStructure(true); 
                 }
                 
@@ -1447,9 +1435,6 @@
                 console.log("🎯 Contador actualizado:", otCounter);
                 console.log("🎯 Contador certificaciones finales:", finalCertificationCounter);
 
-                // Verificar la preservación de la estructura
-                verifyFormStructurePreservation();
-
                 console.log("🚀 Carga de datos completada exitosamente");
 
             } catch (error) {
@@ -1477,18 +1462,18 @@
         async function saveFormStructure(initial = false) {
             try {
                 await CONFIG_COLLECTION.doc("systemConfig").set({
-                    formStructure: formStructure,
+                    formStructure: FIXED_FORM_STRUCTURE, // GUARDAMOS LA ESTRUCTURA FIJA
                     otCounter: otCounter,
                     finalCertificationCounter: finalCertificationCounter
                 }, { merge: true });
 
                 if (!initial) {
-                     alert('🎉 Estructura del formulario y contador guardados exitosamente en la nube.');
+                     alert('🎉 Contador guardado exitosamente en la nube.');
                      renderWorkOrderForm();
                 }
             } catch (e) {
                 console.error("Error al guardar la estructura:", e);
-                alert("Error al guardar la estructura en Firebase.");
+                alert("Error al guardar en Firebase.");
             }
         }
         
@@ -1560,16 +1545,12 @@
                 
                 const isCreator = (role === 'admin' || role === 'normal');
 
-                document.getElementById('edit-tab-button').style.display = (role === 'admin') ? 'inline-block' : 'none';
                 document.getElementById('new-order-tab-button').style.display = isCreator ? 'inline-block' : 'none';
                 
                 // Cargar datos después de verificar autenticación
                 await loadInitialData(); 
                 
-                if (role === 'admin') {
-                    renderFormEditor();
-                    openTab(null, 'edit-form');
-                } else if (role === 'normal') {
+                if (role === 'admin' || role === 'normal') {
                     openTab(null, 'new-order');
                 } else if (role === 'viewer') {
                     openTab(null, 'view-orders'); 
@@ -1635,114 +1616,6 @@
             else if (tabName === 'view-certifications') {
                 renderFinalCertificationsList();
                 initializeCertificationFilters();
-            }
-            else if (tabName === 'edit-form' && currentRole === 'admin' && formStructure) renderFormEditor();
-        }
-        
-        // *** 4. LÓGICA DE EDICIÓN DE FORMULARIO (ADMIN) ***
-
-        function renderFormEditor() {
-            const editorDiv = document.getElementById('form-editor');
-            editorDiv.innerHTML = '';
-
-            formStructure.forEach((section, secIndex) => {
-                const sectionDiv = document.createElement('div');
-                sectionDiv.className = 'form-section';
-                sectionDiv.innerHTML = `
-                    <h4>Sección ${secIndex + 1}: <input type="text" value="${section.title}" oninput="updateSectionTitle(${secIndex}, this.value)" style="width: 70%; display: inline;"></h4>
-                    <button onclick="addField(${secIndex}, 'text')">➕ Agregar Campo de Texto</button>
-                    <button onclick="addField(${secIndex}, 'select')">➕ Agregar Lista (Select)</button>
-                    <button onclick="addField(${secIndex}, 'date-input')">📅 Agregar Campo de Fecha</button>
-                    <button onclick="addField(${secIndex}, 'textarea')">📝 Agregar Área de Texto</button>
-                    <hr>
-                    <div id="fields-container-${secIndex}"></div>
-                `;
-                editorDiv.appendChild(sectionDiv);
-
-                const fieldsContainer = document.getElementById(`fields-container-${secIndex}`);
-                section.fields.forEach((field, fieldIndex) => {
-                    if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill' || field.type === 'year-auto' ||
-                        (secIndex === 2 && fieldIndex === 0 && field.label === 'Presupuesto Total de la Obra')) {
-                        fieldsContainer.innerHTML += `<p class="required-fixed-field"><strong>${field.label}</strong> (Campo fijo obligatorio)</p>`;
-                        return;
-                    }
-
-                    const fieldDiv = document.createElement('div');
-                    fieldDiv.className = 'field-editor-item';
-                    fieldDiv.innerHTML = `
-                        <label>Etiqueta:</label>
-                        <input type="text" value="${field.label}" oninput="updateFieldProperty(${secIndex}, ${fieldIndex}, 'label', this.value)">
-                        <label>Tipo:</label>
-                        <select onchange="updateFieldProperty(${secIndex}, ${fieldIndex}, 'type', this.value)">
-                            <option value="text" ${field.type === 'text' ? 'selected' : ''}>Texto (Corto)</option>
-                            <option value="number" ${field.type === 'number' ? 'selected' : ''}>Número</option>
-                            <option value="textarea" ${field.type === 'textarea' ? 'selected' : ''}>Área de Texto (Largo)</option>
-                            <option value="select" ${field.type === 'select' ? 'selected' : ''}>Lista Desplegable (Simple)</option>
-                            <option value="autofill-select" ${field.type === 'autofill-select' ? 'selected' : ''}>Lista (Autollenado Contratista) 📝</option>
-                            <option value="date-input" ${field.type === 'date-input' ? 'selected' : ''}>Fecha (Calendario) 📅</option>
-                            <option value="year-auto" ${field.type === 'year-auto' ? 'selected' : ''}>Año (Automático) 📅</option>
-                        </select>
-                        <label>Clasificación:</label>
-                        <input type="checkbox" id="req-${secIndex}-${fieldIndex}" ${field.required ? 'checked' : ''} onchange="updateFieldProperty(${secIndex}, ${fieldIndex}, 'required', this.checked)"> 
-                        <label for="req-${secIndex}-${fieldIndex}" style="display: inline-block; font-weight: normal;">Obligatorio</label>
-                        
-                        <div id="select-options-${secIndex}-${fieldIndex}" style="margin-top: 10px; ${field.type !== 'select' && field.type !== 'autofill-select' ? 'display: none;' : ''}">
-                            <strong>Opciones de Lista (solo visible si es 'Select' o 'Autofill-Select'). </strong>
-                            ${field.type === 'autofill-select' ? 
-                                '<p style="color: var(--color-error);">⚠️ **Autollenado:** Las opciones se toman de `CONTRATISTAS_DATA` y anulan esta lista.</p>' : ''
-                            }
-                            <input type="text" value="${(field.options || []).join(', ')}" oninput="updateSelectOptions(${secIndex}, ${fieldIndex}, this.value)">
-                        </div>
-                        <button onclick="removeField(${secIndex}, ${fieldIndex})" style="background-color: var(--color-error); color: var(--color-white);">🗑️ Eliminar Campo</button>
-                    `;
-                    fieldsContainer.appendChild(fieldDiv);
-                });
-            });
-        }
-        
-        function updateSectionTitle(secIndex, newTitle) { formStructure[secIndex].title = newTitle; }
-
-        function updateFieldProperty(secIndex, fieldIndex, prop, value) {
-            formStructure[secIndex].fields[fieldIndex][prop] = value;
-            if (prop === 'type') {
-                if ((value === 'select' || value === 'autofill-select') && !formStructure[secIndex].fields[fieldIndex].options) {
-                    formStructure[secIndex].fields[fieldIndex].options = ['Opción A', 'Opción B'];
-                }
-                renderFormEditor();
-            }
-        }
-
-        function updateSelectOptions(secIndex, fieldIndex, value) {
-            formStructure[secIndex].fields[fieldIndex].options = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
-        }
-
-        function addField(secIndex, type) {
-            const newField = {
-                id: `dynamic_field_${Date.now()}`,
-                label: `Nuevo Campo ${type === 'select' || type === 'autofill-select' ? 'Lista' : (type === 'date-input' ? 'Fecha' : (type === 'textarea' ? 'Texto Largo' : (type === 'year-auto' ? 'Año' : 'Texto')))}`,
-                type: type,
-                required: false
-            };
-            if (type === 'select' || type === 'autofill-select') newField.options = ['Opción A', 'Opción B'];
-            formStructure[secIndex].fields.push(newField);
-            renderFormEditor();
-        }
-
-        function removeField(secIndex, fieldIndex) {
-            const isFixed = formStructure[secIndex].fields[fieldIndex].type === 'static' || 
-                            formStructure[secIndex].fields[fieldIndex].type === 'ot_counter' ||
-                            formStructure[secIndex].fields[fieldIndex].type === 'date-auto' ||
-                            formStructure[secIndex].fields[fieldIndex].type === 'user-auto-fill' ||
-                            formStructure[secIndex].fields[fieldIndex].type === 'year-auto' ||
-                            (secIndex === 2 && fieldIndex === 0 && formStructure[secIndex].fields[fieldIndex].label === 'Presupuesto Total de la Obra');
-            
-            if ((secIndex === 0 && isFixed) || (secIndex === 2 && isFixed)) {
-                alert("🚫 No se pueden eliminar los campos fijos y obligatorios de las secciones principales.");
-                return;
-            }
-            if (confirm('¿Estás seguro de que quieres eliminar este campo?')) {
-                formStructure[secIndex].fields.splice(fieldIndex, 1);
-                renderFormEditor();
             }
         }
 
@@ -1884,7 +1757,7 @@
                     const totalDisplay = document.getElementById(`${prefix}_total_display`);
                     const totalDisplay1 = document.getElementById(`${prefix}_total_display1`);
                     const totalHidden = document.getElementById(`${prefix}_total_hidden`);
-                    const totalHidden1 = document.getElementById(`${prefix}_total_hidden1`);
+                    const totalHidden1 = document.getElementById(`${prefix}_total_hidden1}`);
                     
                     if (totalDisplay) totalDisplay.textContent = '0.00';
                     if (totalDisplay1) totalDisplay1.textContent = '0.00';
@@ -1909,7 +1782,7 @@
             formElement.innerHTML = '';
             const todayCaracas = getCurrentCaracasDate(); 
             const currentYear = getCurrentCaracasYear();
-            const currentMonth = getCurrentCaracasMonth(); // NUEVO: Obtener mes actual
+            const currentMonth = getCurrentCaracasMonth();
             const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'USUARIO NO LOGUEADO';
 
             if (!formStructure) {
@@ -1999,21 +1872,23 @@
                 formElement.appendChild(sectionDiv);
             });
             
+            // SECCIONES CONDICIONALES (Nodo de Acceso / ISP) - OPCIONALES
             formElement.innerHTML += `
-                <h4>Tipo de Construcción (Selección Única)</h4>
+                <h4>Secciones Opcionales de Construcción</h4>
+                <p><em>Complete solo si aplica a su tipo de trabajo</em></p>
                 <button type="button" class="conditional-check" id="check_node_acceso" onclick="toggleConditionalSection('node_acceso')">
-                    La Construcción es de un Nodo de Acceso
+                    📡 Datos Específicos para Construcción de Nodo de Acceso
                 </button>
                 <button type="button" class="conditional-check" id="check_isp" onclick="toggleConditionalSection('isp')">
-                    La Construcción es de un ISP
+                    🌐 Datos Específicos para Construcción de ISP
                 </button>
                 <button type="button" style="background-color: var(--color-error); color: var(--color-white); margin-top: 15px;" onclick="toggleConditionalSection(null)">
-                    ❌ Eliminar / Desmarcar Selección
+                    ❌ Ocultar Secciones Opcionales
                 </button>
             `;
             
-            formElement.innerHTML += renderConditionalSection('node_acceso', 'Datos Condicionales: La Construcción es de Nodo de Acceso');
-            formElement.innerHTML += renderConditionalSection('isp', 'Datos Condicionales: La Construcción es de un ISP');
+            formElement.innerHTML += renderConditionalSection('node_acceso', 'Datos Específicos: Construcción de Nodo de Acceso');
+            formElement.innerHTML += renderConditionalSection('isp', 'Datos Específicos: Construcción de ISP');
             
             toggleConditionalSection(null);
             
@@ -2116,9 +1991,9 @@
 
         async function generateWorkOrder() {
             const form = document.getElementById('work-order-form');
-            const selectedType = document.querySelector('.conditional-check.active');
             let firstInvalidField = null;
 
+            // Validar campos obligatorios fijos
             for (const section of formStructure) {
                 for (const field of section.fields) {
                     const isFixed = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill' || field.type === 'year-auto';
@@ -2139,42 +2014,6 @@
                 if (firstInvalidField) break; 
             }
 
-            if (!firstInvalidField && selectedType) {
-                const prefix = selectedType.id.replace('check_', '');
-                const camposCondicionales = [
-                    document.getElementById(`${prefix}_costo_proyectado`),
-                    document.getElementById(`${prefix}_pago_por_realizado`),
-                    document.getElementById(`${prefix}_precio_unitario`),
-                    document.getElementById(`${prefix}_puntos`),
-                    document.getElementById(`${prefix}_precio_unitario1`),
-                    document.getElementById(`${prefix}_puntos1`),
-                    document.getElementById(`${prefix}_descripcion`),
-                    document.getElementById(`${prefix}_abono_mensual`)
-                ];
-
-                for (const campo of camposCondicionales) {
-                    if (!campo) {
-                        console.error(`Campo condicional no encontrado: ${prefix}`);
-                        firstInvalidField = document.getElementById(`check_${prefix}`);
-                        break;
-                    }
-                    
-                    if (campo.type === 'text' || campo.type === 'select' || campo.tagName === 'TEXTAREA' || campo.type === 'date') {
-                        if (!campo.value.trim()) {
-                            firstInvalidField = campo;
-                            break;
-                        }
-                    } 
-                    else if (campo.type === 'number') {
-                        const numericValue = parseFloat(campo.value.replace(',', '.'));
-                        if (isNaN(numericValue) || numericValue < 0) {
-                            firstInvalidField = campo;
-                            break;
-                        }
-                    }
-                }
-            }
-
             if (firstInvalidField) {
                 alert('⚠️ Atención: Debe completar los campos obligatorios faltantes marcados con (*). El sistema lo llevará al primer error.');
                 
@@ -2189,7 +2028,7 @@
             
             const caracasDate = getCurrentCaracasDate(); 
             const currentYear = getCurrentCaracasYear();
-            const currentMonth = getCurrentCaracasMonth(); // NUEVO: Obtener mes actual
+            const currentMonth = getCurrentCaracasMonth();
             const currentUserEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'ERROR';
 
             formStructure.forEach(section => {
@@ -2221,7 +2060,9 @@
                 });
             });
             
-            orderData['Tipo de Construcción Seleccionada'] = selectedType ? selectedType.textContent.trim() : 'Ninguno';
+            // Agregar datos de secciones condicionales si están activas
+            const selectedType = document.querySelector('.conditional-check.active');
+            orderData['Tipo de Construcción Específica'] = selectedType ? selectedType.textContent.trim() : 'No aplica';
 
             if (selectedType) {
                 const prefix = selectedType.id.replace('check_', '');
@@ -2385,7 +2226,7 @@
                             }
                             
                             const isLongText = field.type === 'textarea' || 
-                                              /descripción|descripcion|detallada|detallado|observación|observacion|comentario|notas|detalle/i.test(label);
+                                              /descripción|descripcion|detallada|detallado|observación|observacion|comentario|notas|detalle|ubicación|ubicacion/i.test(label);
                             
                             let valueCellStyle = "padding: 8px 6px; vertical-align: top; border: 1px solid #B0C4DE; font-size: 11px;";
                             let labelCellStyle = "padding: 8px 6px; font-weight: bold; background-color: #F0F8FF; vertical-align: top; width: 35%; border: 1px solid #B0C4DE; font-size: 11px;";
@@ -2408,8 +2249,8 @@
                         formContentHTML += '</table></div>';
                     });
                     
-                    const type = data['Tipo de Construcción Seleccionada'];
-                    if (type && type !== 'Ninguno') {
+                    const type = data['Tipo de Construcción Específica'];
+                    if (type && type !== 'No aplica') {
                         const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
                         
                         const pagoVgtCANTV = data[`${prefix} | Pago x VGT CANTV a cargo de Inter`] || '0.00';
@@ -2667,7 +2508,7 @@
                 return;
             }
 
-            const currentMonth = getCurrentCaracasMonth(); // NUEVO: Obtener mes actual
+            const currentMonth = getCurrentCaracasMonth();
             
             // Filtrar órdenes del mes actual y extraer números
             const currentMonthOrders = workOrders.filter(order => {
@@ -4266,71 +4107,6 @@
             }
         }
 
-        // *** 12. FUNCIÓN PARA LIMPIAR DUPLICADOS ***
-        async function cleanDuplicateOrders() {
-            if (currentRole !== 'admin') {
-                alert('Solo administradores pueden ejecutar esta función');
-                return;
-            }
-            
-            if (!confirm('¿Está seguro de que desea limpiar órdenes duplicadas? Esta acción eliminará todas las órdenes con números duplicados, manteniendo solo la más reciente de cada número.')) {
-                return;
-            }
-            
-            try {
-                const ordersSnapshot = await ORDERS_COLLECTION.get();
-                const allOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                const currentMonth = getCurrentCaracasMonth();
-                const otCounts = {};
-                
-                allOrders.forEach(order => {
-                    const otNumber = order['Orden de Trabajo'];
-                    // Solo considerar órdenes del mes actual para limpieza
-                    if (typeof otNumber === 'string' && otNumber.startsWith(`(${currentMonth}-`)) {
-                        if (!otCounts[otNumber]) {
-                            otCounts[otNumber] = [];
-                        }
-                        otCounts[otNumber].push(order);
-                    }
-                });
-                
-                const duplicates = Object.entries(otCounts).filter(([ot, orders]) => orders.length > 1);
-                
-                if (duplicates.length === 0) {
-                    alert('No se encontraron órdenes duplicadas');
-                    return;
-                }
-                
-                console.log('Duplicados encontrados:', duplicates);
-                
-                let deletedCount = 0;
-                for (const [otNumber, orders] of duplicates) {
-                    const sorted = orders.sort((a, b) => {
-                        const dateA = new Date(a['Fecha Actual'] || 0);
-                        const dateB = new Date(b['Fecha Actual'] || 0);
-                        return dateB - dateA;
-                    });
-                    
-                    for (let i = 1; i < sorted.length; i++) {
-                        await ORDERS_COLLECTION.doc(sorted[i].id).delete();
-                        deletedCount++;
-                        console.log(`Eliminada orden duplicada: ${otNumber} - ID: ${sorted[i].id}`);
-                    }
-                }
-                
-                alert(`Se eliminaron ${deletedCount} órdenes duplicadas. Recargue la página para ver los cambios.`);
-                
-                await loadInitialData();
-                renderOrdersTable();
-                renderWorkOrderForm();
-                
-            } catch (error) {
-                console.error('Error limpiando duplicados:', error);
-                alert('Error al limpiar duplicados: ' + error.message);
-            }
-        }
-
         // *** 13. FUNCIONES DE EXPORTACIÓN E IMPORTACIÓN ***
 
         async function exportDatabase() {
@@ -4414,7 +4190,7 @@
                 const importedFormStructure = importData.config.formStructure;
                 
                 if (!importedFormStructure || !Array.isArray(importedFormStructure)) {
-                    alert('El archivo de importación no contiene una estructura de formulario válida. Se usará la estructura actual.');
+                    alert('El archivo de importación no contiene una estructura de formulario válida. Se usará la estructura fija actual.');
                 } else {
                     console.log('✅ Importando estructura completa del formulario desde el archivo de respaldo');
                 }
@@ -4424,17 +4200,12 @@
                 // 🎯 IMPORTAR DATOS COMPLETOS INCLUYENDO LA ESTRUCTURA DEL FORMULARIO
                 const updatedConfig = {
                     ...importData.config,
-                    formStructure: importedFormStructure || formStructure, // Usar estructura importada o mantener la actual
+                    formStructure: FIXED_FORM_STRUCTURE, // SIEMPRE USAR LA ESTRUCTURA FIJA
                     otCounter: importData.config.otCounter || otCounter,
                     finalCertificationCounter: importData.config.finalCertificationCounter || finalCertificationCounter
                 };
 
                 await CONFIG_COLLECTION.doc("systemConfig").set(updatedConfig);
-
-                // 🔄 ACTUALIZAR ESTRUCTURA LOCAL CON LA IMPORTADA
-                if (importedFormStructure) {
-                    formStructure = importedFormStructure;
-                }
 
                 // 🔄 NUEVO: ORDENAR ÓRDENES POR NÚMERO DE FORMA DESCENDENTE (MENOR A MAYOR)
                 console.log('🔄 Ordenando órdenes por número de forma descendente...');
@@ -4513,12 +4284,7 @@
                 renderFinalCertificationsList();
                 renderWorkOrderForm();
                 
-                // Si el usuario es admin, actualizar también el editor de formularios
-                if (currentRole === 'admin') {
-                    renderFormEditor();
-                }
-
-                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso, ${importedCompletedCount} órdenes finalizadas y ${importedCertificationCount} certificaciones finales.\n\n📝 Se importó la estructura completa del formulario desde el archivo de respaldo.\n🔢 Las órdenes se ordenaron correctamente por número (menor a mayor).`);
+                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso, ${importedCompletedCount} órdenes finalizadas y ${importedCertificationCount} certificaciones finales.\n\n📝 Se utilizó la estructura fija del formulario.\n🔢 Las órdenes se ordenaron correctamente por número (menor a mayor).`);
 
             } catch (error) {
                 console.error('Error al importar la base de datos:', error);
@@ -4571,7 +4337,7 @@
             availableFields.add('Fecha Actual');
             availableFields.add('Año'); // NUEVO: Campo año
             availableFields.add('Usuario que Crea la Orden');
-            availableFields.add('Tipo de Construcción Seleccionada');
+            availableFields.add('Tipo de Construcción Específica');
             availableFields.add('Estado');
             availableFields.add('Presupuesto Total de la Obra');
             
@@ -4791,7 +4557,7 @@
             availableFields.add('Año'); // NUEVO: Campo año
             availableFields.add('Fecha de Finalización');
             availableFields.add('Usuario que Crea la Orden');
-            availableFields.add('Tipo de Construcción Seleccionada');
+            availableFields.add('Tipo de Construcción Específica');
             availableFields.add('Presupuesto Total de la Obra');
             availableFields.add('Estado de Certificación Final');
             
