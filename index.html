@@ -34,6 +34,7 @@
             --color-certification: #9C27B0; /* Púrpura para certificaciones finales */
             --color-certified: #4CAF50;  /* Verde para certificadas */
             --color-not-certified: #FF9800; /* Naranja para no certificadas */
+            --color-company: #6A5ACD;    /* Azul pizarra para empresas */
         }
 
         /* Estilos Generales (Diseño Pastel) */
@@ -182,11 +183,11 @@
         .required-fixed-field { padding: 10px; background-color: var(--color-secondary); color: var(--color-white); border-radius: 4px; margin-bottom: 10px; }
         
         /* Estilos para la tabla */
-        #orders-table { width: 100%; border-collapse: collapse; }
-        #orders-table th, #orders-table td { border: 1px solid var(--color-secondary); padding: 12px; text-align: left; }
-        #orders-table th { background-color: var(--color-primary); color: var(--color-text); }
-        #orders-table tr:nth-child(even) { background-color: var(--color-bg); }
-        #orders-table tr:hover { background-color: var(--color-accent); color: var(--color-white); }
+        #orders-table, #companies-table { width: 100%; border-collapse: collapse; }
+        #orders-table th, #orders-table td, #companies-table th, #companies-table td { border: 1px solid var(--color-secondary); padding: 12px; text-align: left; }
+        #orders-table th, #companies-table th { background-color: var(--color-primary); color: var(--color-text); }
+        #orders-table tr:nth-child(even), #companies-table tr:nth-child(even) { background-color: var(--color-bg); }
+        #orders-table tr:hover, #companies-table tr:hover { background-color: var(--color-accent); color: var(--color-white); }
 
         /* Login View */
         #login-view { width: 350px; padding: 40px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: var(--color-white); border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); text-align: center; }
@@ -644,6 +645,75 @@
             opacity: 0.9;
         }
 
+        /* NUEVOS ESTILOS PARA PESTAÑA DE EMPRESAS */
+        .company-section {
+            border: 2px solid var(--color-company);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #f8f7ff;
+        }
+        
+        .company-section h4 {
+            color: var(--color-company);
+            border-bottom: 1px solid var(--color-company);
+            margin-top: 0;
+        }
+        
+        .company-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .company-button {
+            background-color: var(--color-company);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .company-button:hover {
+            background-color: #483D8B;
+        }
+        
+        .company-form-container {
+            border: 1px solid var(--color-company);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #f0f0ff;
+        }
+        
+        .company-form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            align-items: flex-end;
+        }
+        
+        .company-form-field {
+            flex: 1;
+        }
+        
+        .company-form-field label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--color-company);
+        }
+
+        /* Estilo para mensaje de no empresas */
+        .no-companies-message {
+            text-align: center;
+            padding: 40px;
+            color: var(--color-text);
+            background-color: #f0f8ff;
+            border-radius: 8px;
+            border: 2px dashed var(--color-secondary);
+            margin: 20px 0;
+        }
+
     </style>
 </head>
 <body>
@@ -664,6 +734,7 @@
             <button class="tablinks" id="new-order-tab-button" onclick="openTab(event, 'new-order')">📋 Nueva Orden de Trabajo</button>
             <button class="tablinks" onclick="openTab(event, 'view-orders')">📂 Órdenes en Curso</button>
             <button class="tablinks" onclick="openTab(event, 'completed-orders')">✅ Órdenes Finalizadas</button>
+            <button class="tablinks" onclick="openTab(event, 'companies')">🏢 Empresas</button>
             <button class="tablinks" onclick="openTab(event, 'final-certification')">📜 Certificación Final</button>
             <button class="tablinks" onclick="openTab(event, 'view-certifications')">📋 Certificaciones Finales</button>
             <button onclick="logout()" style="float: right;">🚪 Cerrar Sesión</button>
@@ -861,7 +932,83 @@
             </div>
         </div>
 
-        <!-- Pestaña 4: Certificación Final -->
+        <!-- Pestaña 4: Gestión de Empresas (Solo Admin) -->
+        <div id="companies" class="tabcontent">
+            <h3>🏢 Gestión de Empresas</h3>
+            
+            <div id="company-management" style="display: none;">
+                <!-- Formulario para agregar/editar empresa -->
+                <div class="company-section">
+                    <h4>📝 Agregar/Editar Empresa</h4>
+                    <div class="company-form-container">
+                        <div class="company-form-row">
+                            <div class="company-form-field">
+                                <label for="company-name">Nombre de la Empresa *</label>
+                                <input type="text" id="company-name" placeholder="Ej: JERM TELECOMTRONICS TECHNOLOGY MULTISERVICES C.A" required>
+                            </div>
+                        </div>
+                        
+                        <div class="company-form-row">
+                            <div class="company-form-field">
+                                <label for="company-responsible">Apellido y Nombre del Responsable *</label>
+                                <input type="text" id="company-responsible" placeholder="Ej: JOHN RIVAS" required>
+                            </div>
+                        </div>
+                        
+                        <div class="company-form-row">
+                            <div class="company-form-field">
+                                <label for="company-rif">RIF *</label>
+                                <input type="text" id="company-rif" placeholder="Ej: J-50507058-4" required>
+                            </div>
+                        </div>
+                        
+                        <div class="company-form-row">
+                            <div class="company-form-field">
+                                <input type="hidden" id="company-id">
+                                <button type="button" class="company-button" onclick="saveCompany()" id="save-company-btn">
+                                    💾 Guardar Empresa
+                                </button>
+                                <button type="button" onclick="clearCompanyForm()" style="background-color: var(--color-secondary); color: white;">
+                                    🗑️ Limpiar Formulario
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Lista de empresas existentes -->
+                <div class="company-section">
+                    <h4>📋 Empresas Registradas</h4>
+                    <div id="companies-list">
+                        <table id="companies-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre de la Empresa</th>
+                                    <th>Responsable</th>
+                                    <th>RIF</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="companies-table-body">
+                                <!-- Las empresas se cargarán dinámicamente aquí -->
+                            </tbody>
+                        </table>
+                        
+                        <div id="no-companies-message" class="no-companies-message" style="display: none;">
+                            <p>📭 No hay empresas registradas.</p>
+                            <p>Agregue una empresa usando el formulario superior.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="company-access-denied" style="text-align: center; padding: 40px; color: var(--color-error);">
+                <h4>🚫 Acceso Restringido</h4>
+                <p>Esta sección solo está disponible para administradores.</p>
+            </div>
+        </div>
+
+        <!-- Pestaña 5: Certificación Final -->
         <div id="final-certification" class="tabcontent">
             <h3>Certificación Final</h3>
             
@@ -928,7 +1075,7 @@
             </div>
         </div>
 
-        <!-- Pestaña 5: Certificaciones Finales -->
+        <!-- Pestaña 6: Certificaciones Finales -->
         <div id="view-certifications" class="tabcontent">
             <h3>Certificaciones Finales</h3>
             
@@ -1114,12 +1261,14 @@
         const COMPLETED_ORDERS_COLLECTION = db.collection("completedWorkOrders");
         const CONFIG_COLLECTION = db.collection("config"); 
         const FINAL_CERTIFICATIONS_COLLECTION = db.collection("finalCertifications");
+        const COMPANIES_COLLECTION = db.collection("companies"); // NUEVA COLECCIÓN
         
         // Variables de estado
         let formStructure = null; 
         let workOrders = []; 
         let completedOrders = [];
         let finalCertifications = [];
+        let companies = []; // NUEVO: Array para empresas
         let otCounter = 1; 
         let finalCertificationCounter = 1;
         let currentRole = null; 
@@ -1127,7 +1276,8 @@
         let completedActiveFilters = [];
         let certificationActiveFilters = [];
         let currentOrderForCertification = null;
-        let certificationFilter = 'all'; // NUEVO: Filtro de certificación
+        let certificationFilter = 'all';
+        let editingCompanyId = null; // NUEVO: Para edición de empresas
 
         // ----------------------------------------------------------------------------------
         // *** CONFIGURACIÓN DE ROLES CON MÚLTIPLES CORREOS (LISTAS/ARRAYS) ***
@@ -1150,146 +1300,6 @@
         // *** FIN CONFIGURACIÓN DE ROLES ***
         // ----------------------------------------------------------------------------------
         
-        // *** DATOS FIJOS PARA AUTOLENADO DE CONTRATISTAS ***
-        const CONTRATISTAS_DATA = {
-            "Seleccione una Empresa": {
-                "Apellido y Nombre del Responsable": "",
-                "Rif": ""
-            },
-            " JERM TELECOMTRONICS TECHNOLOGY MULTISERVICES  C.A": {
-                "Apellido y Nombre del Responsable": "JOHN RIVAS",
-                "Rif": "J-50507058-4"
-            },
-            "CHASSERAL  C.A": {
-                "Apellido y Nombre del Responsable": "YORKFRAN PERAZA",
-                "Rif": "J-29510646-7"
-            },
-            "CONSERVI AJ C.A": {
-                "Apellido y Nombre del Responsable": "ALFONZO BASTARDO",
-                "Rif": "J-29548400-3"
-            },
-            "CORPORACION ACEL  C.A": {
-                "Apellido y Nombre del Responsable": "DANIEL GONCALVES",
-                "Rif": "J-30860621-9"
-            },
-            "CORPORACIÓN TORRA NET 2022  C.A": {
-                "Apellido y Nombre del Responsable": "JESUS TORRADO",
-                "Rif": "J-50308479-0"
-            },
-            "DISTRIBUIDORA TODO EN REDES G.S.R  C.A": {
-                "Apellido y Nombre del Responsable": "GASTON BUIZA",
-                "Rif": "J-40424835-8"
-            },
-            "FIBRA INTEGRA  C.A": {
-                "Apellido y Nombre del Responsable": "MARIE ANTONIETTE DAHDAH",
-                "Rif": "J-50265450-0"
-            },
-            "G&D INTEGRAL RED 2023": {
-                "Apellido y Nombre del Responsable": "RAFAEL GOMEZ",
-                "Rif": "J-50298686-3"
-            },
-            "GLOBAL FIX C.A": {
-                "Apellido y Nombre del Responsable": "CECILIA CASTRO - JEAN PIERRE LAPARROUSAZ",
-                "Rif": "J-31189038-6"
-            },
-            "INT.TV  C.A": {
-                "Apellido y Nombre del Responsable": "RAFAEL BERNAEZ",
-                "Rif": "J-50301107-6"
-            },
-            "INVERSIONES ELECTROMTEC 2020  C.A": {
-                "Apellido y Nombre del Responsable": "IGOR REGALADO",
-                "Rif": "J-50082533-1"
-            },
-            "INVERSIONES PROYECTOS LG 721  C.A": {
-                "Apellido y Nombre del Responsable": "DOMENICO LOLLI",
-                "Rif": "J-29831930-5"
-            },
-            "INVERSIONES TELE MATIK 321 C.A": {
-                "Apellido y Nombre del Responsable": "EDICSON TORRES - KATIUSKA",
-                "Rif": "J-29867936-0"
-            },
-            "JR TECH SUPPORT  C.A": {
-                "Apellido y Nombre del Responsable": "YENSY MARTINEZ",
-                "Rif": "J-50032575-4"
-            },
-            "LG ALPHA SOLUCIONES  C.A": {
-                "Apellido y Nombre del Responsable": "GILBERTO BERNAEZ",
-                "Rif": "J-50319061-2"
-            },
-            "MULTI INVERSIONES LA LOVEREÑA C.A": {
-                "Apellido y Nombre del Responsable": "CARLOS TOLEDO",
-                "Rif": "J-40492572-4"
-            },
-            "MULTISERVICIOS DAYRA-TEC  C.A": {
-                "Apellido y Nombre del Responsable": "MARINES GOMEZ",
-                "Rif": "J-50331914-3"
-            },
-            "PHONE MARKET STAR C.A": {
-                "Apellido y Nombre del Responsable": "NELSON MORA",
-                "Rif": "J-30919375-9"
-            },
-            "PROMOCIONES Y MERCADEO J FRANCHI C.A": {
-                "Apellido y Nombre del Responsable": "JOSE FRANCHI",
-                "Rif": "J-31574714-6"
-            },
-            "ROM-AR SERVICIOS Y MANTENIMIENTO  C.A": {
-                "Apellido y Nombre del Responsable": "ELENA RUIZ",
-                "Rif": "J-31128189-4"
-            },
-            "SERVICIOS DE TECNOLOGIA E INNOVACION (SERVITECH)  C.A": {
-                "Apellido y Nombre del Responsable": "JHOAN CELIS",
-                "Rif": "J-50028078-5"
-            },
-            "SERVICIOS INTEGRALES RFCF  C.A": {
-                "Apellido y Nombre del Responsable": "CESAR",
-                "Rif": "J-40387720-3"
-            },
-            "SERVICIOS J&G SOLUTION  C.A": {
-                "Apellido y Nombre del Responsable": "JESUS BERNAEZ",
-                "Rif": "J-50201745-3"
-            },
-            "SERVICIOS R G C.A": {
-                "Apellido y Nombre del Responsable": "NELSON PORRA",
-                "Rif": "J-29624230-5"
-            },
-            "SERVICIOS TEALCA C.A": {
-                "Apellido y Nombre del Responsable": "FRANKLYN MENDOZA",
-                "Rif": "J-31521527-6"
-            },
-            "SERVINDRECO C.A": {
-                "Apellido y Nombre del Responsable": "OSCAR GUERRERO",
-                "Rif": "J-31347293-0"
-            },
-            "SUMINISTROS INDUSTRIALES JAMIG C.A": {
-                "Apellido y Nombre del Responsable": "MIGUEL PEREZ",
-                "Rif": "J-40990643-4"
-            },
-            "SYCO 73  C.A": {
-                "Apellido y Nombre del Responsable": "JUAN SIVIRA",
-                "Rif": "J-31762306-1"
-            },
-            "TELECOMUNICACIONES JD SISTEM  C.A": {
-                "Apellido y Nombre del Responsable": "FLAVIA GOMEZ",
-                "Rif": "J-50126527-5"
-            },
-            "TELEIBARRA CA&EC  C.A": {
-                "Apellido y Nombre del Responsable": "CARLOS IBARRA",
-                "Rif": "J-50481799-6"
-            },
-            "W&S TECNOMARKET C.A": {
-                "Apellido y Nombre del Responsable": "YERWILL SILVA",
-                "Rif": "J-30993225-0"
-            },
-            "WV SOLUCIONES TECNO-EMPRESARIALES  C.A": {
-                "Apellido y Nombre del Responsable": "WILLIAN VALERO",
-                "Rif": "J-40973178-2"
-            },
-            "FÉNIX FIBER NETWORK  C.A": {
-                "Apellido y Nombre del Responsable": "JHONY RIBERO",
-                "Rif": "J-50716628-7"
-            }
-        };
-
         // *** NUEVA ESTRUCTURA FIJA DEL FORMULARIO ***
         const FIXED_FORM_STRUCTURE = [
             { 
@@ -1315,8 +1325,8 @@
                 title: "II. Información de la Contratista", 
                 fields: [
                     { id: "empresa", label: "Empresa", type: "autofill-select", required: true },
-                    { id: "Apellido y Nombre del Responsable", label: "Apellido y Nombre del Responsable", type: "text", required: true },
-                    { id: "Rif", label: "Rif", type: "text", required: true }
+                    { id: "responsable", label: "Apellido y Nombre del Responsable", type: "text", required: true },
+                    { id: "rif", label: "Rif", type: "text", required: true }
                 ]
             },
             { 
@@ -1407,6 +1417,10 @@
                     await saveFormStructure(true); 
                 }
                 
+                // NUEVO: Cargar Empresas desde Firebase
+                console.log("🏢 Cargando empresas...");
+                await loadCompanies();
+                
                 // Cargar Órdenes de Trabajo EN CURSO - ORDENADAS POR NÚMERO DESCENDENTE (MENOR A MAYOR)
                 console.log("📂 Cargando órdenes en curso...");
                 const ordersSnapshot = await ORDERS_COLLECTION.get();
@@ -1456,6 +1470,27 @@
                 
                 alert(errorMessage);
                 throw error;
+            }
+        }
+        
+        // *** NUEVA FUNCIÓN: Cargar empresas desde Firebase ***
+        async function loadCompanies() {
+            try {
+                const companiesSnapshot = await COMPANIES_COLLECTION.get();
+                companies = companiesSnapshot.docs.map(doc => ({ 
+                    id: doc.id, 
+                    ...doc.data() 
+                }));
+                
+                // Ordenar empresas por nombre
+                companies.sort((a, b) => a.name.localeCompare(b.name));
+                
+                console.log(`✅ ${companies.length} empresas cargadas`);
+                return companies;
+            } catch (error) {
+                console.error("❌ Error cargando empresas:", error);
+                companies = [];
+                return [];
             }
         }
         
@@ -1559,6 +1594,7 @@
                 renderWorkOrderForm();
                 renderOrdersTable();
                 renderCompletedOrdersTable();
+                renderCompaniesTable(); // NUEVO: Renderizar tabla de empresas
                 renderFinalCertificationForm();
                 renderFinalCertificationsList();
                 
@@ -1610,6 +1646,9 @@
                 renderCompletedOrdersTable();
                 initializeCompletedFilters();
             }
+            else if (tabName === 'companies') {
+                renderCompaniesTable();
+            }
             else if (tabName === 'final-certification') {
                 renderFinalCertificationForm();
             }
@@ -1660,24 +1699,33 @@
             return caracasTime.getFullYear();
         }
         
+        // *** MODIFICADA: Función de autollenado dinámico de empresas ***
         function autofillContratistaData(selectElement) {
             const selectedCompanyName = selectElement.value;
-            const data = CONTRATISTAS_DATA[selectedCompanyName];
             
-            if (!data) {
-                document.getElementById('Apellido y Nombre del Responsable').value = '';
-                document.getElementById('Rif').value = '';
+            if (!selectedCompanyName) {
+                document.getElementById('responsable').value = '';
+                document.getElementById('rif').value = '';
                 return;
             }
 
-            const responsibleField = document.getElementById('Apellido y Nombre del Responsable');
-            const rifField = document.getElementById('Rif');
-
-            if (responsibleField && data["Apellido y Nombre del Responsable"] !== undefined) {
-                responsibleField.value = data["Apellido y Nombre del Responsable"];
+            // Buscar la empresa en el array de empresas cargadas
+            const company = companies.find(c => c.name === selectedCompanyName);
+            
+            if (!company) {
+                document.getElementById('responsable').value = '';
+                document.getElementById('rif').value = '';
+                return;
             }
-            if (rifField && data["Rif"] !== undefined) {
-                rifField.value = data["Rif"];
+
+            const responsibleField = document.getElementById('responsable');
+            const rifField = document.getElementById('rif');
+
+            if (responsibleField && company.responsible) {
+                responsibleField.value = company.responsible;
+            }
+            if (rifField && company.rif) {
+                rifField.value = company.rif;
             }
         }
 
@@ -1777,6 +1825,7 @@
             }
         }
 
+        // *** MODIFICADA: Función para renderizar el formulario con empresas dinámicas ***
         function renderWorkOrderForm() {
             const formElement = document.getElementById('work-order-form');
             formElement.innerHTML = '';
@@ -1804,8 +1853,8 @@
                     let isAutofillField = false;
 
                     if (section.title.includes('II. Información de la Contratista')) {
-                        const autofillKeys = ["Apellido y Nombre del Responsable", "Rif"];
-                        if (autofillKeys.includes(field.label)) {
+                        const autofillKeys = ["responsable", "rif"];
+                        if (autofillKeys.includes(field.id)) {
                             isDisabled = 'disabled';
                             isAutofillField = true;
                         } else if (field.type === 'autofill-select') {
@@ -1813,7 +1862,7 @@
                         }
                     }
 
-                    const fieldId = isAutofillField ? field.label : field.id; 
+                    const fieldId = field.id;
                     
                     const isFixedField = field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || field.type === 'user-auto-fill' || field.type === 'year-auto';
                     const requiredAttribute = field.required && !isFixedField ? 'required' : '';
@@ -1860,7 +1909,9 @@
                             </select>`;
                             break;
                         case 'autofill-select': 
-                            const optionsHTML = Object.keys(CONTRATISTAS_DATA).map(key => `<option value="${key}">${key}</option>`).join('');
+                            // Cargar empresas desde el array dinámico
+                            const optionsHTML = '<option value="">Seleccionar empresa...</option>' + 
+                                companies.map(company => `<option value="${company.name}">${company.name}</option>`).join('');
                             inputHTML = `<select id="${fieldId}" name="${fieldId}" ${requiredAttribute} ${isDisabled} ${onChangeEvent}>
                                 ${optionsHTML}
                             </select>`;
@@ -2000,9 +2051,7 @@
                     
                     if (!field.required || isFixed) continue;
 
-                    let fieldId = (section.title.includes('II. Información de la Contratista') && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
-                                ? field.label 
-                                : field.id;
+                    let fieldId = field.id;
                     
                     const inputElement = document.getElementById(fieldId);
 
@@ -2034,9 +2083,7 @@
             formStructure.forEach(section => {
                 section.fields.forEach(field => {
                     let value;
-                    let fieldId = (section.title.includes('II. Información de la Contratista') && (field.label === 'Apellido y Nombre del Responsable' || field.label === 'Rif')) 
-                                ? field.label 
-                                : field.id;
+                    let fieldId = field.id;
 
                     if (field.type === 'ot_counter') {
                         // NUEVO FORMATO: (mes-número)
@@ -3264,12 +3311,11 @@
             if (companySelect) {
                 companySelect.innerHTML = '<option value="">Seleccionar empresa...</option>';
                 
-                const empresasUnicas = Object.keys(CONTRATISTAS_DATA).filter(empresa => empresa !== "Seleccione una Empresa");
-                
-                empresasUnicas.forEach(empresa => {
+                // Cargar empresas únicas del array de empresas
+                companies.forEach(company => {
                     const option = document.createElement('option');
-                    option.value = empresa;
-                    option.textContent = empresa;
+                    option.value = company.name;
+                    option.textContent = company.name;
                     companySelect.appendChild(option);
                 });
             }
@@ -3900,7 +3946,272 @@
             });
         }
 
-        // *** 10. FUNCIONES DE FILTRADO PARA CERTIFICACIONES FINALES ***
+        // *** 10. NUEVAS FUNCIONES PARA GESTIÓN DE EMPRESAS ***
+
+        /**
+         * Renderiza la tabla de empresas (solo para administradores)
+         */
+        function renderCompaniesTable() {
+            const companyManagement = document.getElementById('company-management');
+            const companyAccessDenied = document.getElementById('company-access-denied');
+            const tbody = document.getElementById('companies-table-body');
+            const noCompaniesMessage = document.getElementById('no-companies-message');
+            
+            // Verificar si el usuario es administrador
+            if (currentRole === 'admin') {
+                companyManagement.style.display = 'block';
+                companyAccessDenied.style.display = 'none';
+                
+                // Limpiar tabla
+                tbody.innerHTML = '';
+                
+                if (companies.length === 0) {
+                    noCompaniesMessage.style.display = 'block';
+                    return;
+                }
+                
+                noCompaniesMessage.style.display = 'none';
+                
+                // Mostrar empresas en tabla
+                companies.forEach(company => {
+                    const row = tbody.insertRow();
+                    
+                    row.insertCell().textContent = company.name;
+                    row.insertCell().textContent = company.responsible;
+                    row.insertCell().textContent = company.rif;
+                    
+                    const actionCell = row.insertCell();
+                    
+                    const editBtn = document.createElement('button');
+                    editBtn.textContent = '✏️ Editar';
+                    editBtn.style.backgroundColor = '#FFB347';
+                    editBtn.style.color = 'white';
+                    editBtn.style.marginRight = '5px';
+                    editBtn.onclick = () => editCompany(company);
+                    actionCell.appendChild(editBtn);
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = '🗑️ Eliminar';
+                    deleteBtn.style.backgroundColor = 'var(--color-error)';
+                    deleteBtn.style.color = 'white';
+                    deleteBtn.onclick = () => deleteCompany(company.id, company.name);
+                    actionCell.appendChild(deleteBtn);
+                });
+                
+            } else {
+                companyManagement.style.display = 'none';
+                companyAccessDenied.style.display = 'block';
+            }
+        }
+
+        /**
+         * Valida el formulario de empresa
+         */
+        function validateCompanyForm() {
+            const name = document.getElementById('company-name').value.trim();
+            const responsible = document.getElementById('company-responsible').value.trim();
+            const rif = document.getElementById('company-rif').value.trim();
+            
+            if (!name) {
+                alert('El nombre de la empresa es obligatorio.');
+                document.getElementById('company-name').focus();
+                return false;
+            }
+            
+            if (!responsible) {
+                alert('El nombre del responsable es obligatorio.');
+                document.getElementById('company-responsible').focus();
+                return false;
+            }
+            
+            if (!rif) {
+                alert('El RIF es obligatorio.');
+                document.getElementById('company-rif').focus();
+                return false;
+            }
+            
+            // Validar formato de RIF (J-XXXXXXXX-X)
+            const rifRegex = /^[JGV]-\d{8,9}-\d$/i;
+            if (!rifRegex.test(rif)) {
+                alert('El formato del RIF no es válido. Debe ser: J-XXXXXXXX-X');
+                document.getElementById('company-rif').focus();
+                return false;
+            }
+            
+            return true;
+        }
+
+        /**
+         * Guarda una empresa (nueva o editada)
+         */
+        async function saveCompany() {
+            if (currentRole !== 'admin') {
+                alert('🚫 Permiso denegado. Solo un administrador puede gestionar empresas.');
+                return;
+            }
+            
+            if (!validateCompanyForm()) {
+                return;
+            }
+            
+            const name = document.getElementById('company-name').value.trim();
+            const responsible = document.getElementById('company-responsible').value.trim();
+            const rif = document.getElementById('company-rif').value.trim();
+            const companyId = document.getElementById('company-id').value;
+            
+            const companyData = {
+                name: name,
+                responsible: responsible,
+                rif: rif,
+                updatedAt: new Date().toISOString(),
+                updatedBy: firebase.auth().currentUser.email
+            };
+            
+            try {
+                if (companyId) {
+                    // Actualizar empresa existente
+                    await COMPANIES_COLLECTION.doc(companyId).update(companyData);
+                    
+                    // Actualizar en array local
+                    const index = companies.findIndex(c => c.id === companyId);
+                    if (index !== -1) {
+                        companies[index] = { ...companies[index], ...companyData };
+                    }
+                    
+                    alert('✅ Empresa actualizada exitosamente.');
+                } else {
+                    // Agregar nueva empresa
+                    companyData.createdAt = new Date().toISOString();
+                    companyData.createdBy = firebase.auth().currentUser.email;
+                    
+                    const docRef = await COMPANIES_COLLECTION.add(companyData);
+                    
+                    // Agregar al array local
+                    companies.push({
+                        id: docRef.id,
+                        ...companyData
+                    });
+                    
+                    alert('✅ Empresa agregada exitosamente.');
+                }
+                
+                // Ordenar empresas por nombre
+                companies.sort((a, b) => a.name.localeCompare(b.name));
+                
+                // Limpiar formulario
+                clearCompanyForm();
+                
+                // Actualizar tabla
+                renderCompaniesTable();
+                
+                // Actualizar formulario de orden de trabajo
+                renderWorkOrderForm();
+                
+                // Actualizar formulario de certificación final
+                renderFinalCertificationForm();
+                
+            } catch (error) {
+                console.error('Error al guardar empresa:', error);
+                alert('Error al guardar la empresa: ' + error.message);
+            }
+        }
+
+        /**
+         * Edita una empresa existente
+         */
+        function editCompany(company) {
+            if (currentRole !== 'admin') {
+                alert('🚫 Permiso denegado. Solo un administrador puede editar empresas.');
+                return;
+            }
+            
+            document.getElementById('company-id').value = company.id;
+            document.getElementById('company-name').value = company.name;
+            document.getElementById('company-responsible').value = company.responsible;
+            document.getElementById('company-rif').value = company.rif;
+            
+            // Cambiar texto del botón
+            document.getElementById('save-company-btn').textContent = '💾 Actualizar Empresa';
+            
+            // Hacer scroll al formulario
+            document.getElementById('company-name').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('company-name').focus();
+        }
+
+        /**
+         * Elimina una empresa
+         */
+        async function deleteCompany(companyId, companyName) {
+            if (currentRole !== 'admin') {
+                alert('🚫 Permiso denegado. Solo un administrador puede eliminar empresas.');
+                return;
+            }
+            
+            if (!confirm(`¿Está seguro de que desea eliminar la empresa "${companyName}"?\n\n⚠️ ADVERTENCIA: Esta acción no se puede deshacer.`)) {
+                return;
+            }
+            
+            // Verificar si la empresa está siendo utilizada en órdenes
+            try {
+                const ordersWithCompany = workOrders.filter(order => 
+                    order['Empresa'] === companyName
+                );
+                
+                const completedOrdersWithCompany = completedOrders.filter(order => 
+                    order['Empresa'] === companyName
+                );
+                
+                const totalOrders = ordersWithCompany.length + completedOrdersWithCompany.length;
+                
+                if (totalOrders > 0) {
+                    const confirmDelete = confirm(
+                        `⚠️ Esta empresa está siendo utilizada en ${totalOrders} órdenes:\n` +
+                        `• ${ordersWithCompany.length} órdenes en curso\n` +
+                        `• ${completedOrdersWithCompany.length} órdenes finalizadas\n\n` +
+                        `Si elimina la empresa, las órdenes existentes mantendrán el nombre de la empresa pero no podrá seleccionarla en nuevas órdenes.\n\n` +
+                        `¿Desea continuar con la eliminación?`
+                    );
+                    
+                    if (!confirmDelete) {
+                        return;
+                    }
+                }
+                
+                // Eliminar de Firebase
+                await COMPANIES_COLLECTION.doc(companyId).delete();
+                
+                // Eliminar del array local
+                companies = companies.filter(c => c.id !== companyId);
+                
+                // Actualizar tabla
+                renderCompaniesTable();
+                
+                // Actualizar formulario de orden de trabajo
+                renderWorkOrderForm();
+                
+                // Actualizar formulario de certificación final
+                renderFinalCertificationForm();
+                
+                alert(`✅ Empresa "${companyName}" eliminada exitosamente.`);
+                
+            } catch (error) {
+                console.error('Error al eliminar empresa:', error);
+                alert('Error al eliminar la empresa: ' + error.message);
+            }
+        }
+
+        /**
+         * Limpia el formulario de empresa
+         */
+        function clearCompanyForm() {
+            document.getElementById('company-id').value = '';
+            document.getElementById('company-name').value = '';
+            document.getElementById('company-responsible').value = '';
+            document.getElementById('company-rif').value = '';
+            document.getElementById('save-company-btn').textContent = '💾 Guardar Empresa';
+        }
+
+        // *** 11. FUNCIONES DE FILTRADO PARA CERTIFICACIONES FINALES ***
 
         function initializeCertificationFilters() {
             updateCertificationFilterInput();
@@ -4064,7 +4375,7 @@
             });
         }
 
-        // *** 11. FUNCIÓN PARA EXPORTAR CERTIFICACIONES A EXCEL ***
+        // *** 12. FUNCIÓN PARA EXPORTAR CERTIFICACIONES A EXCEL ***
 
         function exportCertificationsToExcel() {
             try {
@@ -4125,6 +4436,9 @@
                 const certificationsSnapshot = await FINAL_CERTIFICATIONS_COLLECTION.get();
                 const certificationsData = certificationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+                const companiesSnapshot = await COMPANIES_COLLECTION.get(); // NUEVO: Exportar empresas
+                const companiesData = companiesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
                 const configDoc = await CONFIG_COLLECTION.doc("systemConfig").get();
                 const configData = configDoc.exists ? configDoc.data() : {};
 
@@ -4134,6 +4448,7 @@
                     orders: ordersData,
                     completedOrders: completedData,
                     finalCertifications: certificationsData,
+                    companies: companiesData, // NUEVO: Incluir empresas
                     config: configData
                 };
 
@@ -4150,7 +4465,11 @@
                 
                 setTimeout(() => URL.revokeObjectURL(url), 100);
                 
-                alert(`✅ Base de datos exportada exitosamente. Se descargaron ${ordersData.length} órdenes en curso, ${completedData.length} órdenes finalizadas y ${certificationsData.length} certificaciones finales.`);
+                alert(`✅ Base de datos exportada exitosamente. Se descargaron:\n` +
+                      `• ${ordersData.length} órdenes en curso\n` +
+                      `• ${completedData.length} órdenes finalizadas\n` +
+                      `• ${certificationsData.length} certificaciones finales\n` +
+                      `• ${companiesData.length} empresas`);
                 
             } catch (error) {
                 console.error('Error al exportar la base de datos:', error);
@@ -4182,7 +4501,14 @@
                     return;
                 }
 
-                if (!confirm(`Se importarán ${importData.orders.length} órdenes en curso, ${importData.completedOrders?.length || 0} órdenes finalizadas, ${importData.finalCertifications?.length || 0} certificaciones finales y la configuración del sistema. ¿Continuar?`)) {
+                const companiesCount = importData.companies?.length || 0;
+                
+                if (!confirm(`Se importarán:\n` +
+                           `• ${importData.orders.length} órdenes en curso\n` +
+                           `• ${importData.completedOrders?.length || 0} órdenes finalizadas\n` +
+                           `• ${importData.finalCertifications?.length || 0} certificaciones finales\n` +
+                           `• ${companiesCount} empresas\n` +
+                           `• La configuración del sistema\n\n¿Continuar?`)) {
                     return;
                 }
 
@@ -4206,6 +4532,16 @@
                 };
 
                 await CONFIG_COLLECTION.doc("systemConfig").set(updatedConfig);
+
+                // NUEVO: Importar empresas primero
+                if (importData.companies && importData.companies.length > 0) {
+                    console.log(`🏢 Importando ${importData.companies.length} empresas...`);
+                    
+                    for (const company of importData.companies) {
+                        const { id, ...companyData } = company;
+                        await COMPANIES_COLLECTION.add(companyData);
+                    }
+                }
 
                 // 🔄 NUEVO: ORDENAR ÓRDENES POR NÚMERO DE FORMA DESCENDENTE (MENOR A MAYOR)
                 console.log('🔄 Ordenando órdenes por número de forma descendente...');
@@ -4281,10 +4617,17 @@
                 await loadInitialData();
                 renderOrdersTable();
                 renderCompletedOrdersTable();
+                renderCompaniesTable();
                 renderFinalCertificationsList();
                 renderWorkOrderForm();
                 
-                alert(`✅ Base de datos importada exitosamente. Se importaron ${importedCount} órdenes en curso, ${importedCompletedCount} órdenes finalizadas y ${importedCertificationCount} certificaciones finales.\n\n📝 Se utilizó la estructura fija del formulario.\n🔢 Las órdenes se ordenaron correctamente por número (menor a mayor).`);
+                alert(`✅ Base de datos importada exitosamente:\n\n` +
+                      `📋 ${importedCount} órdenes en curso\n` +
+                      `✅ ${importedCompletedCount} órdenes finalizadas\n` +
+                      `📜 ${importedCertificationCount} certificaciones finales\n` +
+                      `🏢 ${companiesCount} empresas\n\n` +
+                      `📝 Se utilizó la estructura fija del formulario.\n` +
+                      `🔢 Las órdenes se ordenaron correctamente por número (menor a mayor).`);
 
             } catch (error) {
                 console.error('Error al importar la base de datos:', error);
@@ -4314,6 +4657,11 @@
                 const certificationsSnapshot = await FINAL_CERTIFICATIONS_COLLECTION.get();
                 const certificationsDeletePromises = certificationsSnapshot.docs.map(doc => FINAL_CERTIFICATIONS_COLLECTION.doc(doc.id).delete());
                 await Promise.all(certificationsDeletePromises);
+
+                // NUEVO: Limpiar empresas
+                const companiesSnapshot = await COMPANIES_COLLECTION.get();
+                const companiesDeletePromises = companiesSnapshot.docs.map(doc => COMPANIES_COLLECTION.doc(doc.id).delete());
+                await Promise.all(companiesDeletePromises);
 
                 await CONFIG_COLLECTION.doc("systemConfig").delete();
 
