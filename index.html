@@ -1576,6 +1576,39 @@
     </div>
 
     <script>
+        // *** FUNCIÓN login DEFINIDA PRIMERO PARA EVITAR EL ERROR ***
+        async function login() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            const errorElement = document.getElementById('login-error');
+            errorElement.textContent = '';
+            
+            try {
+                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
+                const user = userCredential.user;
+                
+                let role = getRoleFromEmail(user.email); 
+                
+                currentRole = role;
+                
+                document.getElementById('login-view').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                initializeApp(role);
+                
+            } catch (error) {
+                console.error("Error de autenticación:", error.code, error.message);
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    errorElement.textContent = 'Credenciales incorrectas o usuario no encontrado.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorElement.textContent = 'El formato del correo es inválido.';
+                } else if (error.code === 'auth/api-key-not-valid') {
+                    errorElement.textContent = 'ERROR DE CONFIGURACIÓN: La Clave API de Firebase no es válida. Por favor, verifique la configuración de Firebase en el código.';
+                } else {
+                    errorElement.textContent = 'Error de conexión. Intente de nuevo.';
+                }
+            }
+        }
+        
         // *** 1. CONFIGURACIÓN FIREBASE Y VARIABLES GLOBALES ***
         
         // ** CONFIGURACIÓN DE FIREBASE ACTUALIZADA **
@@ -1895,38 +1928,6 @@
             }
         }
 
-        async function login() {
-            const email = document.getElementById('email').value;
-            const pass = document.getElementById('password').value;
-            const errorElement = document.getElementById('login-error');
-            errorElement.textContent = '';
-            
-            try {
-                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
-                const user = userCredential.user;
-                
-                let role = getRoleFromEmail(user.email); 
-                
-                currentRole = role;
-                
-                document.getElementById('login-view').style.display = 'none';
-                document.getElementById('main-app').style.display = 'block';
-                initializeApp(role);
-                
-            } catch (error) {
-                console.error("Error de autenticación:", error.code, error.message);
-                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                    errorElement.textContent = 'Credenciales incorrectas o usuario no encontrado.';
-                } else if (error.code === 'auth/invalid-email') {
-                    errorElement.textContent = 'El formato del correo es inválido.';
-                } else if (error.code === 'auth/api-key-not-valid') {
-                    errorElement.textContent = 'ERROR DE CONFIGURACIÓN: La Clave API de Firebase no es válida. Por favor, verifique la configuración de Firebase en el código.';
-                } else {
-                    errorElement.textContent = 'Error de conexión. Intente de nuevo.';
-                }
-            }
-        }
-
         function logout() {
             firebase.auth().signOut().then(() => {
                 document.getElementById('email').value = '';
@@ -2136,7 +2137,7 @@
                 const total1 = precioUnitario1 * puntos1;
                 
                 const totalDisplay1 = document.getElementById(`${prefix}_total_display1`);
-                const totalHidden1 = document.getElementById(`${prefix}_total_hidden1`);
+                const totalHidden1 = document.getElementById(`${prefix}_total_hidden1}`);
                 
                 if (totalDisplay1) totalDisplay1.textContent = total1.toFixed(2);
                 if (totalHidden1) totalHidden1.value = total1.toFixed(2);
