@@ -1694,34 +1694,6 @@
             }
         ];
 
-        // *** FUNCIONES DE NORMALIZACIÓN DE CAMPOS (CORRECCIÓN DEL ERROR) ***
-        
-        function normalizeFieldName(fieldName) {
-            if (!fieldName || typeof fieldName !== 'string') return fieldName;
-            
-            // Reemplazar caracteres especiales que Firebase no acepta en rutas de campo
-            return fieldName
-                .replace(/\//g, '|')      // Reemplazar / por |
-                .replace(/~/g, '_TILDE_') // Reemplazar ~ por _TILDE_
-                .replace(/\*/g, '_ASTERISK_') // Reemplazar * por _ASTERISK_
-                .replace(/\[/g, '_OPENBRACKET_') // Reemplazar [ por _OPENBRACKET_
-                .replace(/\]/g, '_CLOSEBRACKET_') // Reemplazar ] por _CLOSEBRACKET_
-                .trim();
-        }
-        
-        function denormalizeFieldName(normalizedName) {
-            if (!normalizedName || typeof normalizedName !== 'string') return normalizedName;
-            
-            // Revertir los reemplazos para mostrar en la interfaz
-            return normalizedName
-                .replace(/\|/g, '/')      // Reemplazar | por /
-                .replace(/_TILDE_/g, '~') // Reemplazar _TILDE_ por ~
-                .replace(/_ASTERISK_/g, '*') // Reemplazar _ASTERISK_ por *
-                .replace(/_OPENBRACKET_/g, '[') // Reemplazar _OPENBRACKET_ por [
-                .replace(/_CLOSEBRACKET_/g, ']') // Reemplazar _CLOSEBRACKET_ por ]
-                .trim();
-        }
-        
         // *** FUNCIÓN AUXILIAR MEJORADA PARA EXTRAER AÑO DE FECHA ***
         function extractYearFromDate(dateString) {
             if (!dateString) return getCurrentCaracasYear();
@@ -2467,12 +2439,10 @@
                     }
                     
                     if (field.type === 'date-input' && value && value.trim() !== '') {
-                        // CORRECCIÓN: Normalizar nombres de campo para Firebase
-                        orderData[normalizeFieldName(field.label)] = formatDateToDDMMYYYY(value);
+                        orderData[field.label] = formatDateToDDMMYYYY(value);
                     } else {
                         const sanitizedValue = sanitizeInput(value);
-                        // CORRECCIÓN: Normalizar nombres de campo para Firebase
-                        orderData[normalizeFieldName(field.label)] = (sanitizedValue && sanitizedValue.trim() !== '') ? sanitizedValue : 'N/A';
+                        orderData[field.label] = (sanitizedValue && sanitizedValue.trim() !== '') ? sanitizedValue : 'N/A';
                     }
                 });
             });
@@ -2485,20 +2455,20 @@
                 
                 calculateNewTotal(prefix); 
 
-                orderData[normalizeFieldName(`${prefix} | Costo Proyectado de la Obra`)] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value) || 'N/A';
-                orderData[normalizeFieldName(`${prefix} | Pago realizado por`)] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value) || 'N/A';
+                orderData[`${prefix} | Costo Proyectado de la Obra`] = sanitizeInput(document.getElementById(`${prefix}_costo_proyectado`).value) || 'N/A';
+                orderData[`${prefix} | Pago realizado por`] = sanitizeInput(document.getElementById(`${prefix}_pago_por_realizado`).value) || 'N/A';
                 
-                orderData[normalizeFieldName(`${prefix} | Pago x VGT CANTV a cargo de Inter`)] = formData.get(`${prefix}_total_hidden`) || '0.00';
-                orderData[normalizeFieldName(`${prefix} | Pago x VGT EDC a cargo de Inter`)] = formData.get(`${prefix}_total_hidden1`) || '0.00';
+                orderData[`${prefix} | Pago x VGT CANTV a cargo de Inter`] = formData.get(`${prefix}_total_hidden`) || '0.00';
+                orderData[`${prefix} | Pago x VGT EDC a cargo de Inter`] = formData.get(`${prefix}_total_hidden1`) || '0.00';
 
-                orderData[normalizeFieldName(`${prefix} | Precio Unitario CANTV`)] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2) || '0.00';
-                orderData[normalizeFieldName(`${prefix} | Puntos CANTV`)] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0) || '0'; 
+                orderData[`${prefix} | Precio Unitario CANTV`] = parseFloat(document.getElementById(`${prefix}_precio_unitario`).value.replace(',', '.')).toFixed(2) || '0.00';
+                orderData[`${prefix} | Puntos CANTV`] = parseFloat(document.getElementById(`${prefix}_puntos`).value.replace(',', '.')).toFixed(0) || '0'; 
                 
-                orderData[normalizeFieldName(`${prefix} | Precio Unitario EDC`)] = parseFloat(document.getElementById(`${prefix}_precio_unitario1`).value.replace(',', '.')).toFixed(2) || '0.00';
-                orderData[normalizeFieldName(`${prefix} | Puntos EDC`)] = parseFloat(document.getElementById(`${prefix}_puntos1`).value.replace(',', '.')).toFixed(0) || '0'; 
+                orderData[`${prefix} | Precio Unitario EDC`] = parseFloat(document.getElementById(`${prefix}_precio_unitario1`).value.replace(',', '.')).toFixed(2) || '0.00';
+                orderData[`${prefix} | Puntos EDC`] = parseFloat(document.getElementById(`${prefix}_puntos1`).value.replace(',', '.')).toFixed(0) || '0'; 
 
-                orderData[normalizeFieldName(`${prefix} | Descripción`)] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value) || 'N/A';
-                orderData[normalizeFieldName(`${prefix} | Abono Mensual a Recibir por el cliente`)] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value) || 'N/A';
+                orderData[`${prefix} | Descripción`] = sanitizeInput(document.getElementById(`${prefix}_descripcion`).value) || 'N/A';
+                orderData[`${prefix} | Abono Mensual a Recibir por el cliente`] = sanitizeInput(document.getElementById(`${prefix}_abono_mensual`).value) || 'N/A';
             }
 
             orderData['Estado'] = 'En curso';
@@ -2633,9 +2603,7 @@
                         
                         section.fields.forEach(field => {
                             const label = field.label;
-                            // CORRECCIÓN: Buscar datos usando nombres normalizados
-                            const normalizedLabel = normalizeFieldName(label);
-                            let value = data[normalizedLabel] || 'N/A';
+                            let value = data[label] || 'N/A';
                             
                             if (label === 'Título del Formulario' || label === 'Orden de Trabajo' || label === 'Fecha Actual') return;
                             
@@ -2672,10 +2640,10 @@
                     if (type && type !== 'No aplica') {
                         const prefix = type.includes('Nodo') ? 'node_acceso' : 'isp';
                         
-                        const pagoVgtCANTV = data[normalizeFieldName(`${prefix} | Pago x VGT CANTV a cargo de Inter`)] || '0.00';
-                        const pagoVgtEDC = data[normalizeFieldName(`${prefix} | Pago x VGT EDC a cargo de Inter`)] || '0.00'; 
+                        const pagoVgtCANTV = data[`${prefix} | Pago x VGT CANTV a cargo de Inter`] || '0.00';
+                        const pagoVgtEDC = data[`${prefix} | Pago x VGT EDC a cargo de Inter`] || '0.00'; 
                         
-                        const descripcionFormateada = formatLongTextForPDF(data[normalizeFieldName(`${prefix} | Descripción`)], 70);
+                        const descripcionFormateada = formatLongTextForPDF(data[`${prefix} | Descripción`], 70);
 
                         formContentHTML += `<div class="pdf-section" style="margin-bottom: 20px; width: 100%; page-break-inside: avoid;">`;
                         formContentHTML += `<h3 style="color: #4682B4; margin-top: 0; margin-bottom: 12px; border-left: 4px solid #4682B4; padding-left: 8px; font-size: 14px; page-break-after: avoid;">${type}</h3>`;
@@ -2684,11 +2652,11 @@
                         formContentHTML += `
                             <tr style="page-break-inside: avoid;">
                                 <td style="padding: 8px 6px; font-weight: bold; background-color: #F0F8FF; vertical-align: top; width: 35%; border: 1px solid #B0C4DE;">Costo Proyectado de la Obra:</td>
-                                <td style="padding: 8px 6px; width: 65%; border: 1px solid #B0C4DE;">${data[normalizeFieldName(`${prefix} | Costo Proyectado de la Obra`)]}</td>
+                                <td style="padding: 8px 6px; width: 65%; border: 1px solid #B0C4DE;">${data[`${prefix} | Costo Proyectado de la Obra`]}</td>
                             </tr>
                             <tr style="page-break-inside: avoid;">
                                 <td style="padding: 8px 6px; font-weight: bold; background-color: #F0F8FF; vertical-align: top; border: 1px solid #B0C4DE;">Pago realizado por:</td>
-                                <td style="padding: 8px 6px; border: 1px solid #B0C4DE;">${data[normalizeFieldName(`${prefix} | Pago realizado por`)]}</td>
+                                <td style="padding: 8px 6px; border: 1px solid #B0C4DE;">${data[`${prefix} | Pago realizado por`]}</td>
                             </tr>
                             
                             <tr style="background-color: #e0f7fa; page-break-inside: avoid;">
@@ -2708,7 +2676,7 @@
                             
                             <tr style="page-break-inside: avoid;">
                                 <td style="padding: 8px 6px; font-weight: bold; background-color: #F0F8FF; vertical-align: top; border: 1px solid #B0C4DE;">Abono Mensual a Recibir por el cliente:</td>
-                                <td style="padding: 8px 6px; border: 1px solid #B0C4DE;">${data[normalizeFieldName(`${prefix} | Abono Mensual a Recibir por el cliente`)]}</td>
+                                <td style="padding: 8px 6px; border: 1px solid #B0C4DE;">${data[`${prefix} | Abono Mensual a Recibir por el cliente`]}</td>
                             </tr>
                         `;
 
@@ -3171,7 +3139,6 @@
             let companyName = '';
             let companyRif = '';
             
-            // CORRECCIÓN: Buscar empresa usando nombres normalizados
             for (const key in order) {
                 if (key.includes('Empresa') && order[key] && order[key] !== 'N/A' && order[key] !== 'Seleccione una Empresa') {
                     companyName = order[key];
@@ -3179,7 +3146,6 @@
                 }
             }
             
-            // CORRECCIÓN: Buscar RIF usando nombres normalizados
             for (const key in order) {
                 if (key.includes('Rif') && order[key] && order[key] !== 'N/A') {
                     companyRif = order[key];
@@ -4551,7 +4517,6 @@
         }
 
         // *** 10.3. Funciones para abrir modales de edición ***
-
         function openEditOrderModal(order) {
             if (currentRole !== 'admin') {
                 alert('🚫 Permiso denegado. Solo un administrador puede editar órdenes.');
@@ -4581,9 +4546,7 @@
                     label.htmlFor = `edit_${field.id}`;
                     
                     let inputHTML = '';
-                    // CORRECCIÓN: Buscar datos usando nombres normalizados
-                    const normalizedFieldName = normalizeFieldName(field.label);
-                    const currentValue = order[normalizedFieldName] || '';
+                    const currentValue = order[field.label] || '';
                     
                     if (field.type === 'static' || field.type === 'ot_counter' || field.type === 'date-auto' || 
                         field.type === 'user-auto-fill' || field.type === 'year-auto') {
@@ -4652,9 +4615,7 @@
                                 value = formatDateToDDMMYYYY(value);
                             }
                             
-                            // CORRECCIÓN: Usar nombres de campo normalizados para Firebase
-                            const normalizedFieldName = normalizeFieldName(field.label);
-                            updatedData[normalizedFieldName] = value;
+                            updatedData[field.label] = value;
                         }
                     });
                 });
@@ -4663,15 +4624,7 @@
                 
                 const index = workOrders.findIndex(o => o.id === editingOrderId);
                 if (index !== -1) {
-                    // Actualizar cada campo en el array local
-                    Object.keys(updatedData).forEach(normalizedFieldName => {
-                        const originalField = formStructure.flatMap(s => s.fields)
-                            .find(f => normalizeFieldName(f.label) === normalizedFieldName);
-                        
-                        if (originalField) {
-                            workOrders[index][originalField.label] = updatedData[normalizedFieldName];
-                        }
-                    });
+                    workOrders[index] = { ...workOrders[index], ...updatedData };
                 }
                 
                 closeEditOrderModal();
@@ -4741,23 +4694,10 @@
             certSection.innerHTML = `<h4>Datos de Certificación</h4>`;
             
             const certification = order['Certificación'] || {};
-            // CORRECCIÓN: Usar nombres normalizados para buscar en los datos
             const certFields = [
-                { 
-                    label: 'Fecha de Inicio', 
-                    value: certification[normalizeFieldName('Fecha de Inicio')] || '', 
-                    type: 'date' 
-                },
-                { 
-                    label: 'Fecha de Fin', 
-                    value: certification[normalizeFieldName('Fecha de Fin')] || '', 
-                    type: 'date' 
-                },
-                { 
-                    label: 'Importe Total de la Obra', 
-                    value: certification[normalizeFieldName('Importe Total de la Obra')] || '0.00', 
-                    type: 'number' 
-                }
+                { label: 'Fecha de Inicio', value: certification['Fecha de Inicio'] || '', type: 'date' },
+                { label: 'Fecha de Fin', value: certification['Fecha de Fin'] || '', type: 'date' },
+                { label: 'Importe Total de la Obra', value: certification['Importe Total de la Obra'] || '0.00', type: 'number' }
             ];
             
             const certRow = document.createElement('div');
@@ -4809,8 +4749,7 @@
             const descTextarea = document.createElement('textarea');
             descTextarea.id = 'edit_cert_Detalle';
             descTextarea.style.minHeight = '120px';
-            // CORRECCIÓN: Buscar usando nombre normalizado
-            descTextarea.value = certification[normalizeFieldName('Detalle de Trabajos Realizados')] || '';
+            descTextarea.value = certification['Detalle de Trabajos Realizados'] || '';
             
             descField.appendChild(descLabel);
             descField.appendChild(descTextarea);
@@ -4835,11 +4774,10 @@
             
             try {
                 const updatedCertification = {
-                    // CORRECCIÓN: Usar nombres de campo normalizados
-                    [normalizeFieldName('Fecha de Inicio')]: formatDateToDDMMYYYY(document.getElementById('edit_cert_Fecha_de_Inicio').value),
-                    [normalizeFieldName('Fecha de Fin')]: formatDateToDDMMYYYY(document.getElementById('edit_cert_Fecha_de_Fin').value),
-                    [normalizeFieldName('Importe Total de la Obra')]: document.getElementById('edit_cert_Importe_Total_de_la_Obra').value,
-                    [normalizeFieldName('Detalle de Trabajos Realizados')]: document.getElementById('edit_cert_Detalle').value
+                    'Fecha de Inicio': formatDateToDDMMYYYY(document.getElementById('edit_cert_Fecha_de_Inicio').value),
+                    'Fecha de Fin': formatDateToDDMMYYYY(document.getElementById('edit_cert_Fecha_de_Fin').value),
+                    'Importe Total de la Obra': document.getElementById('edit_cert_Importe_Total_de_la_Obra').value,
+                    'Detalle de Trabajos Realizados': document.getElementById('edit_cert_Detalle').value
                 };
                 
                 const fechaFinalizacion = document.getElementById('edit_completed_Fecha_de_Finalización').value || getCurrentCaracasDate();
@@ -6214,7 +6152,7 @@
                 const fileName = type === 'current' ? 'Ordenes_En_Curso' : 'Ordenes_Finalizadas';
                 
                 if (orders.length === 0) {
-                    alert(`No hay órdenes ${type === 'current' ? 'en curso' : 'finalizadas'} para exportar.');
+                    alert(`No hay órdenes ${type === 'current' ? 'en curso' : 'finalizadas'} para exportar.`);
                     return;
                 }
 
